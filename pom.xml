@@ -37,6 +37,7 @@
         <module>frame-me-base</module>
         <module>frame-me-auth</module>
         <module>frame-me-cloud</module>
+        <module>frame-me</module>
         <module>frame-me-tester</module>
     </modules>
 
@@ -79,6 +80,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-cloud</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

@@ -10,33 +10,22 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-tester</artifactId>
-    <name>frame-me-tester</name>
-    <description>测试启动入口模块</description>
+    <artifactId>frame-me</artifactId>
+    <name>frame-me</name>
+    <description>聚合模块，集成所有子模块能力供外部统一引用</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me</artifactId>
+            <artifactId>frame-me-adapter</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-auth</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-cloud</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>
