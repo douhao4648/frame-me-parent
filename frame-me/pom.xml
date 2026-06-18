@@ -17,10 +17,6 @@
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-adapter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
             <artifactId>frame-me-auth</artifactId>
         </dependency>
         <dependency>
