@@ -32,12 +32,12 @@
     </properties>
 
     <modules>
-        <module>frame-me-adapter</module>
+        <module>frame-me-starter-adapter</module>
         <module>frame-me-common</module>
-        <module>frame-me-base</module>
-        <module>frame-me-auth</module>
-        <module>frame-me-cloud</module>
-        <module>frame-me</module>
+        <module>frame-me-starter-base</module>
+        <module>frame-me-starter-auth</module>
+        <module>frame-me-starter-cloud</module>
+        <module>frame-me-boot</module>
         <module>frame-me-tester</module>
     </modules>
 
@@ -64,27 +64,27 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-base</artifactId>
+                <artifactId>frame-me-starter-base</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-adapter</artifactId>
+                <artifactId>frame-me-starter-adapter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-auth</artifactId>
+                <artifactId>frame-me-starter-auth</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-cloud</artifactId>
+                <artifactId>frame-me-starter-cloud</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me</artifactId>
+                <artifactId>frame-me-boot</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

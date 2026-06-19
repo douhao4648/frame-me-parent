@@ -10,18 +10,22 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-cloud</artifactId>
-    <name>frame-me-cloud</name>
-    <description>微服务云组件模块</description>
+    <artifactId>frame-me-starter-base</artifactId>
+    <name>frame-me-starter-base</name>
+    <description>基础 Starter 模块</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-base</artifactId>
+            <artifactId>frame-me-common</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
     </dependencies>
 </project>

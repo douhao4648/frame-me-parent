@@ -17,11 +17,11 @@
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me</artifactId>
+            <artifactId>frame-me-boot</artifactId>
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-adapter</artifactId>
+            <artifactId>frame-me-starter-adapter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

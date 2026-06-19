@@ -10,18 +10,18 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me</artifactId>
-    <name>frame-me</name>
-    <description>聚合模块，集成所有子模块能力供外部统一引用</description>
+    <artifactId>frame-me-starter-auth</artifactId>
+    <name>frame-me-starter-auth</name>
+    <description>认证授权 Starter 模块</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-auth</artifactId>
+            <artifactId>frame-me-starter-base</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-cloud</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
     </dependencies>
 </project>

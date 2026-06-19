@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * frame-me-base 自动配置.
+ * frame-me-starter-base 自动配置.
  */
 @Configuration(proxyBeanMethods = false)
 public class BaseAutoConfiguration {

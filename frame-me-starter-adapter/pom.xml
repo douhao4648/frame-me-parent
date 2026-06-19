@@ -10,14 +10,14 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-auth</artifactId>
-    <name>frame-me-auth</name>
-    <description>认证授权模块</description>
+    <artifactId>frame-me-starter-adapter</artifactId>
+    <name>frame-me-starter-adapter</name>
+    <description>适配器 Starter 模块</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-base</artifactId>
+            <artifactId>frame-me-starter-base</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

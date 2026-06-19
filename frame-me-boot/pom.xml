@@ -10,18 +10,18 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-adapter</artifactId>
-    <name>frame-me-adapter</name>
-    <description>适配器模块</description>
+    <artifactId>frame-me-boot</artifactId>
+    <name>frame-me-boot</name>
+    <description>聚合启动模块，集成所有子模块能力供外部统一引用</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-base</artifactId>
+            <artifactId>frame-me-starter-auth</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-cloud</artifactId>
         </dependency>
     </dependencies>
 </project>
