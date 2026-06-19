@@ -1,4 +1,4 @@
-package com.frame.me.common.result;
+package com.frame.me.base.result;
 
 import lombok.Getter;
 

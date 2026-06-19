@@ -17,7 +17,7 @@
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-boot</artifactId>
+            <artifactId>frame-me-booter</artifactId>
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>

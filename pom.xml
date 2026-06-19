@@ -33,11 +33,11 @@
 
     <modules>
         <module>frame-me-starter-adapter</module>
-        <module>frame-me-common</module>
+        <module>frame-me-api</module>
         <module>frame-me-starter-base</module>
         <module>frame-me-starter-auth</module>
         <module>frame-me-starter-cloud</module>
-        <module>frame-me-boot</module>
+        <module>frame-me-booter</module>
         <module>frame-me-tester</module>
     </modules>
 
@@ -59,7 +59,7 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-common</artifactId>
+                <artifactId>frame-me-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -84,7 +84,7 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-boot</artifactId>
+                <artifactId>frame-me-booter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

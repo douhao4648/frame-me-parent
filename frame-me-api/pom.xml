@@ -10,18 +10,10 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-boot</artifactId>
-    <name>frame-me-boot</name>
-    <description>聚合启动模块，集成所有子模块能力供外部统一引用</description>
+    <artifactId>frame-me-api</artifactId>
+    <name>frame-me-api</name>
+    <description>Booter API 公共模块</description>
 
     <dependencies>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-auth</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-cloud</artifactId>
-        </dependency>
     </dependencies>
 </project>

@@ -1,7 +1,7 @@
-package com.frame.me.common.exception;
+package com.frame.me.base.exception;
 
 import cn.hutool.core.util.StrUtil;
-import com.frame.me.common.result.ResultCode;
+import com.frame.me.base.result.ResultCode;
 import lombok.Getter;
 
 /**

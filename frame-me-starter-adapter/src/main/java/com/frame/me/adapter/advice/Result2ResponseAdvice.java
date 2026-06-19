@@ -1,7 +1,7 @@
 package com.frame.me.adapter.advice;
 
 import com.frame.me.adapter.result.Response;
-import com.frame.me.common.result.Result;
+import com.frame.me.api.result.IResult;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 /**
- * 将 {@link Result} 统一转换为 {@link Response} 后返回给前端.
+ * 将 {@link IResult} 统一转换为 {@link Response} 后返回给前端.
  */
 @ControllerAdvice
 public class Result2ResponseAdvice implements ResponseBodyAdvice<Object> {
@@ -19,7 +19,7 @@ public class Result2ResponseAdvice implements ResponseBodyAdvice<Object> {
     @Override
     public boolean supports(MethodParameter returnType,
                             Class<? extends HttpMessageConverter<?>> converterType) {
-        return Result.class.isAssignableFrom(returnType.getParameterType());
+        return IResult.class.isAssignableFrom(returnType.getParameterType());
     }
 
     @Override
@@ -29,7 +29,7 @@ public class Result2ResponseAdvice implements ResponseBodyAdvice<Object> {
                                   Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                   ServerHttpRequest request,
                                   ServerHttpResponse response) {
-        if (!(body instanceof Result<?> result)) {
+        if (!(body instanceof IResult<?> result)) {
             return body;
         }
         Response<Object> resp = new Response<>();
