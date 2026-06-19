@@ -12,8 +12,12 @@
 
     <artifactId>frame-me-api</artifactId>
     <name>frame-me-api</name>
-    <description>Booter API 公共模块</description>
+    <description>API 接口契约模块</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
     </dependencies>
 </project>
