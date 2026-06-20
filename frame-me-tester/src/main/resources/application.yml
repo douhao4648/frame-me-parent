@@ -4,3 +4,38 @@ server:
 spring:
   application:
     name: frame-me-tester
+  datasource:
+    url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: assign_id
+
+# frame-me MyBatis-Plus 扩展配置
+# frame:
+#   me:
+#     mybatis:
+#       # 公共字段自动填充处理器开关，默认关闭
+#       meta-object-handler:
+#         enabled: true
+#       # 雪花算法 ID 生成器显式配置，生产环境建议为每个实例分配唯一 workerId
+#       snowflake:
+#         worker-id: 1
+#         datacenter-id: 0

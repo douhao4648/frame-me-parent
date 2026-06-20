@@ -23,7 +23,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BusinessException.class)
     public IResult<Void> handleBusinessException(BusinessException e) {
-        log.warn("业务异常: {}", e.getMessage(), e);
+        log.error("业务异常: {}", e.getMessage(), e);
         return Result.error(e.getCode(), e.getMessage(), e);
     }
 

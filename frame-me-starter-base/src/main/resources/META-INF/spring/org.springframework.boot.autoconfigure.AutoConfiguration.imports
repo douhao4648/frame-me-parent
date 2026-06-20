@@ -1,1 +1,2 @@
 com.frame.me.base.config.BaseAutoConfiguration
+com.frame.me.base.mybatis.config.MybatisPlusConfiguration
