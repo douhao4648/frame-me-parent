@@ -46,21 +46,3 @@ logging:
 #         worker-id: 1
 #         datacenter-id: 0
 
-# p6spy SQL 日志开关：默认关闭
-decorator:
-  datasource:
-    p6spy:
-      enable-logging: false
-
----
-spring:
-  config:
-    activate:
-      on-profile: local,dev,default,test,daily,pre
-
-# p6spy SQL 日志开关：配置开启，且需要用 mvn clean package -Pp6spy 集成 jar 后开启
-decorator:
-  datasource:
-    p6spy:
-      enable-logging: true
-
