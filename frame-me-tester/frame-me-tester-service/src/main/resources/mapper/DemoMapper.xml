@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.frame.me.tester.mapper.DemoMapper">
+
+    <!--
+        复杂查询示例：
+        1. 使用动态 <where> / <if> 拼接条件
+        2. 使用 CASE WHEN 对年龄进行分组
+        3. 时间范围过滤 + 排序
+    -->
+    <select id="selectComplexList" resultType="com.frame.me.tester.api.vo.DemoComplexVO">
+        SELECT
+        id,
+        name,
+        age,
+        CASE
+        WHEN age &lt; 18 THEN 'minor'
+        WHEN age &lt; 60 THEN 'adult'
+        ELSE 'senior'
+        END AS age_group,
+        create_time
+        FROM demo_user
+        <where>
+            deleted = 0
+            <if test="minAge != null">
+                AND age &gt;= #{minAge}
+            </if>
+            <if test="maxAge != null">
+                AND age &lt;= #{maxAge}
+            </if>
+            <if test="startTime != null">
+                AND create_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,37 @@
+package com.frame.me.tester.api.query;
+
+import com.frame.me.api.query.PageQuery;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+import java.time.LocalDateTime;
+
+/**
+ * 演示数据复杂查询参数.
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+public class DemoComplexQuery extends PageQuery {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * 最小年龄.
+     */
+    private Integer minAge;
+
+    /**
+     * 最大年龄.
+     */
+    private Integer maxAge;
+
+    /**
+     * 创建时间起始.
+     */
+    private LocalDateTime startTime;
+
+    /**
+     * 创建时间截止.
+     */
+    private LocalDateTime endTime;
+}

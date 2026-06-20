@@ -3,7 +3,9 @@ package com.frame.me.tester.api;
 import com.frame.me.api.result.IResult;
 import com.frame.me.api.result.PageResult;
 import com.frame.me.tester.api.dto.DemoDTO;
+import com.frame.me.tester.api.query.DemoComplexQuery;
 import com.frame.me.tester.api.query.DemoQuery;
+import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,6 +39,15 @@ public interface IDemoApi {
      */
     @GetExchange("/page")
     IResult<PageResult<DemoVO>> page(DemoQuery query);
+
+    /**
+     * 复杂查询演示数据（手写 SQL）.
+     *
+     * @param query 复杂查询参数
+     * @return 复杂查询结果列表
+     */
+    @GetExchange("/complex-list")
+    IResult<List<DemoComplexVO>> complexList(DemoComplexQuery query);
 
     /**
      * 根据 ID 查询演示数据.
