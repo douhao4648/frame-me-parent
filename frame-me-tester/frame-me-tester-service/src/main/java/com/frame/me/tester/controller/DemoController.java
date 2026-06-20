@@ -2,6 +2,7 @@ package com.frame.me.tester.controller;
 
 import com.frame.me.api.result.IResult;
 import com.frame.me.api.result.PageResult;
+import com.frame.me.base.mybatis.util.SnowflakeUtils;
 import com.frame.me.base.result.Result;
 import com.frame.me.tester.api.IDemoApi;
 import com.frame.me.tester.api.dto.DemoDTO;
@@ -26,6 +27,8 @@ import java.util.List;
 public class DemoController implements IDemoApi {
 
     private final IDemoService demoService;
+
+    private final SnowflakeUtils snowflakeUtils;
 
     @Override
     public IResult<List<DemoVO>> list() {
