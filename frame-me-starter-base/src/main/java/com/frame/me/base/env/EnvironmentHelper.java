@@ -59,6 +59,15 @@ public class EnvironmentHelper {
     }
 
     /**
+     * 获取应用名称.
+     *
+     * @return spring.application.name 的值；未配置时返回空字符串
+     */
+    public String getApplicationName() {
+        return environment.getProperty("spring.application.name", "");
+    }
+
+    /**
      * 获取所有 active profile.
      *
      * @return active profile 数组；若未配置则返回空数组

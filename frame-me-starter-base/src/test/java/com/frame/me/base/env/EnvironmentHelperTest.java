@@ -28,6 +28,23 @@ class EnvironmentHelperTest {
     }
 
     @Test
+    void shouldReturnEmptyApplicationNameWhenNotConfigured() {
+        MockEnvironment environment = new MockEnvironment();
+        EnvironmentHelper helper = new EnvironmentHelper(environment);
+
+        assertEquals("", helper.getApplicationName());
+    }
+
+    @Test
+    void shouldReturnApplicationName() {
+        MockEnvironment environment = new MockEnvironment();
+        environment.setProperty("spring.application.name", "frame-me-tester");
+        EnvironmentHelper helper = new EnvironmentHelper(environment);
+
+        assertEquals("frame-me-tester", helper.getApplicationName());
+    }
+
+    @Test
     void shouldDetectDevProfile() {
         MockEnvironment environment = new MockEnvironment();
         environment.setActiveProfiles("dev");
