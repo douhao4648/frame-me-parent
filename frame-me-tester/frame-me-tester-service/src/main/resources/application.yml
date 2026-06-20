@@ -20,7 +20,7 @@ spring:
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     map-underscore-to-camel-case: true
   global-config:
     db-config:
@@ -28,6 +28,11 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
       id-type: assign_id
+
+logging:
+  file:
+    path: ./logs
+    name: ${spring.application.name}
 
 # frame-me MyBatis-Plus 扩展配置
 # frame:
@@ -40,3 +45,22 @@ mybatis-plus:
 #       snowflake:
 #         worker-id: 1
 #         datacenter-id: 0
+
+# p6spy SQL 日志开关：默认关闭
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local,dev,default,test,daily,pre
+
+# p6spy SQL 日志开关：配置开启，且需要用 mvn clean package -Pp6spy 集成 jar 后开启
+decorator:
+  datasource:
+    p6spy:
+      enable-logging: true
+

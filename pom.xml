@@ -33,6 +33,7 @@
         <mysql-connector.version>9.7.0</mysql-connector.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <mapstruct.version>1.6.3</mapstruct.version>
+        <p6spy-spring-boot-starter.version>2.0.1</p6spy-spring-boot-starter.version>
     </properties>
 
     <modules>
@@ -144,6 +145,11 @@
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
                 <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.gavlyukovskiy</groupId>
+                <artifactId>p6spy-spring-boot-starter</artifactId>
+                <version>${p6spy-spring-boot-starter.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
