@@ -11,60 +11,12 @@
     </parent>
 
     <artifactId>frame-me-tester</artifactId>
+    <packaging>pom</packaging>
     <name>frame-me-tester</name>
-    <description>测试启动入口模块</description>
+    <description>测试启动入口模块（聚合器）</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-booter</artifactId>
-        </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.frame.me</groupId>-->
-<!--            <artifactId>frame-me-starter-adapter</artifactId>-->
-<!--        </dependency>-->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers-mysql</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers-junit-jupiter</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <argLine>
-                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
-                    </argLine>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+    <modules>
+        <module>frame-me-tester-api</module>
+        <module>frame-me-tester-service</module>
+    </modules>
 </project>

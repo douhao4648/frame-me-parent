@@ -35,10 +35,10 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn test
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester spring-boot:run
+  mvn -pl frame-me-tester-service spring-boot:run
 ```
 
-应用默认运行在 `8080` 端口，名称为 `frame-me-tester`。
+应用默认运行在 `8080` 端口，名称为 `frame-me-tester`。]
 
 ## 模块概览
 
@@ -50,7 +50,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-auth` | 认证授权占位模块。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
 | `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力。 |
-| `frame-me-tester` | Spring Boot 启动入口与验证模块。 |
+| `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定
 
