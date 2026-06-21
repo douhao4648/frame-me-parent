@@ -9,16 +9,10 @@ spring:
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
-    druid:
-      register-mbeans: false
-      validation-query: SELECT 1
-      test-while-idle: true
     hikari:
       maximum-pool-size: 10
       minimum-idle: 10
     dynamic:
-      druid:
-        register-mbeans: false
       hikari:
         maximum-pool-size: 10
         minimum-idle: 10
@@ -28,8 +22,6 @@ spring:
           username: root
           password: root
           driver-class-name: com.mysql.cj.jdbc.Driver
-          druid:
-            register-mbeans: false
 
   sql:
     init:
