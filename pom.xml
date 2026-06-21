@@ -34,6 +34,7 @@
         <testcontainers.version>2.0.5</testcontainers.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <p6spy-spring-boot-starter.version>2.0.1</p6spy-spring-boot-starter.version>
+        <dynamic-datasource.version>4.5.0</dynamic-datasource.version>
         <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
         <swagger-annotations-jakarta.version>2.2.47</swagger-annotations-jakarta.version>
     </properties>
@@ -45,6 +46,7 @@
         <module>frame-me-starter-auth</module>
         <module>frame-me-starter-cloud</module>
         <module>frame-me-starter-doc-openapi</module>
+        <module>frame-me-starter-dynamic-ds</module>
         <module>frame-me-booter</module>
         <module>frame-me-tester</module>
     </modules>
@@ -102,6 +104,11 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-dynamic-ds</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-tester-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -130,6 +137,25 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-jsqlparser</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>dynamic-datasource-spring-boot4-starter</artifactId>
+                <version>${dynamic-datasource.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.oracle.database.spring</groupId>
+                        <artifactId>oracle-spring-boot-starter-ucp</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.oracle.database.jdbc</groupId>
+                        <artifactId>ucp</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>org.mybatis</groupId>
+                        <artifactId>mybatis-spring</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
             <dependency>
                 <groupId>com.mysql</groupId>

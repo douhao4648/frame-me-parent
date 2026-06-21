@@ -12,6 +12,17 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
+    dynamic:
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 5
+      datasource:
+        second:
+          url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+          username: root
+          password: root
+          driver-class-name: com.mysql.cj.jdbc.Driver
+
   sql:
     init:
       mode: always
@@ -42,37 +53,31 @@ springdoc:
   swagger-ui:
     enabled: true
 
-# p6spy SQL 执行监控开关
 # 依赖通过 Maven profile "p6spy" 引入：mvn ... -Pp6spy
-# 详细格式配置见 frame-me-starter-base 的 spy.properties
 decorator:
   datasource:
     enabled: true
     p6spy:
       enable-logging: true
 
-# frame-me 扩展配置
 frame:
   me:
-    # Swagger / SpringDoc OpenAPI 开关
-    # 仅在依赖中存在 frame-me-starter-doc-openapi 时生效
-    #（frame-me-tester-service 可通过 mvn ... -Pswagger 引入该 starter）
+    # 依赖通过 Maven profile "swagger" 引入：mvn ... -Pswagger
     swagger:
       enabled: true
       title: Frame Me Tester API
       description: Frame Me Tester 接口文档
       version: 1.0.0
-      # API 分组配置，未配置时默认生成一个匹配所有路径的 default 分组
       groups:
         - name: tester-api
           paths-to-match:
             - /api/**
     # mybatis:
-    #   # 公共字段自动填充处理器开关，默认关闭
     #   meta-object-handler:
     #     enabled: true
-    #   # 雪花算法 ID 生成器显式配置，生产环境建议为每个实例分配唯一 workerId
     #   snowflake:
     #     worker-id: 1
     #     datacenter-id: 0
+
+
 

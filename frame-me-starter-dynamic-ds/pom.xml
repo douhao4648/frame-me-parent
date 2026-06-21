@@ -10,22 +10,23 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-booter</artifactId>
-    <name>frame-me-booter</name>
-    <description>聚合启动模块，集成所有子模块能力供外部统一引用</description>
+    <artifactId>frame-me-starter-dynamic-ds</artifactId>
+    <name>frame-me-starter-dynamic-ds</name>
+    <description>多数据源 Dynamic Datasource Starter 模块</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-auth</artifactId>
+            <artifactId>frame-me-starter-base</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-cloud</artifactId>
+            <groupId>com.baomidou</groupId>
+            <artifactId>dynamic-datasource-spring-boot4-starter</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-dynamic-ds</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
     </dependencies>
+
 </project>
