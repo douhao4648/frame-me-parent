@@ -34,6 +34,8 @@
         <testcontainers.version>2.0.5</testcontainers.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <p6spy-spring-boot-starter.version>2.0.1</p6spy-spring-boot-starter.version>
+        <springdoc-openapi.version>3.0.3</springdoc-openapi.version>
+        <swagger-annotations-jakarta.version>2.2.47</swagger-annotations-jakarta.version>
     </properties>
 
     <modules>
@@ -42,6 +44,7 @@
         <module>frame-me-starter-base</module>
         <module>frame-me-starter-auth</module>
         <module>frame-me-starter-cloud</module>
+        <module>frame-me-starter-doc-openapi</module>
         <module>frame-me-booter</module>
         <module>frame-me-tester</module>
     </modules>
@@ -85,6 +88,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-cloud</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-doc-openapi</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -150,6 +158,16 @@
                 <groupId>com.github.gavlyukovskiy</groupId>
                 <artifactId>p6spy-spring-boot-starter</artifactId>
                 <version>${p6spy-spring-boot-starter.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc-openapi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.swagger.core.v3</groupId>
+                <artifactId>swagger-annotations-jakarta</artifactId>
+                <version>${swagger-annotations-jakarta.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -73,6 +73,16 @@
                 </dependency>
             </dependencies>
         </profile>
+        <!-- mvn clean package -Pp6spy -->
+        <profile>
+            <id>swagger</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.frame.me</groupId>
+                    <artifactId>frame-me-starter-doc-openapi</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
     </profiles>
 
 </project>

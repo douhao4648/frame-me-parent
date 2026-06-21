@@ -10,18 +10,18 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-api</artifactId>
-    <name>frame-me-api</name>
-    <description>API 接口契约模块</description>
+    <artifactId>frame-me-starter-doc-openapi</artifactId>
+    <name>frame-me-starter-doc-openapi</name>
+    <description>文档 / SpringDoc OpenAPI Starter 模块</description>
 
     <dependencies>
         <dependency>
-            <groupId>io.swagger.core.v3</groupId>
-            <artifactId>swagger-annotations-jakarta</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
     </dependencies>
 </project>

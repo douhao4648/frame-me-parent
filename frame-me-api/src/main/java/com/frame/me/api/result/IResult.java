@@ -1,10 +1,13 @@
 package com.frame.me.api.result;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * 统一响应结果接口.
  *
  * @param <T> 业务数据类型
  */
+@Schema(description = "统一响应结果")
 public interface IResult<T> {
 
     /**
@@ -12,6 +15,7 @@ public interface IResult<T> {
      *
      * @return 状态码
      */
+    @Schema(description = "状态码")
     Integer getCode();
 
     /**
@@ -19,6 +23,7 @@ public interface IResult<T> {
      *
      * @return 提示信息
      */
+    @Schema(description = "提示信息")
     String getMsg();
 
     /**
@@ -26,6 +31,7 @@ public interface IResult<T> {
      *
      * @return 业务数据
      */
+    @Schema(description = "业务数据")
     T getData();
 
     /**
@@ -33,6 +39,7 @@ public interface IResult<T> {
      *
      * @return 错误详情
      */
+    @Schema(description = "错误详情")
     String getErr();
 
     /**
@@ -40,5 +47,6 @@ public interface IResult<T> {
      *
      * @return 请求 ID
      */
+    @Schema(description = "请求 ID")
     String getRid();
 }
