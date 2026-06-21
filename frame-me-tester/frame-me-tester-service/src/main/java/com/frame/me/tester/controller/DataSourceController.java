@@ -1,5 +1,6 @@
 package com.frame.me.tester.controller;
 
+import com.alibaba.druid.pool.DruidDataSource;
 import com.baomidou.dynamic.datasource.DynamicRoutingDataSource;
 import com.baomidou.dynamic.datasource.annotation.DS;
 import com.frame.me.api.result.IResult;
@@ -44,7 +45,7 @@ public class DataSourceController implements IDataSourceApi {
     }
 
     @Override
-    public IResult<Map<String, Map<String, Object>>> hikariConfigs() {
+    public IResult<Map<String, Map<String, Object>>> poolConfigs() {
         Map<String, Map<String, Object>> result = new LinkedHashMap<>();
         Map<String, DataSource> dataSources = ((DynamicRoutingDataSource) dataSource).getDataSources();
 
@@ -52,11 +53,9 @@ public class DataSourceController implements IDataSourceApi {
             Map<String, Object> config = new LinkedHashMap<>();
             config.put("dataSourceType", ds.getClass().getName());
             try {
-                HikariDataSource hikari = unwrapHikariDataSource(ds);
-                if (hikari == null) {
-                    config.put("hikariDetected", false);
-                } else {
-                    config.put("hikariDetected", true);
+                DataSource realDataSource = unwrapDataSource(ds);
+                if (realDataSource instanceof HikariDataSource hikari) {
+                    config.put("poolType", "hikari");
                     config.put("poolName", hikari.getPoolName());
                     config.put("jdbcUrl", hikari.getJdbcUrl());
                     config.put("username", hikari.getUsername());
@@ -69,6 +68,22 @@ public class DataSourceController implements IDataSourceApi {
                     config.put("autoCommit", hikari.isAutoCommit());
                     config.put("validationTimeout", hikari.getValidationTimeout());
                     config.put("leakDetectionThreshold", hikari.getLeakDetectionThreshold());
+                } else if (realDataSource instanceof DruidDataSource druid) {
+                    config.put("poolType", "druid");
+                    config.put("name", druid.getName());
+                    config.put("url", druid.getUrl());
+                    config.put("username", druid.getUsername());
+                    config.put("driverClassName", druid.getDriverClassName());
+                    config.put("initialSize", druid.getInitialSize());
+                    config.put("maxActive", druid.getMaxActive());
+                    config.put("minIdle", druid.getMinIdle());
+                    config.put("maxWait", druid.getMaxWait());
+                    config.put("testOnBorrow", druid.isTestOnBorrow());
+                    config.put("testOnReturn", druid.isTestOnReturn());
+                    config.put("testWhileIdle", druid.isTestWhileIdle());
+                    config.put("validationQuery", druid.getValidationQuery());
+                } else {
+                    config.put("poolType", "unknown");
                 }
             } catch (SQLException e) {
                 config.put("error", e.getMessage());
@@ -79,14 +94,17 @@ public class DataSourceController implements IDataSourceApi {
         return Result.success(result);
     }
 
-    private HikariDataSource unwrapHikariDataSource(DataSource dataSource) throws SQLException {
-        if (dataSource instanceof HikariDataSource) {
-            return (HikariDataSource) dataSource;
+    private DataSource unwrapDataSource(DataSource dataSource) throws SQLException {
+        if (dataSource instanceof com.baomidou.dynamic.datasource.ds.ItemDataSource item) {
+            return item.getRealDataSource();
         }
         if (dataSource.isWrapperFor(HikariDataSource.class)) {
             return dataSource.unwrap(HikariDataSource.class);
         }
-        return null;
+        if (dataSource.isWrapperFor(DruidDataSource.class)) {
+            return dataSource.unwrap(DruidDataSource.class);
+        }
+        return dataSource;
     }
 
     private String getDatabaseUrl() {

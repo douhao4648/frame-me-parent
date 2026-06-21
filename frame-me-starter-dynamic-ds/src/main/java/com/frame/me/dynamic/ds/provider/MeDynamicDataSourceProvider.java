@@ -2,10 +2,13 @@ package com.frame.me.dynamic.ds.provider;
 
 import com.baomidou.dynamic.datasource.creator.DataSourceProperty;
 import com.baomidou.dynamic.datasource.creator.DefaultDataSourceCreator;
+import com.baomidou.dynamic.datasource.creator.druid.DruidConfig;
 import com.baomidou.dynamic.datasource.creator.hikaricp.HikariCpConfig;
 import com.baomidou.dynamic.datasource.provider.DynamicDataSourceProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
@@ -39,6 +42,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
     private static final String SPRING_DATASOURCE_PASSWORD = "spring.datasource.password";
     private static final String SPRING_DATASOURCE_DRIVER = "spring.datasource.driver-class-name";
     private static final String HIKARI_SOURCE_PREFIX = "spring.datasource.hikari.";
+    private static final String DRUID_SOURCE_PREFIX = "spring.datasource.druid.";
 
     private final DefaultDataSourceCreator dataSourceCreator;
     private final ConfigurableEnvironment environment;
@@ -58,6 +62,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
         property.setDriverClassName(environment.getProperty(SPRING_DATASOURCE_DRIVER));
         property.setPoolName(MASTER_NAME);
         loadHikariProperties(property);
+        loadDruidProperties(property);
 
         DataSource dataSource = dataSourceCreator.createDataSource(property);
         log.info("已根据 spring.datasource.* 自动创建默认 master 数据源");
@@ -87,6 +92,31 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
         }
         final HikariCpConfig targetHikari = hikari;
         hikariProps.forEach((key, value) -> setHikariProperty(targetHikari, key, value));
+    }
+
+    private void loadDruidProperties(DataSourceProperty property) {
+        Map<String, Object> druidProps = new HashMap<>();
+        for (PropertySource<?> source : environment.getPropertySources()) {
+            if (!(source instanceof EnumerablePropertySource<?> enumerable)) {
+                continue;
+            }
+            for (String name : enumerable.getPropertyNames()) {
+                if (name.startsWith(DRUID_SOURCE_PREFIX)) {
+                    String key = name.substring(DRUID_SOURCE_PREFIX.length());
+                    druidProps.put(key, source.getProperty(name));
+                }
+            }
+        }
+        if (druidProps.isEmpty()) {
+            return;
+        }
+        try {
+            Binder binder = Binder.get(environment);
+            binder.bind(DRUID_SOURCE_PREFIX.substring(0, DRUID_SOURCE_PREFIX.length() - 1), Bindable.of(DruidConfig.class))
+                    .ifBound(property::setDruid);
+        } catch (Exception e) {
+            log.warn("无法绑定 Druid 连接池属性: {}", e.getMessage());
+        }
     }
 
     private void setHikariProperty(HikariCpConfig hikari, String key, Object value) {

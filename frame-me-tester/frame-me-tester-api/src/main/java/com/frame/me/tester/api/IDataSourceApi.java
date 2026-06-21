@@ -43,11 +43,11 @@ public interface IDataSourceApi {
     IResult<String> second();
 
     /**
-     * 返回当前所有数据源的 Hikari 连接池实际配置参数.
+     * 返回当前所有数据源的实际连接池配置参数.
      *
-     * @return 所有数据源 Hikari 配置，key 为数据源名称
+     * @return 所有数据源连接池配置，key 为数据源名称
      */
-    @Operation(summary = "所有数据源 Hikari 配置", description = "返回当前所有数据源的 Hikari 连接池实际参数")
-    @GetExchange("/hikari-configs")
-    IResult<Map<String, Map<String, Object>>> hikariConfigs();
+    @Operation(summary = "所有数据源连接池配置", description = "返回当前所有数据源的实际连接池参数，支持 Hikari / Druid")
+    @GetExchange("/pool-configs")
+    IResult<Map<String, Map<String, Object>>> poolConfigs();
 }
