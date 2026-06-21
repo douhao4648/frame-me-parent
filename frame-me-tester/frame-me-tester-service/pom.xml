@@ -29,7 +29,7 @@
         </dependency>
         <dependency>
             <groupId>com.alibaba</groupId>
-            <artifactId>druid</artifactId>
+            <artifactId>druid-spring-boot-4-starter</artifactId>
         </dependency>
 
         <dependency>
