@@ -143,6 +143,15 @@ throw new InternalException("数据库连接失败");
 | `createTime` | `LocalDateTime` | 创建时间，自动填充 |
 | `updateTime` | `LocalDateTime` | 更新时间，自动填充 |
 | `deleted` | `Integer` | 逻辑删除标志，0 未删除 / 1 已删除 |
+
+### 基础实体 `BaseVersionEntity`
+
+类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java`
+
+继承 `BaseEntity`，额外提供乐观锁版本号：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
 | `version` | `Integer` | 乐观锁版本号 |
 
 ### 基础 Mapper `FrameBaseMapper`
@@ -203,3 +212,69 @@ mybatis-plus:
       logic-not-delete-value: 0
       id-type: assign_id
 ```
+
+### 多数据源配置
+
+引入 `frame-me-starter-dynamic-ds` 后，可在 `application.yml` 中同时配置单数据源（作为默认 `master`）和 dynamic-datasource 扩展数据源：
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 10
+    dynamic:
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 10
+      datasource:
+        second:
+          url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+          username: root
+          password: root
+          driver-class-name: com.mysql.cj.jdbc.Driver
+```
+
+启用条件：
+
+- `frame.me.dynamic-datasource.enabled=true`（默认 `true`，可省略）。
+- `spring.datasource.dynamic.enabled=true`（默认 `true`，可省略）。
+- 存在 `spring.datasource.url` 时，自动创建名为 `master` 的默认数据源。
+- 若 `spring.datasource.dynamic.datasource` 中也显式配置了 `master`，显式配置优先级更高。
+
+切换数据源时使用 baomidou 的 `@DS("slave")` 注解。
+
+## 接口文档约定
+
+### OpenAPI 配置
+
+引入 `frame-me-starter-doc-openapi` 并开启后，通过 `frame.me.swagger` 前缀配置文档信息：
+
+```yaml
+frame:
+  me:
+    swagger:
+      enabled: true
+      title: Frame Me API
+      description: Frame Me 接口文档
+      version: 1.0.0
+      contact:
+        name: Frame Me Team
+        email: team@frame.me
+        url: https://frame.me
+      groups:
+        - name: default
+          paths-to-match:
+            - /**
+```
+
+访问地址：
+
+- API Docs：`/v3/api-docs`
+- Swagger UI：`/swagger-ui.html`
+
+未配置 `groups` 时，默认注册一个名为 `default`、匹配所有路径的分组。

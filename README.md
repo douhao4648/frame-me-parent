@@ -47,9 +47,11 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-api` | 纯接口/Interfacer 契约模块：`IResult<T>`、`ApiConstant`；供业务 `xx-api` 引用。 |
 | `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、自动装配、`IResult<T>` 实现与工厂。 |
 | `frame-me-starter-adapter` | 适配层：将内部 `IResult<T>` 转换为外部 `Response<T>`。可被外部项目重写。 |
+| `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，可按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
+| `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `frame.me.swagger.enabled=true` 开启。 |
 | `frame-me-starter-auth` | 认证授权占位模块。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 dynamic-ds，不含 adapter）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定

@@ -9,8 +9,8 @@
 | `frame-me-starter-base` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/pom.xml` |
 | `frame-me-starter-adapter` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-adapter/pom.xml` |
 | `frame-me-starter-auth` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-auth/pom.xml` |
-| `frame-me-starter-cloud` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-cloud/pom.xml` |
-| `frame-me-booter` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-booter/pom.xml` |
+| `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
+| `frame-me-starter-doc-openapi` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-doc-openapi/pom.xml` |
 | `frame-me-tester` POM | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-tester/pom.xml` |
 | 应用配置 | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-tester/src/main/resources/application.yml` |
 
@@ -30,16 +30,22 @@
 | `EnvironmentHelper` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/env/EnvironmentHelper.java` |
 | `BaseConstant` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/BaseConstant.java` |
 | `BaseEntity` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseEntity.java` |
+| `BaseVersionEntity` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java` |
 | `FrameBaseMapper` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/mapper/FrameBaseMapper.java` |
 | `FrameBaseService` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/service/FrameBaseService.java` |
 | `FrameBaseServiceImpl` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/service/impl/FrameBaseServiceImpl.java` |
 | `BaseMetaObjectHandler` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java` |
 | `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/config/MybatisPlusConfiguration.java` |
-| `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/config/MybatisPlusConfiguration.java` |
 | `Result2ResponseAdvice` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/advice/Result2ResponseAdvice.java` |
 | `Response<T>` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/result/Response.java` |
 | `AdapterAutoConfiguration` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/config/AdapterAutoConfiguration.java` |
 | `AdapterConstant` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/AdapterConstant.java` |
+| `DynamicDataSourceAutoConfiguration` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/java/com/frame/me/dynamic/ds/config/DynamicDataSourceAutoConfiguration.java` |
+| `MeDynamicDataSourceProvider` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/java/com/frame/me/dynamic/ds/provider/MeDynamicDataSourceProvider.java` |
+| `DocOpenApiAutoConfiguration` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/config/DocOpenApiAutoConfiguration.java` |
+| `DocOpenApiProperties` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/config/DocOpenApiProperties.java` |
+| `GroupedOpenApiRegistrar` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/config/GroupedOpenApiRegistrar.java` |
+| `DocOpenApiConstant` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/DocOpenApiConstant.java` |
 | `AuthConstant` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/AuthConstant.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
 | `Application` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-tester/src/main/java/com/frame/me/tester/Application.java` |
@@ -61,6 +67,8 @@
 |---|---|
 | `frame-me-starter-base` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-adapter` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-adapter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-dynamic-ds` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-doc-openapi` | `/Users/douhao4648/Documents/Frame.Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 
 ## 速查表：类名 → 作用
 
@@ -76,7 +84,6 @@
 | `EnvironmentHelper` | 获取 Spring active profile、判断 dev/test/prod/daily/pre |
 | `BaseEntity` | MyBatis-Plus 基础实体，含公共字段，主键雪花算法 |
 | `BaseVersionEntity` | 继承 BaseEntity，额外提供 version（乐观锁） |
-| `BaseAutoIdEntity` | 基础实体，主键数据库自增，含公共字段 |
 | `FrameBaseMapper` | 项目基础 Mapper，扩展 BaseMapper |
 | `FrameBaseService` | 项目基础 Service，扩展 IService |
 | `FrameBaseServiceImpl` | 项目基础 Service 实现，扩展 ServiceImpl |
@@ -86,6 +93,11 @@
 | `MybatisPlusConfiguration` | MyBatis-Plus 自动装配入口，注册分页插件、乐观锁插件、公共字段自动填充处理器以及自定义 ID 生成器 |
 | `Result2ResponseAdvice` | 将 `IResult<T>` 转换为 `Response<T>` |
 | `Response<T>` | 外部 JSON 响应结构 |
+| `DynamicDataSourceAutoConfiguration` | 多数据源自动装配入口 |
+| `MeDynamicDataSourceProvider` | 根据 `spring.datasource.*` 创建默认 `master` 数据源 |
+| `DocOpenApiAutoConfiguration` | OpenAPI 文档自动装配入口 |
+| `DocOpenApiProperties` | `frame.me.swagger` 配置属性绑定 |
+| `GroupedOpenApiRegistrar` | 动态注册 API 分组 |
 
 ### EnvironmentHelper 方法
 

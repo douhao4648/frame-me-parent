@@ -74,6 +74,46 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 应用默认运行在 `8080` 端口，应用名称为 `frame-me-tester`。
 
+## Maven Profile
+
+`frame-me-starter-base` 中定义了两个可选 Maven profile，用于在开发/调试时按需引入额外能力：
+
+### `p6spy` — SQL 监控
+
+```bash
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+  mvn -pl frame-me-tester spring-boot:run -Pp6spy
+```
+
+引入 `p6spy-spring-boot-starter`，可在日志中输出实际执行的 SQL 及耗时。需要在 `application.yml` 中开启：
+
+```yaml
+decorator:
+  datasource:
+    enabled: true
+    p6spy:
+      enable-logging: true
+```
+
+### `swagger` — 接口文档
+
+```bash
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+  mvn -pl frame-me-tester spring-boot:run -Pswagger
+```
+
+引入 `frame-me-starter-doc-openapi`，提供 `/swagger-ui.html` 和 `/v3/api-docs`。需要在 `application.yml` 中开启并配置：
+
+```yaml
+frame:
+  me:
+    swagger:
+      enabled: true
+      title: Frame Me API
+      description: Frame Me 接口文档
+      version: 1.0.0
+```
+
 ## 如何新增一个子模块
 
 假设新增模块名为 `frame-me-demo`：
