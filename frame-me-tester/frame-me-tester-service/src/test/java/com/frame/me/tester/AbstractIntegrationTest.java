@@ -69,6 +69,12 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "com.mysql.cj.jdbc.Driver");
+        // 禁用 Druid MBean 注册，避免上下文销毁时 unregister mbean 报错
+        registry.add("spring.datasource.druid.register-mbeans", () -> "false");
+        registry.add("spring.datasource.dynamic.druid.register-mbeans", () -> "false");
+        // 配置 Druid 连接池验证语句，消除 testWhileIdle 相关 ERROR 日志
+        registry.add("spring.datasource.druid.validation-query", () -> "SELECT 1");
+        registry.add("spring.datasource.druid.test-while-idle", () -> "true");
         // 禁用 spring.sql.init，避免业务 application.yml 中的 always 干扰测试自身的 @Sql 初始化
         registry.add("spring.sql.init.mode", () -> "never");
     }
