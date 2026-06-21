@@ -5,8 +5,11 @@ spring:
     password:
     driver-class-name: org.h2.Driver
     druid:
+      register-mbeans: false
       validation-query: SELECT 1
       test-while-idle: true
+    dynamic:
+      enabled: false
   sql:
     init:
       mode: never
