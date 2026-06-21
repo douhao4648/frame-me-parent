@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration scan="true" scanPeriod="60 seconds">
+<configuration>
 
     <!-- 属性定义 -->
     <property name="LOG_PATTERN"
@@ -41,6 +41,7 @@
     <!-- 默认日志级别 -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_FILE"/>
     </root>
 
     <!-- 第三方框架日志级别 -->
