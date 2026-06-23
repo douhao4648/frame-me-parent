@@ -18,7 +18,7 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 
 ## 父 POM 关键配置
 
-根 `pom.xml` 路径：`/Users/douhao4648/Documents/Frame.Me/frame-me-parent/pom.xml`
+根 `pom.xml` 路径：`/Users/douhao4648/Documents/Frame_Me/frame-me-parent/pom.xml`
 
 - 父工程：`spring-boot-starter-parent:4.0.7`
 - 版本属性：
@@ -48,28 +48,28 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn test
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester test -Dtest=ApplicationTests
+  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
 ```
 
 ### 运行单个测试方法
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester test -Dtest=ApplicationTests#contextLoads
+  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
 ```
 
 ### 打包可运行 Jar
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester package
+  mvn -pl frame-me-tester/frame-me-tester-service package
 ```
 
 ### 启动应用
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester spring-boot:run
+  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
 应用默认运行在 `8080` 端口，应用名称为 `frame-me-tester`。
@@ -82,7 +82,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester spring-boot:run -Pp6spy
+  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pp6spy
 ```
 
 引入 `p6spy-spring-boot-starter`，可在日志中输出实际执行的 SQL 及耗时。需要在 `application.yml` 中开启：
@@ -99,7 +99,7 @@ decorator:
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester spring-boot:run -Pswagger
+  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pswagger
 ```
 
 引入 `frame-me-starter-doc-openapi`，提供 `/swagger-ui.html` 和 `/v3/api-docs`。需要在 `application.yml` 中开启并配置：

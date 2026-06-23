@@ -12,10 +12,10 @@ import com.frame.me.tester.api.query.DemoComplexQuery;
 import com.frame.me.tester.api.query.DemoQuery;
 import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
-import com.frame.me.tester.service.convert.DemoConvert;
 import com.frame.me.tester.entity.DemoEntity;
 import com.frame.me.tester.mapper.DemoMapper;
 import com.frame.me.tester.service.IDemoService;
+import com.frame.me.tester.service.convert.DemoConvert;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

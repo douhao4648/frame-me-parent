@@ -12,9 +12,7 @@ import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
 import com.frame.me.tester.service.IDemoService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -23,6 +21,7 @@ import java.util.List;
  * 演示 Controller，只做简单参数校验并委托 Service 执行业务.
  */
 @RestController
+@Validated
 @RequiredArgsConstructor
 public class DemoController implements IDemoApi {
 
@@ -46,22 +45,22 @@ public class DemoController implements IDemoApi {
     }
 
     @Override
-    public IResult<DemoVO> getById(@PathVariable Long id) {
+    public IResult<DemoVO> getById(Long id) {
         return Result.success(demoService.getById(id));
     }
 
     @Override
-    public IResult<Long> create(@RequestBody DemoDTO dto) {
+    public IResult<Long> create(DemoDTO dto) {
         return Result.success(demoService.create(dto));
     }
 
     @Override
-    public IResult<Boolean> update(@PathVariable Long id, @RequestBody DemoDTO dto) {
+    public IResult<Boolean> update(Long id, DemoDTO dto) {
         return Result.success(demoService.update(id, dto));
     }
 
     @Override
-    public IResult<Boolean> delete(@PathVariable Long id) {
+    public IResult<Boolean> delete(Long id) {
         return Result.success(demoService.delete(id));
     }
 }

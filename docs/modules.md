@@ -6,12 +6,18 @@
 - **依赖**：无。
 - **关键类**：
   - `com.frame.me.api.result.IResult<T>` — 统一响应结果接口。
+  - `com.frame.me.api.result.PageResult<T>` — 通用分页结果。
+  - `com.frame.me.api.query.PageQuery` — 通用分页查询参数。
+  - `com.frame.me.validation.CreateGroup` — 校验分组：新增场景。
+  - `com.frame.me.validation.UpdateGroup` — 校验分组：更新场景。
+  - `com.frame.me.validation.annotation.TimeRange` — 类级时间范围校验注解。
+  - `com.frame.me.validation.validator.TimeRangeValidator` — `@TimeRange` 校验器实现。
   - `com.frame.me.api.ApiConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-api` 模块。
 - **设计约定**：
-  - 业务 `xx-api` 通过引入 `frame-me-api` 获得统一的接口契约。
+  - 业务 `xx-api` 通过引入 `frame-me-api` 获得统一的接口契约与校验分组。
   - 业务 `xx-api` 之间可以相互引用，用于跨业务接口调用。
-  - `frame-me-api` 不实现任何具体能力，只定义最基础的跨模块接口与常量。
+  - `frame-me-api` 不实现任何具体能力，只定义最基础的跨模块接口、常量、分页模型与校验契约。
 
 ## `frame-me-starter-base`
 
@@ -30,13 +36,11 @@
   - `com.frame.me.base.BaseConstant` — 占位常量接口。
   - `com.frame.me.base.mybatis.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
   - `com.frame.me.base.mybatis.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
-  - `com.frame.me.base.mybatis.mapper.FrameBaseMapper` — 项目基础 Mapper。
-  - `com.frame.me.base.mybatis.service.FrameBaseService` — 项目基础 Service 接口。
-  - `com.frame.me.base.mybatis.service.impl.FrameBaseServiceImpl` — 项目基础 Service 实现。
   - `com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `frame.me.mybatis.meta-object-handler.enabled=true` 开启。
-  - `com.frame.me.base.mybatis.plugin.IdGeneratorInfoPrinter` — 启动时打印当前 Snowflake 的 workerId / datacenterId。
+  - `com.frame.me.base.mybatis.util.PageUtils` — `PageQuery` 与 MyBatis-Plus `Page` / `PageResult` 转换工具。
+  - `com.frame.me.base.mybatis.util.SnowflakeUtils` — 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID。
   - `com.frame.me.base.mybatis.config.MybatisPlusProperties` — `frame.me.mybatis` 配置属性绑定。
-  - `com.frame.me.base.mybatis.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及自定义 ID 生成器注册。
+  - `com.frame.me.base.mybatis.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
 - **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`MybatisPlusConfiguration`。
 - **可配置项**：
   - `frame.me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
@@ -47,7 +51,7 @@
   - `swagger` — 引入 `frame-me-starter-doc-openapi`，用于接口文档：`mvn ... -Pswagger`。
 - **设计约定**：
   - 表名到实体名映射：去掉第一个下划线前缀，例如 `spo_fms_device` → `FmsDevice`。
-  - **Mapper 接口必须标注 `@Mapper` 注解**，以便 MyBatis-Plus starter 自动扫描。
+  - **Mapper 接口必须标注 `@Mapper` 注解**，并继承 MyBatis-Plus `BaseMapper<T>`，以便自动扫描与通用 CRUD。
 - **扩展提示**：与 Spring Web 相关的基础能力（拦截器、参数解析器、统一日志等）适合放在这里。
 
 ## `frame-me-starter-adapter`
@@ -203,17 +207,44 @@ frame:
 
 ## `frame-me-tester`
 
-- **定位**：Spring Boot 可运行入口与验证模块。
-- **依赖**：`frame-me-booter`、`frame-me-starter-adapter`、`spring-boot-starter-test`（test scope）。
+- **定位**：示例与验证聚合模块，本身不包含源码，仅聚合 `frame-me-tester-api` 与 `frame-me-tester-service`。
+- **子模块**：
+  - `frame-me-tester-api`：契约接口层。
+  - `frame-me-tester-service`：实现层与可运行入口。
+
+## `frame-me-tester-api`
+
+- **定位**：示例业务契约模块，演示业务 `xx-api` 应如何组织。
+- **依赖**：`frame-me-api`。
+- **关键类**：
+  - `com.frame.me.tester.api.IDemoApi` — 演示数据 API 契约，使用 Spring HTTP Interface（`@HttpExchange`、`@GetExchange`、`@PostExchange` 等）。
+  - `com.frame.me.tester.api.IHealthApi` — 健康检查 API 契约。
+  - `com.frame.me.tester.api.IDataSourceApi` — 数据源切换与连接池信息查询契约。
+  - `com.frame.me.tester.api.dto.DemoDTO` — 演示数据传输对象，含校验分组。
+  - `com.frame.me.tester.api.query.DemoQuery` — 演示分页查询参数。
+  - `com.frame.me.tester.api.query.DemoComplexQuery` — 演示复杂查询参数（含 `@TimeRange`）。
+  - `com.frame.me.tester.api.vo.DemoVO` — 演示返回视图对象。
+  - `com.frame.me.tester.api.vo.DemoComplexVO` — 演示复杂查询返回视图对象。
+- **设计约定**：
+  - API 契约推荐用 Spring HTTP Interface 声明，便于后续生成 HTTP 客户端。
+  - DTO / Query / VO 放在 `xx-api` 中，供服务提供方与消费方共享。
+
+## `frame-me-tester-service`
+
+- **定位**：示例业务实现层与可运行 Spring Boot 入口。
+- **依赖**：`frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-adapter`、`spring-boot-starter-test`（test scope）。
 - **关键类/文件**：
   - `com.frame.me.tester.Application` — `@SpringBootApplication` 启动类。
-  - `com.frame.me.tester.controller.HealthController` — 示例接口 `/health`，故意触发 NPE 以验证异常处理。
-  - `com.frame.me.tester.controller.DemoController` — 示例接口 `/demo`，演示 MyBatis-Plus CRUD。
-  - `com.frame.me.tester.entity.DemoEntity` — 演示实体，继承 `BaseEntity`。
-  - `com.frame.me.tester.mapper.DemoMapper` — 演示 Mapper，继承 `FrameBaseMapper`。
+  - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi`，故意触发 NPE 以验证异常处理。
+  - `com.frame.me.tester.controller.DemoController` — 实现 `IDemoApi`，演示 MyBatis-Plus CRUD、分页、校验分组。
+  - `com.frame.me.tester.controller.DataSourceController` — 实现 `IDataSourceApi`，演示多数据源切换与连接池信息查询。
+  - `com.frame.me.tester.service.IDemoService` / `com.frame.me.tester.service.impl.DemoServiceImpl` — 演示 Service 层。
+  - `com.frame.me.tester.service.convert.DemoConvert` — MapStruct 转换器（`@Mapper(componentModel = "spring")`）。
+  - `com.frame.me.tester.entity.DemoEntity` — 演示实体，继承 `BaseVersionEntity`，对应表 `demo_user`。
+  - `com.frame.me.tester.mapper.DemoMapper` — 演示 Mapper，继承 MyBatis-Plus `BaseMapper<DemoEntity>`。
   - `com.frame.me.tester.ApplicationTests` — 上下文加载测试。
   - `com.frame.me.tester.AbstractIntegrationTest` — Testcontainers + MySQL 集成测试基类。
-  - `frame-me-tester/src/main/resources/application.yml` — 端口 `8080`，应用名 `frame-me-tester`，单/多数据源、MyBatis-Plus、OpenAPI、P6Spy 配置。
+  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 端口 `8080`，应用名 `frame-me-tester`，单/多数据源、MyBatis-Plus、OpenAPI、P6Spy 配置。
 - **构建插件**：包含 `spring-boot-maven-plugin`，用于打包可运行 Jar。
 - **扩展提示**：作为集成验证入口，新模块加入后应在此添加对应的集成测试或示例 Controller。
 
@@ -229,4 +260,5 @@ frame:
 | `frame-me-starter-auth` | `frame-me-starter-base` |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds` |
-| `frame-me-tester` | `frame-me-booter`、`frame-me-starter-adapter` |
+| `frame-me-tester-api` | `frame-me-api` |
+| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-adapter` |

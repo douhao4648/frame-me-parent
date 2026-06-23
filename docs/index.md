@@ -4,7 +4,7 @@
 
 ## 项目速览
 
-`frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 脚手架工程，groupId 为 `com.frame.me`。项目采用分层模块设计，下层模块为上层提供基础能力，最终由 `frame-me-tester` 作为可运行的 Spring Boot 入口。
+`frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 脚手架工程，groupId 为 `com.frame.me`。项目采用分层模块设计，下层模块为上层提供基础能力；示例模块 `frame-me-tester` 拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现），最终由 `frame-me-tester-service` 作为可运行的 Spring Boot 入口。
 
 ## 阅读前置
 
@@ -25,4 +25,4 @@
 
 ## 关键约定一句话
 
-Controller 返回 `Result<T>`，由 `Result2ResponseAdvice` 转换为 `Response<T>` 返回给客户端；业务异常抛 `BusinessException`，系统异常抛 `InternalException`，统一由 `GlobalExceptionHandler` 处理。
+Controller 返回 `IResult<T>`，由 `Result2ResponseAdvice` 转换为 `Response<T>` 返回给客户端；业务异常抛 `BusinessException`，系统异常抛 `InternalException`，统一由 `GlobalExceptionHandler` 处理。

@@ -7,16 +7,17 @@ import com.frame.me.tester.api.query.DemoComplexQuery;
 import com.frame.me.tester.api.query.DemoQuery;
 import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
+import com.frame.me.validation.CreateGroup;
+import com.frame.me.validation.UpdateGroup;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.service.annotation.DeleteExchange;
-import org.springframework.web.service.annotation.GetExchange;
-import org.springframework.web.service.annotation.HttpExchange;
-import org.springframework.web.service.annotation.PostExchange;
-import org.springframework.web.service.annotation.PutExchange;
+import org.springframework.web.service.annotation.*;
 
 import java.util.List;
 
@@ -44,7 +45,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "分页查询", description = "根据姓名、年龄分页查询演示数据")
     @GetExchange("/page")
-    IResult<PageResult<DemoVO>> page(DemoQuery query);
+    IResult<PageResult<DemoVO>> page(@Valid DemoQuery query);
 
     /**
      * 复杂查询演示数据（手写 SQL）.
@@ -54,7 +55,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "复杂查询", description = "根据年龄范围、创建时间范围进行复杂查询")
     @GetExchange("/complex-list")
-    IResult<List<DemoComplexVO>> complexList(DemoComplexQuery query);
+    IResult<List<DemoComplexVO>> complexList(@Valid DemoComplexQuery query);
 
     /**
      * 根据 ID 查询演示数据.
@@ -64,7 +65,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "根据 ID 查询", description = "根据主键 ID 查询单条演示数据")
     @GetExchange("/{id}")
-    IResult<DemoVO> getById(@Parameter(description = "数据 ID", required = true) @PathVariable Long id);
+    IResult<DemoVO> getById(@Parameter(description = "数据 ID", required = true) @Positive(message = "数据 ID 必须大于 0") @PathVariable Long id);
 
     /**
      * 插入演示数据.
@@ -74,7 +75,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "新增", description = "新增一条演示数据")
     @PostExchange
-    IResult<Long> create(@RequestBody DemoDTO dto);
+    IResult<Long> create(@Validated(CreateGroup.class) @RequestBody DemoDTO dto);
 
     /**
      * 根据 ID 更新演示数据.
@@ -85,8 +86,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "根据 ID 更新", description = "根据主键 ID 更新演示数据，需传入 version 用于乐观锁控制")
     @PutExchange("/{id}")
-    IResult<Boolean> update(@Parameter(description = "数据 ID", required = true) @PathVariable Long id,
-                     @RequestBody DemoDTO dto);
+    IResult<Boolean> update(@Parameter(description = "数据 ID", required = true) @Positive(message = "数据 ID 必须大于 0") @PathVariable Long id, @Validated(UpdateGroup.class) @RequestBody DemoDTO dto);
 
     /**
      * 根据 ID 删除演示数据（逻辑删除）.
@@ -96,5 +96,5 @@ public interface IDemoApi {
      */
     @Operation(summary = "根据 ID 删除", description = "根据主键 ID 逻辑删除演示数据")
     @DeleteExchange("/{id}")
-    IResult<Boolean> delete(@Parameter(description = "数据 ID", required = true) @PathVariable Long id);
+    IResult<Boolean> delete(@Parameter(description = "数据 ID", required = true) @Positive(message = "数据 ID 必须大于 0") @PathVariable Long id);
 }

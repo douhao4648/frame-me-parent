@@ -27,14 +27,14 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.alibaba</groupId>-->
-<!--            <artifactId>druid-spring-boot-4-starter</artifactId>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.micrometer</groupId>-->
-<!--            <artifactId>micrometer-registry-prometheus</artifactId>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>com.alibaba</groupId>-->
+        <!--            <artifactId>druid-spring-boot-4-starter</artifactId>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>io.micrometer</groupId>-->
+        <!--            <artifactId>micrometer-registry-prometheus</artifactId>-->
+        <!--        </dependency>-->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -75,4 +75,27 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- mvn ... -Pp6spy -->
+        <profile>
+            <id>p6spy</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.github.gavlyukovskiy</groupId>
+                    <artifactId>p6spy-spring-boot-starter</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <!-- mvn ... -Pswagger -->
+        <profile>
+            <id>swagger</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.frame.me</groupId>
+                    <artifactId>frame-me-starter-doc-openapi</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

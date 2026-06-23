@@ -79,7 +79,7 @@ return Result.error("系统错误：{}", e.getMessage());
 
 - 语义：业务规则不满足、可预期的业务错误。
 - 默认状态码：`ResultCode.ERROR.getCode()`（500）。
-- 日志级别：在 `GlobalExceptionHandler` 中使用 `warn` 记录。
+- 日志级别：在 `GlobalExceptionHandler` 中使用 `error` 记录。
 - HTTP 状态：默认 200（由 `Result` 的 `code` 字段表达业务错误）。
 
 ### `InternalException`
@@ -117,8 +117,12 @@ throw new InternalException("数据库连接失败");
 
 | 处理器 | 捕获异常 | HTTP 状态 | 日志级别 | 返回值 |
 |---|---|---|---|---|
-| `handleBusinessException` | `BusinessException` | 默认 200 | `warn` | `Result.error(code, message, exception)` |
+| `handleBusinessException` | `BusinessException` | 默认 200 | `error` | `Result.error(code, message, exception)` |
 | `handleInternalException` | `InternalException` | 500 | `error` | `Result.error(code, message, exception)` |
+| `handleMethodArgumentNotValidException` | `MethodArgumentNotValidException`（`@RequestBody` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
+| `handleConstraintViolationException` | `ConstraintViolationException`（`@PathVariable`/`@RequestParam` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条约束错误消息)` |
+| `handleBindException` | `BindException`（表单/查询参数绑定失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
+| `handleHttpMessageNotReadableException` | `HttpMessageNotReadableException`（请求体缺失或不可读） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, "请求体不能为空")` |
 | `handleException` | `Exception` | 默认 200 | `error` | `Result.error(ResultCode.ERROR, message, exception)` |
 
 ## 编码风格
@@ -128,6 +132,65 @@ throw new InternalException("数据库连接失败");
 - **常量容器**：每个模块定义一个空的 `*Constant` 接口作为占位，如 `CommonConstant`、`BaseConstant`、`AuthConstant`。
 - **注释**：类级 Javadoc 使用中文。
 - **类设计**：当前没有类被声明为 `final`，保持默认可继承。
+
+## 参数校验约定
+
+项目使用 Jakarta Validation（`jakarta.validation`），结合 Spring 的 `@Validated` / `@Valid` 进行参数校验。
+
+### 校验分组 `CreateGroup` / `UpdateGroup`
+
+类路径：
+
+- `frame-me-api/src/main/java/com/frame/me/validation/CreateGroup.java`
+- `frame-me-api/src/main/java/com/frame/me/validation/UpdateGroup.java`
+
+用于区分新增与更新场景下的校验规则，例如：
+
+```java
+public class DemoDTO {
+
+    @NotNull(groups = UpdateGroup.class, message = "更新时 ID 不能为空")
+    private Long id;
+
+    @NotBlank(groups = CreateGroup.class, message = "新增时名称不能为空")
+    private String name;
+}
+```
+
+Controller 中按场景指定分组：
+
+```java
+@PostExchange
+IResult<Long> create(@Validated(CreateGroup.class) @RequestBody DemoDTO dto);
+
+@PutExchange("/{id}")
+IResult<Boolean> update(@Validated(UpdateGroup.class) @RequestBody DemoDTO dto);
+```
+
+### 时间范围校验 `@TimeRange`
+
+类路径：
+
+- 注解：`frame-me-api/src/main/java/com/frame/me/validation/annotation/TimeRange.java`
+- 校验器：`frame-me-api/src/main/java/com/frame/me/validation/validator/TimeRangeValidator.java`
+
+类级校验注解，用于校验对象中两个时间字段满足 `开始时间 <= 结束时间`。任一字段为空时不校验。
+
+| 属性 | 说明 | 默认值 |
+|---|---|---|
+| `message` | 校验失败消息 | `开始时间不能晚于结束时间` |
+| `startField` | 开始时间字段名 | `startTime` |
+| `endField` | 结束时间字段名 | `endTime` |
+
+示例：
+
+```java
+@TimeRange(startField = "startTime", endField = "endTime")
+public class DemoComplexQuery {
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+}
+```
 
 ## 数据访问层约定
 
@@ -154,11 +217,9 @@ throw new InternalException("数据库连接失败");
 |---|---|---|
 | `version` | `Integer` | 乐观锁版本号 |
 
-### 基础 Mapper `FrameBaseMapper`
+### Mapper 基类 `BaseMapper<T>`
 
-类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/mapper/FrameBaseMapper.java`
-
-业务 Mapper 继承 `FrameBaseMapper<T>` 即可获得 MyBatis-Plus 通用 CRUD 能力。
+业务 Mapper 直接继承 MyBatis-Plus 的 `com.baomidou.mybatisplus.core.mapper.BaseMapper<T>`，即可获得通用 CRUD 能力。项目当前未提供额外的 `FrameBaseMapper` 封装层。
 
 ### Mapper 扫描
 
@@ -166,11 +227,42 @@ throw new InternalException("数据库连接失败");
 
 ```java
 @Mapper
-public interface FmsDeviceMapper extends FrameBaseMapper<FmsDevice> {
+public interface FmsDeviceMapper extends BaseMapper<FmsDevice> {
 }
 ```
 
 MyBatis-Plus starter 会自动扫描启动类所在包及其子包下的 `@Mapper` 接口。
+
+### 公共字段自动填充 `BaseMetaObjectHandler`
+
+类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java`
+
+开启方式：`frame.me.mybatis.meta-object-handler.enabled=true`
+
+自动填充行为：
+
+| 操作 | 填充字段 | 值 |
+|---|---|---|
+| `insert` | `createTime` | 当前时间 |
+| `insert` | `updateTime` | 当前时间 |
+| `insert` | `deleted` | `0` |
+| `insert` | `version` | `1`（仅 `BaseVersionEntity` 子类） |
+| `update` | `updateTime` | 当前时间 |
+
+### 分页工具 `PageUtils`
+
+类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java`
+
+提供 `PageQuery` 与 MyBatis-Plus `Page` 对象之间的转换，以及 `Page` 到 `PageResult` 的转换。例如：
+
+```java
+Page<DemoEntity> page = demoMapper.selectPage(PageUtils.toPage(query), wrapper);
+PageResult<DemoVO> result = PageUtils.toPageResult(page, DemoConvert.INSTANCE::toVo);
+```
+
+### Service 层
+
+项目当前未提供统一的 Service 基类封装。业务 Service 接口可直接继承 MyBatis-Plus 的 `com.baomidou.mybatisplus.extension.service.IService<T>`，实现类继承 `com.baomidou.mybatisplus.extension.service.impl.ServiceImpl<M, T>`，或根据业务自行约定。
 
 ### 表名到实体名映射
 
