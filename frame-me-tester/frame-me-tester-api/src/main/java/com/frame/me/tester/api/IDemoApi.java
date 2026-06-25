@@ -1,5 +1,6 @@
 package com.frame.me.tester.api;
 
+import com.frame.me.api.annotation.QueryMap;
 import com.frame.me.api.result.IResult;
 import com.frame.me.api.result.PageResult;
 import com.frame.me.tester.api.dto.DemoDTO;
@@ -45,7 +46,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "分页查询", description = "根据姓名、年龄分页查询演示数据")
     @GetExchange("/page")
-    IResult<PageResult<DemoVO>> page(@Valid DemoQuery query);
+    IResult<PageResult<DemoVO>> page(@Valid @QueryMap DemoQuery query);
 
     /**
      * 复杂查询演示数据（手写 SQL）.
@@ -55,7 +56,7 @@ public interface IDemoApi {
      */
     @Operation(summary = "复杂查询", description = "根据年龄范围、创建时间范围进行复杂查询")
     @GetExchange("/complex-list")
-    IResult<List<DemoComplexVO>> complexList(@Valid DemoComplexQuery query);
+    IResult<List<DemoComplexVO>> complexList(@Valid @QueryMap DemoComplexQuery query);
 
     /**
      * 根据 ID 查询演示数据.
