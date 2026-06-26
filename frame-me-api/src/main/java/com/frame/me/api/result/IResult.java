@@ -49,4 +49,16 @@ public interface IResult<T> {
      */
     @Schema(description = "请求 ID")
     String getRid();
+
+    /**
+     * 判断请求是否成功.
+     *
+     * <p>状态码为 200 时返回 {@code true}。</p>
+     *
+     * @return 成功返回 {@code true}，否则返回 {@code false}
+     */
+    @Schema(description = "是否成功", accessMode = Schema.AccessMode.READ_ONLY)
+    default boolean isSuccess() {
+        return getCode() != null && getCode() == 200;
+    }
 }

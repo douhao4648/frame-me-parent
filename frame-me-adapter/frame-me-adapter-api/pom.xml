@@ -6,30 +6,18 @@
 
     <parent>
         <groupId>com.frame.me</groupId>
-        <artifactId>frame-me-tester</artifactId>
+        <artifactId>frame-me-adapter</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-tester-api</artifactId>
-    <name>frame-me-tester-api</name>
-    <description>frame-me-tester API 契约模块</description>
+    <artifactId>frame-me-adapter-api</artifactId>
+    <name>frame-me-adapter-api</name>
+    <description>适配器契约模块</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-api</artifactId>
-        </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.frame.me</groupId>-->
-<!--            <artifactId>frame-me-adapter-api</artifactId>-->
-<!--        </dependency>-->
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

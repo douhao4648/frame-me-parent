@@ -19,7 +19,9 @@ public class Result2ResponseAdvice implements ResponseBodyAdvice<Object> {
     @Override
     public boolean supports(MethodParameter returnType,
                             Class<? extends HttpMessageConverter<?>> converterType) {
-        return IResult.class.isAssignableFrom(returnType.getParameterType());
+        Class<?> parameterType = returnType.getParameterType();
+        return IResult.class.isAssignableFrom(parameterType)
+                && !Response.class.isAssignableFrom(parameterType);
     }
 
     @Override
@@ -29,13 +31,16 @@ public class Result2ResponseAdvice implements ResponseBodyAdvice<Object> {
                                   Class<? extends HttpMessageConverter<?>> selectedConverterType,
                                   ServerHttpRequest request,
                                   ServerHttpResponse response) {
+        if (body instanceof Response) {
+            return body;
+        }
         if (!(body instanceof IResult<?> result)) {
             return body;
         }
         Response<Object> resp = new Response<>();
         resp.setCode(result.getCode());
         resp.setMessage(result.getMsg());
-        resp.setResult((Object) result.getData());
+        resp.setResult(result.getData());
         return resp;
     }
 }

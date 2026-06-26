@@ -3,12 +3,15 @@ package com.frame.me.tester.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.frame.me.api.result.PageResult;
+//import com.frame.me.adapter.api.result.PageResult;
+//import com.frame.me.adapter.mybatis.util.PageableUtils;
+import com.frame.me.api.result.PageData;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.mybatis.util.PageUtils;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.tester.api.dto.DemoDTO;
 import com.frame.me.tester.api.query.DemoComplexQuery;
+//import com.frame.me.tester.api.query.DemoOldQuery;
 import com.frame.me.tester.api.query.DemoQuery;
 import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
@@ -38,15 +41,26 @@ public class DemoServiceImpl implements IDemoService {
     }
 
     @Override
-    public PageResult<DemoVO> page(DemoQuery query) {
+    public PageData<DemoVO> page(DemoQuery query) {
         Page<DemoEntity> page = PageUtils.toPage(query, "create_time:desc");
 
         QueryWrapper<DemoEntity> wrapper = new QueryWrapper<>();
         wrapper.like(StrUtil.isNotBlank(query.getName()), "name", query.getName());
         wrapper.eq(query.getAge() != null, "age", query.getAge());
 
-        return PageUtils.toResult(demoMapper.selectPage(page, wrapper), demoConvert::toVo);
+        return PageUtils.toPageData(demoMapper.selectPage(page, wrapper), demoConvert::toVo);
     }
+//
+//    @Override
+//    public PageResult<DemoVO> pageOld(DemoOldQuery param) {
+//        Page<DemoEntity> page = PageableUtils.toPage(param);
+//
+//        QueryWrapper<DemoEntity> wrapper = new QueryWrapper<>();
+//        wrapper.like(StrUtil.isNotBlank(param.getName()), "name", param.getName());
+//        wrapper.eq(param.getAge() != null, "age", param.getAge());
+//
+//        return PageableUtils.toPageResult(demoMapper.selectPage(page, wrapper), demoConvert::toVo);
+//    }
 
     @Override
     public List<DemoComplexVO> complexList(DemoComplexQuery query) {

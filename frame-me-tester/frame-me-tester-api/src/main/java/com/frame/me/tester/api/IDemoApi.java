@@ -1,10 +1,12 @@
 package com.frame.me.tester.api;
 
+//import com.frame.me.adapter.api.result.PageResult;
 import com.frame.me.api.annotation.QueryMap;
 import com.frame.me.api.result.IResult;
-import com.frame.me.api.result.PageResult;
+import com.frame.me.api.result.PageData;
 import com.frame.me.tester.api.dto.DemoDTO;
 import com.frame.me.tester.api.query.DemoComplexQuery;
+//import com.frame.me.tester.api.query.DemoOldQuery;
 import com.frame.me.tester.api.query.DemoQuery;
 import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
@@ -46,7 +48,17 @@ public interface IDemoApi {
      */
     @Operation(summary = "分页查询", description = "根据姓名、年龄分页查询演示数据")
     @GetExchange("/page")
-    IResult<PageResult<DemoVO>> page(@Valid @QueryMap DemoQuery query);
+    IResult<PageData<DemoVO>> page(@Valid @QueryMap DemoQuery query);
+
+//    /**
+//     * 分页查询演示数据（老接口规范，PageParam 入参 / PageResult 出参）.
+//     *
+//     * @param param 老规范分页参数
+//     * @return 老规范分页结果
+//     */
+//    @Operation(summary = "分页查询（老规范）", description = "使用 DemoOldQuery 入参、PageResult 出参的分页查询")
+//    @GetExchange("/page-old")
+//    IResult<PageResult<DemoVO>> pageOld(@Valid @QueryMap DemoOldQuery param);
 
     /**
      * 复杂查询演示数据（手写 SQL）.

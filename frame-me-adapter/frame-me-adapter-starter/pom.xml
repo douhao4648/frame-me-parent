@@ -6,15 +6,19 @@
 
     <parent>
         <groupId>com.frame.me</groupId>
-        <artifactId>frame-me-parent</artifactId>
+        <artifactId>frame-me-adapter</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-starter-adapter</artifactId>
-    <name>frame-me-starter-adapter</name>
+    <artifactId>frame-me-adapter-starter</artifactId>
+    <name>frame-me-adapter-starter</name>
     <description>适配器 Starter 模块</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-adapter-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-base</artifactId>

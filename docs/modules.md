@@ -6,7 +6,7 @@
 - **依赖**：无。
 - **关键类**：
   - `com.frame.me.api.result.IResult<T>` — 统一响应结果接口。
-  - `com.frame.me.api.result.PageResult<T>` — 通用分页结果。
+  - `com.frame.me.api.result.PageData<T>` — 通用分页结果。
   - `com.frame.me.api.query.PageQuery` — 通用分页查询参数。
   - `com.frame.me.validation.CreateGroup` — 校验分组：新增场景。
   - `com.frame.me.validation.UpdateGroup` — 校验分组：更新场景。
@@ -37,7 +37,7 @@
   - `com.frame.me.base.mybatis.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
   - `com.frame.me.base.mybatis.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
   - `com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `frame.me.mybatis.meta-object-handler.enabled=true` 开启。
-  - `com.frame.me.base.mybatis.util.PageUtils` — `PageQuery` 与 MyBatis-Plus `Page` / `PageResult` 转换工具。
+  - `com.frame.me.base.mybatis.util.PageUtils` — 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换。
   - `com.frame.me.base.mybatis.util.SnowflakeUtils` — 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID。
   - `com.frame.me.base.mybatis.config.MybatisPlusProperties` — `frame.me.mybatis` 配置属性绑定。
   - `com.frame.me.base.mybatis.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
@@ -54,16 +54,31 @@
   - **Mapper 接口必须标注 `@Mapper` 注解**，并继承 MyBatis-Plus `BaseMapper<T>`，以便自动扫描与通用 CRUD。
 - **扩展提示**：与 Spring Web 相关的基础能力（拦截器、参数解析器、统一日志等）适合放在这里。
 
-## `frame-me-starter-adapter`
+## `frame-me-adapter`
 
-- **定位**：内部 `IResult<T>` 与外部 `Response<T>` 的适配层。
-- **依赖**：`frame-me-starter-base`、`lombok`。
+- **定位**：适配层聚合模块（`pom` 打包），承载老接口规范的契约与适配能力。拆分为 `frame-me-adapter-api`（契约）与 `frame-me-adapter-starter`（实现）。**凡集成 `frame-me-adapter-starter` 的项目即表示遵循老接口规范**。
+- **子模块**：
+
+### `frame-me-adapter-api`
+
+- **定位**：老规范契约模块，集成 `frame-me-api`，仅含对外契约类，不含 Spring 自动装配。
+- **依赖**：`frame-me-api`、`lombok`。
+- **关键类**：
+  - `com.frame.me.adapter.api.query.PageParam` — 老规范分页请求参数（`pageNum`/`pageSize`/`searchCount`/`orders`）。
+  - `com.frame.me.adapter.api.result.PageResult<T>` — 老规范分页结果（`pageNum`/`pageSize`/`total`/`pages`/`list`）。
+
+### `frame-me-adapter-starter`
+
+- **定位**：内部 `IResult<T>` 与外部 `Response<T>` 的适配层，并提供老规范分页工具。
+- **依赖**：`frame-me-adapter-api`、`frame-me-starter-base`、`lombok`。
 - **关键类**：
   - `com.frame.me.adapter.advice.Result2ResponseAdvice` — `ResponseBodyAdvice`，将 `IResult<T>` 转为 `Response<T>`。
   - `com.frame.me.adapter.result.Response<T>` — 外部响应结构。
+  - `com.frame.me.adapter.result.ResponseJacksonModule` — 将 `IResult` 抽象类型映射为 `Response` 的 Jackson 模块。
+  - `com.frame.me.adapter.mybatis.util.PageableUtils` — 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换。
   - `com.frame.me.adapter.config.AdapterAutoConfiguration` — 自动装配入口。
   - `com.frame.me.adapter.AdapterConstant` — 占位常量接口。
-- **自动装配**：通过 `frame-me-starter-adapter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AdapterAutoConfiguration`。
+- **自动装配**：通过 `frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AdapterAutoConfiguration`。
 - **扩展提示**：与外部协议相关的转换（如 OpenFeign 适配、DTO 转换、字段脱敏等）适合放在这里。
 
 ## `frame-me-starter-dynamic-ds`
@@ -181,7 +196,7 @@ frame:
 - **设计约定**：
   - 业务 `xx-service` 通过引入 `frame-me-booter` 一键启动通用能力。
   - `frame-me-booter` 无自己的自动装配类，依赖的 `frame-me-starter-base` 等模块会通过传递依赖自动注册。
-  - `frame-me-starter-adapter` 与 `frame-me-starter-doc-openapi` 不纳入聚合，因为不同项目通常会重写适配层或按需引入文档能力。
+  - `frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合，因为不同项目通常会重写适配层或按需引入文档能力。
 
 ```xml
 <!-- 业务 xx-service：引入通用能力 -->
@@ -190,10 +205,10 @@ frame:
     <artifactId>frame-me-booter</artifactId>
 </dependency>
 
-<!-- 默认适配层（可选，可被项目自定义适配层替换） -->
+<!-- 默认适配层 / 老接口规范（可选，可被项目自定义适配层替换） -->
 <dependency>
     <groupId>com.frame.me</groupId>
-    <artifactId>frame-me-starter-adapter</artifactId>
+    <artifactId>frame-me-adapter-starter</artifactId>
 </dependency>
 
 <!-- 接口文档（可选） -->
@@ -203,7 +218,7 @@ frame:
 </dependency>
 ```
 
-- **扩展提示**：新增通用功能子模块后，应将其加入 `frame-me-booter` 的依赖列表；`frame-me-starter-adapter`、`frame-me-starter-doc-openapi` 等可替换/可选模块应保持独立，不加入 `frame-me-booter`。
+- **扩展提示**：新增通用功能子模块后，应将其加入 `frame-me-booter` 的依赖列表；`frame-me-adapter-starter`、`frame-me-starter-doc-openapi` 等可替换/可选模块应保持独立，不加入 `frame-me-booter`。
 
 ## `frame-me-tester`
 
@@ -232,7 +247,7 @@ frame:
 ## `frame-me-tester-service`
 
 - **定位**：示例业务实现层与可运行 Spring Boot 入口。
-- **依赖**：`frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-adapter`、`spring-boot-starter-test`（test scope）。
+- **依赖**：`frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter`、`spring-boot-starter-test`（test scope）。
 - **关键类/文件**：
   - `com.frame.me.tester.Application` — `@SpringBootApplication` 启动类。
   - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi`，故意触发 NPE 以验证异常处理。
@@ -254,11 +269,12 @@ frame:
 |---|---|
 | `frame-me-api` | 无内部依赖 |
 | `frame-me-starter-base` | `frame-me-api` |
-| `frame-me-starter-adapter` | `frame-me-starter-base` |
+| `frame-me-adapter-api` | `frame-me-api` |
+| `frame-me-adapter-starter` | `frame-me-adapter-api`、`frame-me-starter-base` |
 | `frame-me-starter-dynamic-ds` | `frame-me-starter-base` |
 | `frame-me-starter-doc-openapi` | 无内部框架依赖（仅 `springdoc-openapi-starter-webmvc-ui`） |
 | `frame-me-starter-auth` | `frame-me-starter-base` |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds` |
 | `frame-me-tester-api` | `frame-me-api` |
-| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-adapter` |
+| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |

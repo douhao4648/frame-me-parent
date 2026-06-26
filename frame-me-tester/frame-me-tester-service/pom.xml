@@ -23,6 +23,10 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-booter</artifactId>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.frame.me</groupId>-->
+<!--            <artifactId>frame-me-adapter-starter</artifactId>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

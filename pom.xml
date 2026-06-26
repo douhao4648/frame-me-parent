@@ -41,7 +41,7 @@
     </properties>
 
     <modules>
-        <module>frame-me-starter-adapter</module>
+        <module>frame-me-adapter</module>
         <module>frame-me-api</module>
         <module>frame-me-starter-base</module>
         <module>frame-me-starter-auth</module>
@@ -80,7 +80,12 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-starter-adapter</artifactId>
+                <artifactId>frame-me-adapter-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-adapter-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

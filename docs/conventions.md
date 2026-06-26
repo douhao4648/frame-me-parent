@@ -58,7 +58,7 @@ return Result.error("系统错误：{}", e.getMessage());
 
 ## 外部响应 `Response<T>`
 
-类路径：`frame-me-starter-adapter/src/main/java/com/frame/me/adapter/result/Response.java`
+类路径：`frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/Response.java`
 
 `Response<T>` 是最终序列化给客户端的 JSON 形状，由 `Result2ResponseAdvice` 自动转换。
 
@@ -249,15 +249,30 @@ MyBatis-Plus starter 会自动扫描启动类所在包及其子包下的 `@Mappe
 | `insert` | `version` | `1`（仅 `BaseVersionEntity` 子类） |
 | `update` | `updateTime` | 当前时间 |
 
-### 分页工具 `PageUtils`
+### 分页工具
+
+项目有两套分页规范，对应两个工具类：
+
+**新规范 `PageUtils`**（默认）
 
 类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java`
 
-提供 `PageQuery` 与 MyBatis-Plus `Page` 对象之间的转换，以及 `Page` 到 `PageResult` 的转换。例如：
+在 `com.frame.me.api.query.PageQuery` / `com.frame.me.api.result.PageData` 与 MyBatis-Plus `Page` 之间转换。例如：
 
 ```java
 Page<DemoEntity> page = demoMapper.selectPage(PageUtils.toPage(query), wrapper);
-PageResult<DemoVO> result = PageUtils.toPageResult(page, DemoConvert.INSTANCE::toVo);
+PageData<DemoVO> result = PageUtils.toPageData(page, DemoConvert.INSTANCE::toVo);
+```
+
+**老规范 `PageableUtils`**（兼容老接口规范）
+
+类路径：`frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/mybatis/util/PageableUtils.java`
+
+在 `com.frame.me.adapter.api.query.PageParam` / `com.frame.me.adapter.api.result.PageResult` 与 MyBatis-Plus `Page` 之间转换。**凡集成 `frame-me-adapter-starter` 的项目即遵循老规范**，此时使用本工具：
+
+```java
+Page<DemoEntity> page = demoMapper.selectPage(PageableUtils.toPage(param), wrapper);
+PageResult<DemoVO> result = PageableUtils.toPageResult(page, DemoConvert.INSTANCE::toVo);
 ```
 
 ### Service 层

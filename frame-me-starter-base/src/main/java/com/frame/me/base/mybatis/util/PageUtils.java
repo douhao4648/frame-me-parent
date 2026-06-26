@@ -3,7 +3,7 @@ package com.frame.me.base.mybatis.util;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.frame.me.api.query.PageQuery;
-import com.frame.me.api.result.PageResult;
+import com.frame.me.api.result.PageData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 /**
  * 分页工具类.
  *
- * <p>用于在 API 层 {@link PageQuery} / {@link PageResult} 与 MyBatis-Plus {@link Page} 之间转换。</p>
+ * <p>用于在 API 层 {@link PageQuery} / {@link PageData} 与 MyBatis-Plus {@link Page} 之间转换。</p>
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PageUtils {
@@ -52,14 +52,14 @@ public final class PageUtils {
     }
 
     /**
-     * 将 MyBatis-Plus {@link Page} 转换为 {@link PageResult}.
+     * 将 MyBatis-Plus {@link Page} 转换为 {@link PageData}.
      *
      * @param page MyBatis-Plus 分页对象
      * @param <T>  业务数据类型
      * @return 分页结果
      */
-    public static <T> PageResult<T> toResult(Page<T> page) {
-        PageResult<T> result = new PageResult<>();
+    public static <T> PageData<T> toPageData(Page<T> page) {
+        PageData<T> result = new PageData<>();
         result.setCurrent(page.getCurrent());
         result.setSize(page.getSize());
         result.setTotal(page.getTotal());
@@ -69,7 +69,7 @@ public final class PageUtils {
     }
 
     /**
-     * 将 MyBatis-Plus {@link Page} 转换为 {@link PageResult}，并对记录做映射转换.
+     * 将 MyBatis-Plus {@link Page} 转换为 {@link PageData}，并对记录做映射转换.
      *
      * @param page   MyBatis-Plus 分页对象
      * @param mapper 记录映射函数
@@ -77,8 +77,8 @@ public final class PageUtils {
      * @param <R>    目标数据类型
      * @return 分页结果
      */
-    public static <T, R> PageResult<R> toResult(Page<T> page, Function<T, R> mapper) {
-        PageResult<R> result = new PageResult<>();
+    public static <T, R> PageData<R> toPageData(Page<T> page, Function<T, R> mapper) {
+        PageData<R> result = new PageData<>();
         result.setCurrent(page.getCurrent());
         result.setSize(page.getSize());
         result.setTotal(page.getTotal());

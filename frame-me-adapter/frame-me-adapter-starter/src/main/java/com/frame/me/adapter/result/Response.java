@@ -1,5 +1,6 @@
 package com.frame.me.adapter.result;
 
+import com.frame.me.api.result.IResult;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,7 +10,7 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Response<T> implements Serializable {
+public class Response<T> implements Serializable, IResult<T> {
 
     /**
      * 编号.
@@ -31,4 +32,23 @@ public class Response<T> implements Serializable {
      */
     private String requestId;
 
+    @Override
+    public String getMsg() {
+        return null;
+    }
+
+    @Override
+    public T getData() {
+        return null;
+    }
+
+    @Override
+    public String getErr() {
+        return null;
+    }
+
+    @Override
+    public String getRid() {
+        return null;
+    }
 }

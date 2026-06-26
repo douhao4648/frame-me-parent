@@ -7,7 +7,9 @@
 | 父 POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/pom.xml` |
 | `frame-me-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/pom.xml` |
 | `frame-me-starter-base` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/pom.xml` |
-| `frame-me-starter-adapter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-adapter/pom.xml` |
+| `frame-me-adapter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/pom.xml` |
+| `frame-me-adapter-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-api/pom.xml` |
+| `frame-me-adapter-starter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/pom.xml` |
 | `frame-me-starter-auth` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/pom.xml` |
 | `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
 | `frame-me-starter-doc-openapi` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/pom.xml` |
@@ -27,7 +29,7 @@
 | `InternalException` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/exception/InternalException.java` |
 | `RetryException` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/exception/RetryException.java` |
 | `ApiConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/api/ApiConstant.java` |
-| `PageResult<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/api/result/PageResult.java` |
+| `PageData<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/api/result/PageData.java` |
 | `PageQuery` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/api/query/PageQuery.java` |
 | `CreateGroup` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/validation/CreateGroup.java` |
 | `UpdateGroup` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/validation/UpdateGroup.java` |
@@ -40,13 +42,17 @@
 | `BaseEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseEntity.java` |
 | `BaseVersionEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java` |
 | `BaseMetaObjectHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java` |
-| `PageUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java` |
+| `PageUtils`（新规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java` |
 | `SnowflakeUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/SnowflakeUtils.java` |
 | `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/config/MybatisPlusConfiguration.java` |
-| `Result2ResponseAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/advice/Result2ResponseAdvice.java` |
-| `Response<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/result/Response.java` |
-| `AdapterAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/config/AdapterAutoConfiguration.java` |
-| `AdapterConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-adapter/src/main/java/com/frame/me/adapter/AdapterConstant.java` |
+| `Result2ResponseAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/advice/Result2ResponseAdvice.java` |
+| `Response<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/Response.java` |
+| `ResponseJacksonModule` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/ResponseJacksonModule.java` |
+| `PageableUtils`（老规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/mybatis/util/PageableUtils.java` |
+| `PageParam`（老规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-api/src/main/java/com/frame/me/adapter/api/query/PageParam.java` |
+| `PageResult<T>`（老规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-api/src/main/java/com/frame/me/adapter/api/result/PageResult.java` |
+| `AdapterAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/config/AdapterAutoConfiguration.java` |
+| `AdapterConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/AdapterConstant.java` |
 | `DynamicDataSourceAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/java/com/frame/me/dynamic/ds/config/DynamicDataSourceAutoConfiguration.java` |
 | `MeDynamicDataSourceProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/java/com/frame/me/dynamic/ds/provider/MeDynamicDataSourceProvider.java` |
 | `DocOpenApiAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/config/DocOpenApiAutoConfiguration.java` |
@@ -73,7 +79,7 @@
 | 模块 | 文件路径 |
 |---|---|
 | `frame-me-starter-base` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
-| `frame-me-starter-adapter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-adapter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-adapter-starter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-dynamic-ds` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-doc-openapi` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 
@@ -83,8 +89,8 @@
 |---|---|
 | `IResult<T>` | 统一响应结果接口 |
 | `Result<T>` | `IResult<T>` 默认实现，并提供静态工厂方法 |
-| `PageResult<T>` | 通用分页结果 |
-| `PageQuery` | 通用分页查询参数 |
+| `PageData<T>` | 新规范分页结果 |
+| `PageQuery` | 新规范分页查询参数 |
 | `ResultCode` | 状态码枚举 |
 | `BusinessException` | 可预期业务异常 |
 | `InternalException` | 系统内部异常，HTTP 500 |
@@ -96,12 +102,16 @@
 | `BaseEntity` | MyBatis-Plus 基础实体，含公共字段，主键雪花算法 |
 | `BaseVersionEntity` | 继承 BaseEntity，额外提供 version（乐观锁） |
 | `BaseMetaObjectHandler` | 公共字段自动填充处理器，需通过配置开启 |
-| `PageUtils` | `PageQuery` 与 MyBatis-Plus `Page` / `PageResult` 转换工具 |
+| `PageUtils` | 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换 |
 | `SnowflakeUtils` | 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID |
 | `MybatisPlusProperties` | `frame.me.mybatis` 配置属性绑定 |
 | `MybatisPlusConfiguration` | MyBatis-Plus 自动装配入口，注册分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器 |
 | `Result2ResponseAdvice` | 将 `IResult<T>` 转换为 `Response<T>` |
 | `Response<T>` | 外部 JSON 响应结构 |
+| `ResponseJacksonModule` | 将 `IResult` 抽象类型反序列化映射为 `Response` |
+| `PageParam` | 老规范分页查询参数（`frame-me-adapter-api`） |
+| `PageResult<T>` | 老规范分页结果（`frame-me-adapter-api`） |
+| `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |
 | `DynamicDataSourceAutoConfiguration` | 多数据源自动装配入口 |
 | `MeDynamicDataSourceProvider` | 根据 `spring.datasource.*` 创建默认 `master` 数据源 |
 | `DocOpenApiAutoConfiguration` | OpenAPI 文档自动装配入口 |

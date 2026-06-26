@@ -1,12 +1,14 @@
 package com.frame.me.tester.controller;
 
+//import com.frame.me.adapter.api.result.PageResult;
 import com.frame.me.api.result.IResult;
-import com.frame.me.api.result.PageResult;
+import com.frame.me.api.result.PageData;
 import com.frame.me.base.mybatis.util.SnowflakeUtils;
 import com.frame.me.base.result.Result;
 import com.frame.me.tester.api.IDemoApi;
 import com.frame.me.tester.api.dto.DemoDTO;
 import com.frame.me.tester.api.query.DemoComplexQuery;
+//import com.frame.me.tester.api.query.DemoOldQuery;
 import com.frame.me.tester.api.query.DemoQuery;
 import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
@@ -31,7 +33,8 @@ public class DemoController implements IDemoApi {
 
     @Override
     public IResult<List<DemoVO>> list() {
-        return Result.success(demoService.list());
+        List<DemoVO> list = demoService.list();
+        return Result.success(list);
     }
 
     @Override
@@ -40,9 +43,15 @@ public class DemoController implements IDemoApi {
     }
 
     @Override
-    public IResult<PageResult<DemoVO>> page(DemoQuery query) {
-        return Result.success(demoService.page(query));
+    public IResult<PageData<DemoVO>> page(DemoQuery query) {
+        PageData<DemoVO> page = demoService.page(query);
+        return Result.success(page);
     }
+//
+//    @Override
+//    public IResult<PageResult<DemoVO>> pageOld(DemoOldQuery param) {
+//        return Result.success(demoService.pageOld(param));
+//    }
 
     @Override
     public IResult<DemoVO> getById(Long id) {

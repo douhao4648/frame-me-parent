@@ -1,8 +1,10 @@
 package com.frame.me.tester.service;
 
-import com.frame.me.api.result.PageResult;
+//import com.frame.me.adapter.api.result.PageResult;
+import com.frame.me.api.result.PageData;
 import com.frame.me.tester.api.dto.DemoDTO;
 import com.frame.me.tester.api.query.DemoComplexQuery;
+//import com.frame.me.tester.api.query.DemoOldQuery;
 import com.frame.me.tester.api.query.DemoQuery;
 import com.frame.me.tester.api.vo.DemoComplexVO;
 import com.frame.me.tester.api.vo.DemoVO;
@@ -27,7 +29,15 @@ public interface IDemoService {
      * @param query 查询参数
      * @return 分页结果
      */
-    PageResult<DemoVO> page(DemoQuery query);
+    PageData<DemoVO> page(DemoQuery query);
+
+//    /**
+//     * 分页查询演示数据（老接口规范）.
+//     *
+//     * @param param 老规范分页参数
+//     * @return 老规范分页结果
+//     */
+//    PageResult<DemoVO> pageOld(DemoOldQuery param);
 
     /**
      * 复杂查询演示数据（手写 SQL）.
