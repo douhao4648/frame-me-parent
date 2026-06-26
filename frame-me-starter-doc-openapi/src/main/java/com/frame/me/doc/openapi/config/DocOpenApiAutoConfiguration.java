@@ -46,7 +46,7 @@ public class DocOpenApiAutoConfiguration {
         if (cachedOpenAPI != null) {
             return cachedOpenAPI;
         }
-        log.info("注册 OpenAPI 文档：title={}", properties.getTitle());
+        log.info("register OpenAPI doc：{}", properties.getTitle());
         Contact contact = new Contact();
         contact.setName(properties.getContact().getName());
         contact.setEmail(properties.getContact().getEmail());

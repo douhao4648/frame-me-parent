@@ -50,10 +50,10 @@ public class SnowflakeUtils implements ApplicationContextAware {
         String[] beanNames = applicationContext.getBeanNamesForType(IdentifierGenerator.class);
         if (beanNames.length > 0) {
             identifierGenerator = applicationContext.getBean(IdentifierGenerator.class);
-            log.debug("SnowflakeUtil 使用自定义 IdentifierGenerator: {}", identifierGenerator.getClass().getName());
+            log.debug("SnowflakeUtil use custom IdentifierGenerator: {}", identifierGenerator.getClass().getName());
         } else {
             identifierGenerator = DefaultIdentifierGenerator.getInstance();
-            log.debug("SnowflakeUtil 使用默认 DefaultIdentifierGenerator");
+            log.debug("SnowflakeUtil use DefaultIdentifierGenerator");
         }
     }
 

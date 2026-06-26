@@ -83,10 +83,9 @@ public class RedisAutoConfiguration {
 
             stringTemplates.put(name, extraStringTemplate);
             templates.put(name, extraTemplate);
-            log.info("Redis 实例已注册: {} -> {}:{}/{}", name, config.getHost(), config.getPort(), config.getDatabase());
         });
 
         RedisUtils.init(DEFAULT_CLIENT, stringTemplates, templates);
-        log.info("Redis 基础能力已启用，实例: {}", stringTemplates.keySet());
+        log.info("Redis initialize : {}", stringTemplates.keySet());
     }
 }

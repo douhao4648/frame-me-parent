@@ -51,7 +51,6 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
     public Map<String, DataSource> loadDataSources() {
         String url = environment.getProperty(SPRING_DATASOURCE_URL);
         if (!StringUtils.hasText(url)) {
-            log.debug("未检测到 spring.datasource.url，跳过默认 master 数据源自动创建");
             return Collections.emptyMap();
         }
 
@@ -65,7 +64,6 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
         loadDruidProperties(property);
 
         DataSource dataSource = dataSourceCreator.createDataSource(property);
-        log.info("已根据 spring.datasource.* 自动创建默认 master 数据源");
         return Collections.singletonMap(MASTER_NAME, dataSource);
     }
 

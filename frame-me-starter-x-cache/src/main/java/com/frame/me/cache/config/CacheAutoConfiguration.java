@@ -26,7 +26,7 @@ public class CacheAutoConfiguration {
 
     @PostConstruct
     public void init() {
-        log.info("JetCache 基础设施已就绪（方法缓存注解由业务启动类启用）");
+        log.info("JetCache initialize Application starter use @EnableMethodCache");
     }
 
 }
