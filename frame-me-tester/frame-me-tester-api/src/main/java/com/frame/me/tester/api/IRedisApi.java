@@ -58,4 +58,13 @@ public interface IRedisApi {
     @Operation(summary = "delete", description = "删除一个 key")
     @PostExchange("/delete")
     IResult<Boolean> delete(@Parameter(description = "键", required = true) @RequestParam String key);
+
+    /**
+     * 测试第二个 Redis 实例.
+     *
+     * @return second 实例的读写结果
+     */
+    @Operation(summary = "second-test", description = "测试第二个 Redis 实例的读写")
+    @GetExchange("/second-test")
+    IResult<Map<String, Object>> secondTest();
 }

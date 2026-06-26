@@ -85,6 +85,12 @@ frame:
         - name: tester-api
           paths-to-match:
             - /api/**
+    redis:
+      clients:
+        second:
+          host: localhost
+          port: 6379
+          database: 1
     # mybatis:
     #   meta-object-handler:
     #     enabled: true

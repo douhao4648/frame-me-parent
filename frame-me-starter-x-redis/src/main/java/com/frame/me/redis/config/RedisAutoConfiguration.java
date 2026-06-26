@@ -8,13 +8,21 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisPassword;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Redis 自动配置.
  *
- * <p>启用后注册 {@link RedisUtils} 所需的 RedisTemplate 引用。</p>
+ * <p>启用后注册 {@link RedisUtils} 所需的 RedisTemplate 引用。
+ * 默认实例来自 {@code spring.data.redis.*}，额外实例通过 {@code frame.me.redis.clients.*} 配置。</p>
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
@@ -23,20 +31,62 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @EnableConfigurationProperties(RedisProperties.class)
 public class RedisAutoConfiguration {
 
+    private static final String DEFAULT_CLIENT = "default";
+
     private final StringRedisTemplate stringRedisTemplate;
+
     private final RedisTemplate<Object, Object> redisTemplate;
 
+    private final RedisProperties redisProperties;
 
     @Autowired(required = false)
-    public RedisAutoConfiguration(StringRedisTemplate stringRedisTemplate, RedisTemplate<Object, Object> redisTemplate) {
+    public RedisAutoConfiguration(StringRedisTemplate stringRedisTemplate,
+                                  RedisTemplate<Object, Object> redisTemplate,
+                                  RedisProperties redisProperties) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.redisTemplate = redisTemplate;
+        this.redisProperties = redisProperties;
     }
 
     @PostConstruct
     public void init() {
-        RedisUtils.init(stringRedisTemplate, redisTemplate);
-        log.info("Redis 基础能力已启用");
-    }
+        Map<String, StringRedisTemplate> stringTemplates = new HashMap<>();
+        Map<String, RedisTemplate<Object, Object>> templates = new HashMap<>();
 
+        if (stringRedisTemplate != null) {
+            stringTemplates.put(DEFAULT_CLIENT, stringRedisTemplate);
+        }
+        if (redisTemplate != null) {
+            templates.put(DEFAULT_CLIENT, redisTemplate);
+        }
+
+        redisProperties.getClients().forEach((name, config) -> {
+            RedisStandaloneConfiguration standaloneConfig = new RedisStandaloneConfiguration();
+            standaloneConfig.setHostName(config.getHost());
+            standaloneConfig.setPort(config.getPort());
+            standaloneConfig.setDatabase(config.getDatabase());
+            if (config.getUsername() != null && !config.getUsername().isEmpty()) {
+                standaloneConfig.setUsername(config.getUsername());
+            }
+            if (config.getPassword() != null && !config.getPassword().isEmpty()) {
+                standaloneConfig.setPassword(RedisPassword.of(config.getPassword()));
+            }
+
+            LettuceClientConfiguration clientConfiguration = LettuceClientConfiguration.builder().build();
+            LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(standaloneConfig, clientConfiguration);
+            connectionFactory.afterPropertiesSet();
+
+            StringRedisTemplate extraStringTemplate = new StringRedisTemplate(connectionFactory);
+            RedisTemplate<Object, Object> extraTemplate = new RedisTemplate<>();
+            extraTemplate.setConnectionFactory(connectionFactory);
+            extraTemplate.afterPropertiesSet();
+
+            stringTemplates.put(name, extraStringTemplate);
+            templates.put(name, extraTemplate);
+            log.info("Redis 实例已注册: {} -> {}:{}/{}", name, config.getHost(), config.getPort(), config.getDatabase());
+        });
+
+        RedisUtils.init(DEFAULT_CLIENT, stringTemplates, templates);
+        log.info("Redis 基础能力已启用，实例: {}", stringTemplates.keySet());
+    }
 }
