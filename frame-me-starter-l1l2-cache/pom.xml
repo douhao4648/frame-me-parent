@@ -10,8 +10,8 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-starter-x-cache</artifactId>
-    <name>frame-me-starter-x-cache</name>
+    <artifactId>frame-me-starter-l1l2-cache</artifactId>
+    <name>frame-me-starter-l1l2-cache</name>
     <description>两级缓存 Starter，基于 JetCache（Caffeine L1 + Redis L2）</description>
 
     <dependencies>

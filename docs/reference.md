@@ -12,8 +12,8 @@
 | `frame-me-adapter-starter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/pom.xml` |
 | `frame-me-starter-auth` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/pom.xml` |
 | `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
-| `frame-me-starter-x-redis` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/pom.xml` |
-| `frame-me-starter-x-cache` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/pom.xml` |
+| `frame-me-starter-multi-redis` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/pom.xml` |
+| `frame-me-starter-l1l2-cache` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/pom.xml` |
 | `frame-me-starter-doc-openapi` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/pom.xml` |
 | `frame-me-tester` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/pom.xml` |
 | `frame-me-tester-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-api/pom.xml` |
@@ -63,14 +63,14 @@
 | `DocOpenApiConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/DocOpenApiConstant.java` |
 | `AuthConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/AuthConstant.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
-| `RedisAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/config/RedisAutoConfiguration.java` |
-| `RedisProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/config/RedisProperties.java` |
-| `RedisUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/util/RedisUtils.java` |
-| `RedisConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/RedisConstant.java` |
-| `CacheAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/config/CacheAutoConfiguration.java` |
-| `CacheProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/config/CacheProperties.java` |
-| `JetCacheInfrastructureRoleFixer` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/config/JetCacheInfrastructureRoleFixer.java` |
-| `CacheConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/CacheConstant.java` |
+| `RedisAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/config/RedisAutoConfiguration.java` |
+| `RedisProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/config/RedisProperties.java` |
+| `RedisUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/util/RedisUtils.java` |
+| `RedisConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/RedisConstant.java` |
+| `CacheAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/config/CacheAutoConfiguration.java` |
+| `CacheProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/config/CacheProperties.java` |
+| `JetCacheInfrastructureRoleFixer` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/config/JetCacheInfrastructureRoleFixer.java` |
+| `CacheConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/CacheConstant.java` |
 | `Application` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/Application.java` |
 | `HealthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/HealthController.java` |
 | `DemoController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/DemoController.java` |
@@ -92,8 +92,8 @@
 | `frame-me-starter-base` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-adapter-starter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-dynamic-ds` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
-| `frame-me-starter-x-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
-| `frame-me-starter-x-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-multi-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-l1l2-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-doc-openapi` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 
 ## 速查表：类名 → 作用

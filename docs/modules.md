@@ -186,7 +186,7 @@ frame:
   - `com.frame.me.cloud.CloudConstant` — 占位常量接口。
 - **扩展提示**：未来可引入 Nacos 注册/配置中心、Gateway、Sentinel、分布式链路追踪等。
 
-## `frame-me-starter-x-redis`
+## `frame-me-starter-multi-redis`
 
 - **定位**：Redis 基础能力 starter，封装 `spring-boot-starter-data-redis` 与统一操作工具 `RedisUtils`。
 - **依赖**：`frame-me-starter-base`、`spring-boot-starter-data-redis`、`fastjson2`、`lombok`。
@@ -195,7 +195,7 @@ frame:
   - `com.frame.me.redis.config.RedisProperties` — `frame.me.redis` 配置属性绑定。
   - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、分布式锁等。
   - `com.frame.me.redis.RedisConstant` — 占位常量接口。
-- **自动装配**：通过 `frame-me-starter-x-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`。
+- **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 `StringRedisTemplate`。
   - `frame.me.redis.enabled=true`（默认关闭）。
@@ -231,7 +231,7 @@ Boolean locked = RedisUtils.tryLock("lock:order:123", UUID.randomUUID().toString
 RedisUtils.unlock("lock:order:123", UUID.randomUUID().toString());
 ```
 
-## `frame-me-starter-x-cache`
+## `frame-me-starter-l1l2-cache`
 
 - **定位**：两级缓存 starter，基于 JetCache 提供 Caffeine（L1）+ Redis（L2）缓存能力。
 - **依赖**：`jetcache-starter-redis-lettuce`、`caffeine`、`lombok`。
@@ -240,7 +240,7 @@ RedisUtils.unlock("lock:order:123", UUID.randomUUID().toString());
   - `com.frame.me.cache.config.CacheProperties` — `frame.me.cache` 配置属性绑定。
   - `com.frame.me.cache.config.JetCacheInfrastructureRoleFixer` — 修复 JetCache 内部配置类的 BeanPostProcessor 警告。
   - `com.frame.me.cache.CacheConstant` — 占位常量接口。
-- **自动装配**：通过 `frame-me-starter-x-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CacheAutoConfiguration`。
+- **自动装配**：通过 `frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CacheAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 JetCache 核心类。
   - `frame.me.cache.enabled=true`（默认关闭）。
@@ -307,7 +307,7 @@ public Boolean delete(Long id) { ... }
 ## `frame-me-booter`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-x-redis`、`frame-me-starter-x-cache`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.booter.BooterConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-service` 模块。

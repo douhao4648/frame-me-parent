@@ -29,11 +29,11 @@
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-x-redis</artifactId>
+            <artifactId>frame-me-starter-multi-redis</artifactId>
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-x-cache</artifactId>
+            <artifactId>frame-me-starter-l1l2-cache</artifactId>
         </dependency>
     </dependencies>
 </project>

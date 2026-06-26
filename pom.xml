@@ -50,8 +50,8 @@
         <module>frame-me-starter-cloud</module>
         <module>frame-me-starter-doc-openapi</module>
         <module>frame-me-starter-dynamic-ds</module>
-        <module>frame-me-starter-x-redis</module>
-        <module>frame-me-starter-x-cache</module>
+        <module>frame-me-starter-multi-redis</module>
+        <module>frame-me-starter-l1l2-cache</module>
         <module>frame-me-booter</module>
         <module>frame-me-tester</module>
     </modules>
@@ -119,12 +119,12 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-starter-x-redis</artifactId>
+                <artifactId>frame-me-starter-multi-redis</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-starter-x-cache</artifactId>
+                <artifactId>frame-me-starter-l1l2-cache</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

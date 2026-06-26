@@ -10,8 +10,8 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-starter-x-redis</artifactId>
-    <name>frame-me-starter-x-redis</name>
+    <artifactId>frame-me-starter-multi-redis</artifactId>
+    <name>frame-me-starter-multi-redis</name>
     <description>Redis 基础能力 Starter，提供 RedisTemplate 与 RedisUtils 工具类</description>
 
     <dependencies>
