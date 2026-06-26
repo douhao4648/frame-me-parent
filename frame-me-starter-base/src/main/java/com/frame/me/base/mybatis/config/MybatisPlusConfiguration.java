@@ -75,7 +75,7 @@ public class MybatisPlusConfiguration {
     public IdentifierGenerator identifierGenerator(MybatisPlusProperties properties) {
         long workerId = properties.getSnowflake().getWorkerId();
         long datacenterId = properties.getSnowflake().getDatacenterId();
-        log.info("注册自定义 Snowflake ID 生成器：workerId={}, datacenterId={}", workerId, datacenterId);
+        log.info("register custom Snowflake ID Generator：workerId={}, datacenterId={}", workerId, datacenterId);
         return new DefaultIdentifierGenerator(workerId, datacenterId);
     }
 

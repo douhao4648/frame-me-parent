@@ -113,7 +113,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
             binder.bind(DRUID_SOURCE_PREFIX.substring(0, DRUID_SOURCE_PREFIX.length() - 1), Bindable.of(DruidConfig.class))
                     .ifBound(property::setDruid);
         } catch (Exception e) {
-            log.warn("无法绑定 Druid 连接池属性: {}", e.getMessage());
+            log.warn("Failed to bind Druid connection pool properties: {}", e.getMessage());
         }
     }
 
@@ -130,7 +130,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
             Class<?> paramType = setter.getParameterTypes()[0];
             setter.invoke(hikari, convertValue(value, paramType));
         } catch (IllegalAccessException | InvocationTargetException e) {
-            log.warn("无法设置 Hikari 连接池属性 {}: {}", key, e.getMessage());
+            log.warn("Failed to bind Hikari connection pool properties {}: {}", key, e.getMessage());
         }
     }
 

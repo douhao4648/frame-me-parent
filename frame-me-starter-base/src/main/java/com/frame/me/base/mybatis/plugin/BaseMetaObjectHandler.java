@@ -17,7 +17,7 @@ public class BaseMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void insertFill(MetaObject metaObject) {
-        log.debug("开始插入填充 ...");
+        log.debug("BaseMetaObjectHandler insert fill ...");
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
         this.strictInsertFill(metaObject, "deleted", Integer.class, 0);
@@ -26,7 +26,7 @@ public class BaseMetaObjectHandler implements MetaObjectHandler {
 
     @Override
     public void updateFill(MetaObject metaObject) {
-        log.debug("开始更新填充 ...");
+        log.debug("BaseMetaObjectHandler update fill ...");
         this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
     }
 }
