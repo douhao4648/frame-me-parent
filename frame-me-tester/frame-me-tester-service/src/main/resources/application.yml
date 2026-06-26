@@ -28,6 +28,13 @@ spring:
           driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
     default-property-inclusion: non_null
+  data:
+    redis:
+      database: 0
+      host: localhost
+      port: 6379
+  #      username: xx
+  #      password: xx
   sql:
     init:
       mode: always
@@ -49,6 +56,8 @@ logging:
   file:
     path: ./logs
     name: ${spring.application.name}
+  level:
+    com.alicp.jetcache: INFO
 
 springdoc:
   # /v3/api-docs
@@ -69,7 +78,6 @@ frame:
   me:
     # 依赖通过 Maven profile "swagger" 引入：mvn ... -Pswagger
     swagger:
-      enabled: true
       title: Frame Me Tester API
       description: Frame Me Tester 接口文档
       version: 1.0.0
@@ -84,5 +92,24 @@ frame:
     #     worker-id: 1
     #     datacenter-id: 0
 
-
+jetcache:
+  decodeFilterAllowPatterns:
+    - com.frame.me.
+  statIntervalMinutes: 15
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson2
+      limit: 100
+      expireAfterWriteInMillis: 600000
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson2
+      valueEncoder: kryo5
+      valueDecoder: kryo5
+      expireAfterWriteInMillis: 1800000
+      broadcastChannel: ${spring.application.name}
+      uri: redis://localhost:6379/0
+#      uri: redis://u:p@host:port/db # @符号得替换成编码符
 

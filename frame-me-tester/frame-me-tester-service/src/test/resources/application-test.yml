@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DB_CLOSE_DELAY=-1
     username: sa
     password:
     driver-class-name: org.h2.Driver
@@ -33,3 +33,18 @@ frame:
       snowflake:
         worker-id: 5
         datacenter-id: 1
+
+jetcache:
+  statIntervalMinutes: 0
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson2
+      limit: 50
+      expireAfterWriteInMillis: 300000
+  remote:
+    default:
+      type: mock
+      keyConvertor: fastjson2
+      valueEncoder: java
+      valueDecoder: java

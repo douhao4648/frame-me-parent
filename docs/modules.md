@@ -186,10 +186,128 @@ frame:
   - `com.frame.me.cloud.CloudConstant` — 占位常量接口。
 - **扩展提示**：未来可引入 Nacos 注册/配置中心、Gateway、Sentinel、分布式链路追踪等。
 
+## `frame-me-starter-x-redis`
+
+- **定位**：Redis 基础能力 starter，封装 `spring-boot-starter-data-redis` 与统一操作工具 `RedisUtils`。
+- **依赖**：`frame-me-starter-base`、`spring-boot-starter-data-redis`、`fastjson2`、`lombok`。
+- **关键类**：
+  - `com.frame.me.redis.config.RedisAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.redis.config.RedisProperties` — `frame.me.redis` 配置属性绑定。
+  - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、分布式锁等。
+  - `com.frame.me.redis.RedisConstant` — 占位常量接口。
+- **自动装配**：通过 `frame-me-starter-x-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`。
+- **启用条件**：
+  - 类路径存在 `StringRedisTemplate`。
+  - `frame.me.redis.enabled=true`（默认关闭）。
+- **使用方式**：
+  - 开启后在业务代码中直接调用 `RedisUtils.xxx()` 静态方法。
+  - 分布式锁为简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；需要可重入锁请使用 Redisson。
+- **设计约定**：
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得 Redis 能力。
+  - 默认关闭，启用前需确保 Redis 服务可用。
+
+**示例配置**：
+
+```yaml
+frame:
+  me:
+    redis:
+      enabled: true
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+```
+
+**示例代码**：
+
+```java
+RedisUtils.set("key", "value", Duration.ofMinutes(10));
+String value = RedisUtils.get("key");
+Boolean locked = RedisUtils.tryLock("lock:order:123", UUID.randomUUID().toString(), 30000);
+RedisUtils.unlock("lock:order:123", UUID.randomUUID().toString());
+```
+
+## `frame-me-starter-x-cache`
+
+- **定位**：两级缓存 starter，基于 JetCache 提供 Caffeine（L1）+ Redis（L2）缓存能力。
+- **依赖**：`jetcache-starter-redis-lettuce`、`caffeine`、`lombok`。
+- **关键类**：
+  - `com.frame.me.cache.config.CacheAutoConfiguration` — 自动装配入口，启用方法级缓存注解。
+  - `com.frame.me.cache.config.CacheProperties` — `frame.me.cache` 配置属性绑定。
+  - `com.frame.me.cache.config.JetCacheInfrastructureRoleFixer` — 修复 JetCache 内部配置类的 BeanPostProcessor 警告。
+  - `com.frame.me.cache.CacheConstant` — 占位常量接口。
+- **自动装配**：通过 `frame-me-starter-x-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CacheAutoConfiguration`。
+- **启用条件**：
+  - 类路径存在 JetCache 核心类。
+  - `frame.me.cache.enabled=true`（默认关闭）。
+- **使用方式**：
+  - 在 Service 方法上标注 `@Cached(name = "...", cacheType = CacheType.BOTH)` 启用两级缓存。
+  - 使用 `@CacheInvalidate` 在写操作时使缓存失效。
+  - 使用 `@CacheUpdate` 在更新操作时更新缓存。
+- **设计约定**：
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得缓存能力。
+  - 默认关闭，需显式开启。
+  - 缓存连接参数通过 `jetcache.*` 原生属性控制。
+  - 当前使用 `java` 序列化作为 value encoder，要求缓存对象实现 `Serializable`。
+
+**示例配置**：
+
+```yaml
+frame:
+  me:
+    cache:
+      enabled: true
+
+jetcache:
+  statIntervalMinutes: 15
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson2
+      limit: 100
+      expireAfterWriteInMillis: 600000
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson2
+      valueEncoder: java
+      valueDecoder: java
+      poolConfig:
+        minIdle: 5
+        maxIdle: 20
+        maxTotal: 50
+      host: ${spring.data.redis.host:localhost}
+      port: ${spring.data.redis.port:6379}
+      password: ${spring.data.redis.password:}
+      database: ${spring.data.redis.database:0}
+      expireAfterWriteInMillis: 1800000
+```
+
+**示例注解**：
+
+```java
+@Cached(
+    name = "demo:detail",
+    key = "#id",
+    cacheType = CacheType.BOTH,
+    localLimit = 100,
+    localExpire = 600,
+    expire = 1800
+)
+public DemoVO getById(Long id) { ... }
+
+@CacheInvalidate(name = "demo:detail", key = "#id")
+public Boolean delete(Long id) { ... }
+```
+
 ## `frame-me-booter`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-x-redis`、`frame-me-starter-x-cache`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.booter.BooterConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-service` 模块。

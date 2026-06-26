@@ -18,7 +18,7 @@ public class DocOpenApiProperties {
     /**
      * 是否启用 OpenAPI 文档，默认关闭.
      */
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     /**
      * API 文档标题.

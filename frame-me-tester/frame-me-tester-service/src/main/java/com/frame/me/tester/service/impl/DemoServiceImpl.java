@@ -1,6 +1,10 @@
 package com.frame.me.tester.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import com.alicp.jetcache.anno.CacheInvalidate;
+import com.alicp.jetcache.anno.CachePenetrationProtect;
+import com.alicp.jetcache.anno.CacheType;
+import com.alicp.jetcache.anno.Cached;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 //import com.frame.me.adapter.api.result.PageResult;
@@ -35,6 +39,17 @@ public class DemoServiceImpl implements IDemoService {
     private final DemoConvert demoConvert;
 
     @Override
+    @Cached(
+            name = "demo:list:",
+            key = "'all'",
+            cacheType = CacheType.BOTH,
+            localLimit = 50,
+            localExpire = 600,
+            expire = 1800,
+            cacheNullValue = true
+
+    )
+    @CachePenetrationProtect
     public List<DemoVO> list() {
         List<DemoEntity> entities = demoMapper.selectList(null);
         return demoConvert.toVoList(entities);
@@ -73,6 +88,15 @@ public class DemoServiceImpl implements IDemoService {
     }
 
     @Override
+    @Cached(
+            name = "demo:detail:",
+            key = "#id",
+            cacheType = CacheType.BOTH,
+            localLimit = 100,
+            localExpire = 600,
+            expire = 1800,
+            syncLocal = true
+    )
     public DemoVO getById(Long id) {
         DemoEntity entity = demoMapper.selectById(id);
         if (entity == null) {
@@ -82,6 +106,7 @@ public class DemoServiceImpl implements IDemoService {
     }
 
     @Override
+    @CacheInvalidate(name = "demo:list:", key = "'all'")
     public Long create(DemoDTO dto) {
         DemoEntity entity = demoConvert.toEntity(dto);
         demoMapper.insert(entity);
@@ -89,6 +114,8 @@ public class DemoServiceImpl implements IDemoService {
     }
 
     @Override
+    @CacheInvalidate(name = "demo:detail:", key = "#id")
+    @CacheInvalidate(name = "demo:list:", key = "'all'")
     public Boolean update(Long id, DemoDTO dto) {
         DemoEntity exist = demoMapper.selectById(id);
         if (exist == null) {
@@ -104,6 +131,8 @@ public class DemoServiceImpl implements IDemoService {
     }
 
     @Override
+    @CacheInvalidate(name = "demo:detail:", key = "#id")
+    @CacheInvalidate(name = "demo:list:", key = "'all'")
     public Boolean delete(Long id) {
         DemoEntity exist = demoMapper.selectById(id);
         if (exist == null) {

@@ -10,30 +10,27 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>frame-me-booter</artifactId>
-    <name>frame-me-booter</name>
-    <description>聚合启动模块，集成所有子模块能力供外部统一引用</description>
+    <artifactId>frame-me-starter-x-redis</artifactId>
+    <name>frame-me-starter-x-redis</name>
+    <description>Redis 基础能力 Starter，提供 RedisTemplate 与 RedisUtils 工具类</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-auth</artifactId>
+            <artifactId>frame-me-starter-base</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-cloud</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-dynamic-ds</artifactId>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-x-redis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-x-cache</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
     </dependencies>
+
 </project>

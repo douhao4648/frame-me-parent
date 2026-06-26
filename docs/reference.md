@@ -12,6 +12,8 @@
 | `frame-me-adapter-starter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/pom.xml` |
 | `frame-me-starter-auth` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/pom.xml` |
 | `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
+| `frame-me-starter-x-redis` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/pom.xml` |
+| `frame-me-starter-x-cache` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/pom.xml` |
 | `frame-me-starter-doc-openapi` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/pom.xml` |
 | `frame-me-tester` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/pom.xml` |
 | `frame-me-tester-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-api/pom.xml` |
@@ -61,6 +63,14 @@
 | `DocOpenApiConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/DocOpenApiConstant.java` |
 | `AuthConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/AuthConstant.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
+| `RedisAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/config/RedisAutoConfiguration.java` |
+| `RedisProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/config/RedisProperties.java` |
+| `RedisUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/util/RedisUtils.java` |
+| `RedisConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/java/com/frame/me/redis/RedisConstant.java` |
+| `CacheAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/config/CacheAutoConfiguration.java` |
+| `CacheProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/config/CacheProperties.java` |
+| `JetCacheInfrastructureRoleFixer` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/config/JetCacheInfrastructureRoleFixer.java` |
+| `CacheConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/java/com/frame/me/cache/CacheConstant.java` |
 | `Application` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/Application.java` |
 | `HealthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/HealthController.java` |
 | `DemoController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/DemoController.java` |
@@ -73,6 +83,7 @@
 | `MybatisPlusLogicDeleteTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java` |
 | `MybatisPlusOptimisticLockTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java` |
 | `MybatisPlusPaginationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java` |
+| `DemoServiceCacheTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java` |
 
 ## Spring Boot 自动装配注册文件
 
@@ -81,6 +92,8 @@
 | `frame-me-starter-base` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-adapter-starter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-dynamic-ds` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-x-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-x-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-x-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-doc-openapi` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 
 ## 速查表：类名 → 作用
@@ -114,6 +127,12 @@
 | `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |
 | `DynamicDataSourceAutoConfiguration` | 多数据源自动装配入口 |
 | `MeDynamicDataSourceProvider` | 根据 `spring.datasource.*` 创建默认 `master` 数据源 |
+| `RedisAutoConfiguration` | Redis 基础能力自动装配入口 |
+| `RedisProperties` | `frame.me.redis` 配置属性绑定 |
+| `RedisUtils` | 统一 Redis 操作工具类 |
+| `CacheAutoConfiguration` | JetCache 两级缓存自动装配入口 |
+| `CacheProperties` | `frame.me.cache` 配置属性绑定 |
+| `JetCacheInfrastructureRoleFixer` | 修复 JetCache 内部配置类的 BeanPostProcessor 警告 |
 | `DocOpenApiAutoConfiguration` | OpenAPI 文档自动装配入口 |
 | `DocOpenApiProperties` | `frame.me.swagger` 配置属性绑定 |
 | `GroupedOpenApiRegistrar` | 动态注册 API 分组 |

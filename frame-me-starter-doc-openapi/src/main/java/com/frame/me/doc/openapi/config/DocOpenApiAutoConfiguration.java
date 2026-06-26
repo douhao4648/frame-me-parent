@@ -25,7 +25,7 @@ import org.springframework.context.annotation.Import;
         prefix = "frame.me.swagger",
         name = "enabled",
         havingValue = "true",
-        matchIfMissing = false)
+        matchIfMissing = true)
 @EnableConfigurationProperties(DocOpenApiProperties.class)
 @Import(GroupedOpenApiRegistrar.class)
 public class DocOpenApiAutoConfiguration {
