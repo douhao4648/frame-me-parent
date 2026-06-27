@@ -8,7 +8,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
+import org.springframework.data.redis.connection.RedisConfiguration;
 import org.springframework.data.redis.connection.RedisPassword;
+import org.springframework.data.redis.connection.RedisSentinelConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -16,6 +19,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 /**
@@ -61,20 +65,7 @@ public class RedisAutoConfiguration {
         }
 
         redisProperties.getClients().forEach((name, config) -> {
-            RedisStandaloneConfiguration standaloneConfig = new RedisStandaloneConfiguration();
-            standaloneConfig.setHostName(config.getHost());
-            standaloneConfig.setPort(config.getPort());
-            standaloneConfig.setDatabase(config.getDatabase());
-            if (config.getUsername() != null && !config.getUsername().isEmpty()) {
-                standaloneConfig.setUsername(config.getUsername());
-            }
-            if (config.getPassword() != null && !config.getPassword().isEmpty()) {
-                standaloneConfig.setPassword(RedisPassword.of(config.getPassword()));
-            }
-
-            LettuceClientConfiguration clientConfiguration = LettuceClientConfiguration.builder().build();
-            LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(standaloneConfig, clientConfiguration);
-            connectionFactory.afterPropertiesSet();
+            LettuceConnectionFactory connectionFactory = buildConnectionFactory(config);
 
             StringRedisTemplate extraStringTemplate = new StringRedisTemplate(connectionFactory);
             RedisTemplate<Object, Object> extraTemplate = new RedisTemplate<>();
@@ -87,5 +78,54 @@ public class RedisAutoConfiguration {
 
         RedisUtils.init(DEFAULT_CLIENT, stringTemplates, templates);
         log.info("Redis initialize : {}", stringTemplates.keySet());
+    }
+
+    /**
+     * 按部署模式构建额外实例的连接工厂.
+     *
+     * <p>支持 {@code STANDALONE} / {@code CLUSTER} / {@code SENTINEL} 三种模式。</p>
+     */
+    private LettuceConnectionFactory buildConnectionFactory(RedisProperties.ClientConfig config) {
+        LettuceClientConfiguration clientConfiguration = LettuceClientConfiguration.builder().build();
+        RedisConfiguration redisConfiguration = switch (config.getMode()) {
+            case CLUSTER -> {
+                RedisClusterConfiguration cluster = new RedisClusterConfiguration(config.getNodes());
+                applyAuth(config, cluster::setUsername, cluster::setPassword);
+                yield cluster;
+            }
+            case SENTINEL -> {
+                RedisSentinelConfiguration sentinel =
+                        new RedisSentinelConfiguration(config.getSentinelMaster(), new HashSet<>(config.getNodes()));
+                sentinel.setDatabase(config.getDatabase());
+                applyAuth(config, sentinel::setUsername, sentinel::setPassword);
+                yield sentinel;
+            }
+            case STANDALONE -> {
+                RedisStandaloneConfiguration standalone = new RedisStandaloneConfiguration();
+                standalone.setHostName(config.getHost());
+                standalone.setPort(config.getPort());
+                standalone.setDatabase(config.getDatabase());
+                applyAuth(config, standalone::setUsername, standalone::setPassword);
+                yield standalone;
+            }
+        };
+
+        LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(redisConfiguration, clientConfiguration);
+        connectionFactory.afterPropertiesSet();
+        return connectionFactory;
+    }
+
+    /**
+     * 统一设置用户名/密码（非空时）.
+     */
+    private void applyAuth(RedisProperties.ClientConfig config,
+                           java.util.function.Consumer<String> usernameSetter,
+                           java.util.function.Consumer<RedisPassword> passwordSetter) {
+        if (config.getUsername() != null && !config.getUsername().isEmpty()) {
+            usernameSetter.accept(config.getUsername());
+        }
+        if (config.getPassword() != null && !config.getPassword().isEmpty()) {
+            passwordSetter.accept(RedisPassword.of(config.getPassword()));
+        }
     }
 }

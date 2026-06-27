@@ -3,7 +3,9 @@ package com.frame.me.redis.config;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -35,14 +37,29 @@ public class RedisProperties {
     public static class ClientConfig {
 
         /**
-         * 主机地址.
+         * 部署模式，默认单机.
+         */
+        private Mode mode = Mode.STANDALONE;
+
+        /**
+         * 主机地址（{@code STANDALONE} 模式）.
          */
         private String host = "localhost";
 
         /**
-         * 端口.
+         * 端口（{@code STANDALONE} 模式）.
          */
         private int port = 6379;
+
+        /**
+         * 节点列表，格式 {@code host:port}（{@code CLUSTER} 集群节点 / {@code SENTINEL} 哨兵节点）.
+         */
+        private List<String> nodes = new ArrayList<>();
+
+        /**
+         * 哨兵监控的主节点名称（{@code SENTINEL} 模式）.
+         */
+        private String sentinelMaster;
 
         /**
          * 用户名（Redis 6.0+ ACL）.
@@ -55,8 +72,29 @@ public class RedisProperties {
         private String password;
 
         /**
-         * 数据库索引.
+         * 数据库索引（{@code CLUSTER} 模式不支持，将被忽略）.
          */
         private int database = 0;
+    }
+
+    /**
+     * Redis 部署模式.
+     */
+    public enum Mode {
+
+        /**
+         * 单机.
+         */
+        STANDALONE,
+
+        /**
+         * 集群.
+         */
+        CLUSTER,
+
+        /**
+         * 哨兵.
+         */
+        SENTINEL
     }
 }

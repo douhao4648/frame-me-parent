@@ -188,23 +188,33 @@ frame:
 
 ## `frame-me-starter-multi-redis`
 
-- **定位**：Redis 基础能力 starter，封装 `spring-boot-starter-data-redis` 与统一操作工具 `RedisUtils`。
-- **依赖**：`frame-me-starter-base`、`spring-boot-starter-data-redis`、`fastjson2`、`lombok`。
+- **定位**：Redis 基础能力 starter，封装 `spring-boot-starter-data-redis` 与统一操作工具 `RedisUtils`；在引入 Redisson 时自动启用 Redisson 高阶能力。
+- **依赖**：`frame-me-starter-base`、`spring-boot-starter-data-redis`、`fastjson2`、`lombok`；`redisson` 为 optional 依赖。
 - **关键类**：
-  - `com.frame.me.redis.config.RedisAutoConfiguration` — 自动装配入口。
-  - `com.frame.me.redis.config.RedisProperties` — `frame.me.redis` 配置属性绑定。
-  - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、分布式锁等。
+  - `com.frame.me.redis.config.RedisAutoConfiguration` — Spring Data Redis 自动装配入口，创建 `StringRedisTemplate` / `RedisTemplate` 并初始化 `RedisUtils`。
+  - `com.frame.me.redis.config.RedisProperties` — `frame.me.redis` 配置属性绑定（多实例、开关等）。
+  - `com.frame.me.redis.config.RedissonLockAutoConfiguration` — Redisson 自动装配入口，创建 `RedissonClient` 并初始化所有 Redisson 工具类。
+  - `com.frame.me.redis.config.RedissonProperties` — `spring.data.redis.redisson` 配置属性绑定。
+  - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、简单分布式锁等。
+  - `com.frame.me.redis.util.RedisClient` — 单实例 Redis 操作封装，供 `RedisUtils` 委托。
+  - `com.frame.me.redis.util.RedissonLock` — Redisson 可重入锁静态入口（需引入 Redisson），支持看门狗续期。
+  - `com.frame.me.redis.util.RedissonSync` — Redisson 同步原语：读写锁、公平锁、联锁、信号量、倒计时门闩、可过期信号量（红锁已随 Redisson 4.x 弃用）。
+  - `com.frame.me.redis.util.RedissonTopic` — Redisson 消息能力：Topic、PatternTopic、ReliableTopic、Stream。
+  - `com.frame.me.redis.util.RedissonLimiter` — Redisson 限流：基于 `RRateLimiter` 的令牌桶限流。
   - `com.frame.me.redis.RedisConstant` — 占位常量接口。
-- **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`。
+- **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`、`RedissonLockAutoConfiguration`。
 - **启用条件**：
-  - 类路径存在 `StringRedisTemplate`。
-  - `frame.me.redis.enabled=true`（默认关闭）。
+  - `RedisAutoConfiguration`：类路径存在 `StringRedisTemplate`，`frame.me.redis.enabled=true`（默认开启，可显式关闭）。
+  - `RedissonLockAutoConfiguration`：类路径存在 `org.redisson.api.RedissonClient`，`frame.me.redis.enabled=true`（默认开启）。
 - **使用方式**：
-  - 开启后在业务代码中直接调用 `RedisUtils.xxx()` 静态方法。
-  - 分布式锁为简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；需要可重入锁请使用 Redisson。
+  - 直接调用 `RedisUtils.xxx()` 使用 Spring Data Redis 能力。
+  - 分布式锁默认为简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；引入 Redisson 后自动启用 `RedissonLock`，提供可重入与看门狗续期。
+  - Redisson 连接配置优先级：配 `spring.data.redis.redisson.config=classpath:redisson.yaml`（与 `redisson-spring-boot-starter` 标准配置项对齐）时用 Redisson 原生 YAML（支持全部 5 种模式，含 masterSlave/replicated）；否则自动复用 `spring.data.redis.*`——配 `cluster.nodes` 走集群、配 `sentinel.master/nodes` 走哨兵，否则单机，无需额外配置。
+  - 用户名/密码在 Redisson 4.x 中需在顶层 `Config` 对象上设置，本 starter 已通过 `Config.setUsername` / `Config.setPassword` 实现。
 - **设计约定**：
   - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得 Redis 能力。
-  - 默认关闭，启用前需确保 Redis 服务可用。
+  - Redisson 为 optional 依赖，未引入时不影响 `RedisUtils` 使用。
+  - 各 Redisson 工具类采用 `final` + 静态 `init(RedissonClient)` 模式，未初始化时调用会抛出 `IllegalStateException`。
 
 **示例配置**：
 
@@ -213,6 +223,26 @@ frame:
   me:
     redis:
       enabled: true
+      # 额外实例（RedisUtils.getClient("name")），支持 standalone / cluster / sentinel
+      clients:
+        order:                    # 单机（默认）
+          host: 10.0.0.1
+          port: 6379
+          password: pwd
+        cache:                    # 集群（database 被忽略）
+          mode: cluster
+          nodes:
+            - 10.0.0.2:6379
+            - 10.0.0.3:6379
+            - 10.0.0.4:6379
+          password: pwd
+        session:                  # 哨兵
+          mode: sentinel
+          sentinel-master: mymaster
+          nodes:
+            - 10.0.0.5:26379
+            - 10.0.0.6:26379
+          database: 1
 
 spring:
   data:
@@ -227,8 +257,26 @@ spring:
 ```java
 RedisUtils.set("key", "value", Duration.ofMinutes(10));
 String value = RedisUtils.get("key");
+// 简单锁（默认，SET NX PX）
 Boolean locked = RedisUtils.tryLock("lock:order:123", UUID.randomUUID().toString(), 30000);
 RedisUtils.unlock("lock:order:123", UUID.randomUUID().toString());
+// 可重入锁（引入 Redisson 后可用；leaseMs<=0 启用看门狗续期）
+if (RedissonLock.tryLock("lock:order:123", 0, 30000)) {
+    RedissonLock.unlock("lock:order:123");
+}
+// Redisson 读写锁
+if (RedissonSync.tryWriteLock("lock:order", 0, 30000)) {
+    RedissonSync.unlockWrite("lock:order");
+}
+// Redisson 限流（100 次/秒）
+RedissonLimiter.trySetRate("api:order", RateType.OVERALL, 100, 1, TimeUnit.SECONDS);
+boolean allowed = RedissonLimiter.tryAcquire("api:order", 1);
+// Redisson Topic
+RedissonTopic.topicPublish("order:event", new OrderEvent());
+int listenerId = RedissonTopic.topicSubscribe("order:event", OrderEvent.class, (channel, msg) -> {
+    // 处理消息
+});
+RedissonTopic.topicUnsubscribe("order:event", listenerId);
 ```
 
 ## `frame-me-starter-l1l2-cache`

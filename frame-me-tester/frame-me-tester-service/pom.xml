@@ -23,10 +23,10 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-booter</artifactId>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>com.frame.me</groupId>-->
-<!--            <artifactId>frame-me-adapter-starter</artifactId>-->
-<!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>com.frame.me</groupId>-->
+        <!--            <artifactId>frame-me-adapter-starter</artifactId>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -35,10 +35,14 @@
         <!--            <groupId>com.alibaba</groupId>-->
         <!--            <artifactId>druid-spring-boot-4-starter</artifactId>-->
         <!--        </dependency>-->
-        <!--        <dependency>-->
-        <!--            <groupId>io.micrometer</groupId>-->
-        <!--            <artifactId>micrometer-registry-prometheus</artifactId>-->
-        <!--        </dependency>-->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -57,7 +57,7 @@ public final class RedisUtils {
     public static RedisClient getClient(String name) {
         RedisClient client = CLIENT_MAP.get(name);
         if (client == null) {
-            throw new IllegalStateException("Redis client '" + name + "' 未注册，请检查 frame.me.redis.clients 配置");
+            throw new IllegalStateException("Redis client '" + name + "' Not registered. Please check the frame.me.redis.clients configuration");
         }
         return client;
     }

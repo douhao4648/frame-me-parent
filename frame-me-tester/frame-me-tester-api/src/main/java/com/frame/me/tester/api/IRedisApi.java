@@ -60,11 +60,11 @@ public interface IRedisApi {
     IResult<Boolean> delete(@Parameter(description = "键", required = true) @RequestParam String key);
 
     /**
-     * 测试第二个 Redis 实例.
+     * 测试 Redisson 分布式锁.
      *
-     * @return second 实例的读写结果
+     * @return 锁测试结果
      */
-    @Operation(summary = "second-test", description = "测试第二个 Redis 实例的读写")
-    @GetExchange("/second-test")
-    IResult<Map<String, Object>> secondTest();
+    @Operation(summary = "redis-lock-test", description = "测试 Redisson 分布式锁的可重入、互斥与释放")
+    @GetExchange("/redis-lock-test")
+    IResult<Map<String, Object>> redisLockTest();
 }

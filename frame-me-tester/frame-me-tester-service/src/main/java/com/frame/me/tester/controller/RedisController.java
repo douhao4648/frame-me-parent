@@ -2,6 +2,7 @@ package com.frame.me.tester.controller;
 
 import com.frame.me.api.result.IResult;
 import com.frame.me.base.result.Result;
+import com.frame.me.redis.util.RedissonLock;
 import com.frame.me.redis.util.RedisUtils;
 import com.frame.me.tester.api.IRedisApi;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,6 +57,7 @@ public class RedisController implements IRedisApi {
     @Override
     public IResult<Boolean> set(String key, String value) {
         RedisUtils.set(key, value);
+        RedisUtils.getClient("second").set(key+":second", value);
         return Result.success(true);
     }
 
@@ -70,20 +72,41 @@ public class RedisController implements IRedisApi {
     }
 
     /**
-     * 测试第二个 Redis 实例.
+     * 测试 Redisson 分布式锁.
      *
-     * @return second 实例的读写结果
+     * @return 锁测试结果
      */
     @Override
-    public IResult<Map<String, Object>> secondTest() {
+    public IResult<Map<String, Object>> redisLockTest() {
         Map<String, Object> r = new LinkedHashMap<>();
-        String prefix = "redis:second:";
+        // 每次调用用唯一 key，避免并发/重复调用时互相污染锁状态
+        String key = "redis:lock:test:" + UUID.randomUUID();
 
-        RedisUtils.getClient("second").set(prefix + "str", "from-second", Duration.ofMinutes(1));
-        r.put("second-string", RedisUtils.getClient("second").get(prefix + "str"));
+        // 可重入锁
+        boolean firstLock = RedissonLock.tryLock(key, 0, 5000);
+        boolean reentrantLock = RedissonLock.tryLock(key, 0, 5000);
+        r.put("firstLock", firstLock);
+        r.put("reentrantLock", reentrantLock);
 
-        RedisUtils.getClient("second").delete(prefix + "str");
-        r.put("deleted", !RedisUtils.getClient("second").hasKey(prefix + "str"));
+        // 互斥性：在另一个线程尝试获取同一把锁，应失败
+        boolean[] otherThreadAcquired = {false};
+        Thread t = new Thread(() -> otherThreadAcquired[0] = RedissonLock.tryLock(key, 100, 100));
+        t.start();
+        try {
+            t.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        r.put("otherThreadAcquired", otherThreadAcquired[0]);
+
+        // 释放两次（对应两次可重入获取）
+        RedissonLock.unlock(key);
+        RedissonLock.unlock(key);
+
+        // 释放后应能重新获取
+        boolean reacquired = RedissonLock.tryLock(key, 0, 1000);
+        r.put("reacquiredAfterUnlock", reacquired);
+        RedissonLock.unlock(key);
 
         return Result.success(r);
     }

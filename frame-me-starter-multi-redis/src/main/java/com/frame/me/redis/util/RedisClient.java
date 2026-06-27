@@ -19,7 +19,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Redis 客户端操作类.
  *
- * <p>封装单个 Redis 实例的常用操作，可通过 {@link RedisUtils#getClient(String)} 获取指定实例。</p>
+ * <p>封装单个 Redis 实例的常用操作，可通过 {@link RedisUtils#getClient(String)} 获取指定实例。
+ * 这里的 {@link #tryLock} 是基于 {@code SET NX PX} 的简单锁；若引入 Redisson，可改用 {@link RedissonLock}
+ * 获得可重入与看门狗续期。</p>
  */
 public class RedisClient {
 
@@ -43,7 +45,7 @@ public class RedisClient {
 
     private StringRedisTemplate str() {
         if (stringRedisTemplate == null) {
-            throw new IllegalStateException("RedisClient 未初始化");
+            throw new IllegalStateException("RedisClient is not initialized");
         }
         return stringRedisTemplate;
     }
@@ -55,7 +57,7 @@ public class RedisClient {
      */
     public RedisTemplate<Object, Object> obj() {
         if (redisTemplate == null) {
-            throw new IllegalStateException("RedisClient 未初始化");
+            throw new IllegalStateException("RedisClient is not initialized");
         }
         return redisTemplate;
     }
@@ -448,7 +450,7 @@ public class RedisClient {
      * 尝试获取分布式锁.
      *
      * <p>基于 {@code SET key value NX PX milliseconds} 实现，仅提供最简单的互斥语义。
-     * 若需要可重入、看门狗续期，请使用 Redisson。</p>
+     * 若需要可重入、看门狗续期，请引入 Redisson 并使用 {@link RedissonLock}。</p>
      *
      * @param key      锁键
      * @param value    锁标识（建议用 UUID）
