@@ -352,10 +352,32 @@ public DemoVO getById(Long id) { ... }
 public Boolean delete(Long id) { ... }
 ```
 
+## `frame-me-starter-sensi-encrypt`
+
+- **定位**：配置文件密钥加密 starter，基于 Jasypt 核心库在应用启动早期解密配置中的 `ME(密文)`，使数据源、Redis 等下游拿到明文。规避了官方 `jasypt-spring-boot` starter 在 Spring Boot 4 上的不兼容问题。
+- **依赖**：`org.jasypt:jasypt`（纯加密库）、`spring-boot`（provided）、`lombok`。**不依赖 `frame-me-starter-base`**，保持轻量。
+- **关键类**：
+  - `com.frame.me.encrypt.env.EncryptablePropertyEnvironmentPostProcessor` — 实现 Boot 4 的 `org.springframework.boot.EnvironmentPostProcessor`，扫描属性源解密 `ME(...)`。
+  - `com.frame.me.encrypt.util.JasyptEncryptor` — 统一构建 `StandardPBEStringEncryptor`（默认 `PBEWITHHMACSHA512ANDAES_256` + 随机盐 + 随机 IV）。
+  - `com.frame.me.encrypt.cli.JasyptEncryptCli` — 离线生成 `ME(密文)` 的 `main` 工具。
+  - `com.frame.me.encrypt.config.EncryptAutoConfiguration` — 配了主密码后暴露 `org.jasypt.encryption.StringEncryptor` Bean，供业务代码对自身数据加解密（与配置解密共用主密码与算法，密文互通）。
+  - `com.frame.me.encrypt.EncryptConstant` — 配置键与默认值常量。
+- **注册**：配置解密的 `EncryptablePropertyEnvironmentPostProcessor` 走 `META-INF/spring.factories` 的 `org.springframework.boot.EnvironmentPostProcessor` 键（EnvironmentPostProcessor 早于自动装配，**不能**用 `AutoConfiguration.imports`）；业务用的 `EncryptAutoConfiguration` 是普通自动装配，走 `AutoConfiguration.imports`。两者并存、互不影响。
+- **启用条件**：读到主密码 `frame.me.encrypt.password`（兼容环境变量 `ME_ENCRYPT_PASSWORD`、JVM 系统属性）时才解密；主密码缺失则跳过，对无密文应用零影响。
+- **可配置项**（前缀 `frame.me.encrypt`）：`password`、`algorithm`（默认 `PBEWITHHMACSHA512ANDAES_256`）、`iterations`（默认 1000）、`prefix`/`suffix`（默认 `ME(` / `)`）。
+- **使用方式**：
+  - 生成密文：`java -cp ... com.frame.me.encrypt.cli.JasyptEncryptCli <明文> <主密码>`。
+  - 配置：把敏感值写成 `password: ME(密文)`。
+  - 运行：通过环境变量/启动参数注入主密码，**不写入配置文件**：`ME_ENCRYPT_PASSWORD=xxx` 或 `-Dframe.me.encrypt.password=xxx`。
+- **设计约定**：
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即获得能力。
+  - 跳过系统环境变量属性源（规避 Boot 3.5+ 系统环境源不被包装解密的已知行为，且密文放环境变量无意义）。
+  - 本质是「用主密码加密其它密钥」，主密码仍需妥善保管；若要求密钥完全不落地，应改用 Vault/KMS 方案。
+
 ## `frame-me-booter`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.booter.BooterConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-service` 模块。

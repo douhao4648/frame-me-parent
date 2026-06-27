@@ -41,6 +41,7 @@
         <jetcache.version>2.8.0.RC</jetcache.version>
         <fastjson2.version>2.0.62</fastjson2.version>
         <redisson.version>4.6.1</redisson.version>
+        <jasypt.version>1.9.3</jasypt.version>
     </properties>
 
     <modules>
@@ -53,6 +54,7 @@
         <module>frame-me-starter-dynamic-ds</module>
         <module>frame-me-starter-multi-redis</module>
         <module>frame-me-starter-l1l2-cache</module>
+        <module>frame-me-starter-sensi-encrypt</module>
         <module>frame-me-booter</module>
         <module>frame-me-tester</module>
     </modules>
@@ -126,6 +128,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-l1l2-cache</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-sensi-encrypt</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -235,6 +242,11 @@
                 <groupId>org.redisson</groupId>
                 <artifactId>redisson</artifactId>
                 <version>${redisson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jasypt</groupId>
+                <artifactId>jasypt</artifactId>
+                <version>${jasypt.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

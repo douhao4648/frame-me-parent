@@ -35,5 +35,9 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-l1l2-cache</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-sensi-encrypt</artifactId>
+        </dependency>
     </dependencies>
 </project>

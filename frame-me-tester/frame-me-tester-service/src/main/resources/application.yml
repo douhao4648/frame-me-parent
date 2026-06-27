@@ -11,7 +11,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
-    password: root
+    password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -24,7 +24,7 @@ spring:
         second:
           url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
           username: root
-          password: root
+          password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
           driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
     default-property-inclusion: non_null

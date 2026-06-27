@@ -53,7 +53,8 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
 | `frame-me-starter-multi-redis` | Redis 能力 starter：封装 `RedisUtils`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动启用分布式锁、同步原语、Topic、限流。 |
 | `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `frame.me.cache.enabled=true` 开启。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache；不含 adapter 与 doc-openapi）。 |
+| `frame-me-starter-sensi-encrypt` | 配置密钥加密 starter：基于 Jasypt 核心库，启动时解密配置中的 `ME(密文)`，主密码由环境变量注入、不入库。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt；不含 adapter 与 doc-openapi）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定
