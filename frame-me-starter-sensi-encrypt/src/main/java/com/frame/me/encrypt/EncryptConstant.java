@@ -6,19 +6,19 @@ package com.frame.me.encrypt;
 public interface EncryptConstant {
 
     /** 主密码配置键. */
-    String PASSWORD_KEY = "frame.me.encrypt.password";
+    String PASSWORD_KEY = "me.encrypt.password";
 
     /** 加密算法配置键. */
-    String ALGORITHM_KEY = "frame.me.encrypt.algorithm";
+    String ALGORITHM_KEY = "me.encrypt.algorithm";
 
     /** 密钥迭代次数配置键. */
-    String ITERATIONS_KEY = "frame.me.encrypt.iterations";
+    String ITERATIONS_KEY = "me.encrypt.iterations";
 
     /** 密文前缀配置键. */
-    String PREFIX_KEY = "frame.me.encrypt.prefix";
+    String PREFIX_KEY = "me.encrypt.prefix";
 
     /** 密文后缀配置键. */
-    String SUFFIX_KEY = "frame.me.encrypt.suffix";
+    String SUFFIX_KEY = "me.encrypt.suffix";
 
     /** 默认加密算法（PBE + HMAC-SHA512 + AES-256，需要 IV）. */
     String DEFAULT_ALGORITHM = "PBEWITHHMACSHA512ANDAES_256";

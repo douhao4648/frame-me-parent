@@ -18,7 +18,7 @@ import java.util.Map;
  * 中所有可枚举属性源，将 {@code ME(...)} 包裹的密文用 Jasypt 解密后，以更高优先级的属性源覆盖，
  * 使下游（数据源、Redis 等）拿到的是明文。</p>
  *
- * <p>主密码从 {@code frame.me.encrypt.password} 读取（兼容环境变量 {@code ME_ENCRYPT_PASSWORD}、
+ * <p>主密码从 {@code me.encrypt.password} 读取（兼容环境变量 {@code ME_ENCRYPT_PASSWORD}、
  * JVM 系统属性），<b>不写入任何配置文件</b>。主密码缺失时直接跳过，对没有密文的应用零影响。</p>
  *
  * <p>注册方式为 {@code META-INF/spring.factories} 的

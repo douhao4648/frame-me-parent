@@ -25,14 +25,13 @@ mybatis-plus:
       logic-not-delete-value: 0
       id-type: assign_id
 
-frame:
-  me:
-    mybatis:
-      meta-object-handler:
-        enabled: true
-      snowflake:
-        worker-id: 5
-        datacenter-id: 1
+me:
+  mybatis:
+    meta-object-handler:
+      enabled: true
+    snowflake:
+      worker-id: 5
+      datacenter-id: 1
 
 jetcache:
   statIntervalMinutes: 0

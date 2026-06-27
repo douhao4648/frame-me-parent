@@ -46,13 +46,13 @@ public class MybatisPlusConfiguration {
     /**
      * 注册公共字段自动填充处理器.
      *
-     * <p>默认不启用，需要通过配置 {@code frame.me.mybatis.meta-object-handler.enabled=true} 开启。
+     * <p>默认不启用，需要通过配置 {@code me.mybatis.meta-object-handler.enabled=true} 开启。
      *
      * @return BaseMetaObjectHandler
      */
     @Bean
     @ConditionalOnProperty(
-            prefix = "frame.me.mybatis",
+            prefix = "me.mybatis",
             name = "meta-object-handler.enabled",
             havingValue = "true",
             matchIfMissing = false)
@@ -63,7 +63,7 @@ public class MybatisPlusConfiguration {
     /**
      * 注册自定义雪花算法 ID 生成器.
      *
-     * <p>当显式配置 {@code frame.me.mybatis.snowflake.worker-id} 时生效，
+     * <p>当显式配置 {@code me.mybatis.snowflake.worker-id} 时生效，
      * 用于分布式环境下为每个实例分配唯一的 workerId / datacenterId。
      *
      * @param properties MyBatis-Plus 扩展配置属性
@@ -71,7 +71,7 @@ public class MybatisPlusConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(IdentifierGenerator.class)
-    @ConditionalOnProperty(prefix = "frame.me.mybatis.snowflake", name = "worker-id")
+    @ConditionalOnProperty(prefix = "me.mybatis.snowflake", name = "worker-id")
     public IdentifierGenerator identifierGenerator(MybatisPlusProperties properties) {
         long workerId = properties.getSnowflake().getWorkerId();
         long datacenterId = properties.getSnowflake().getDatacenterId();

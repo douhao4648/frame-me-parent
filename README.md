@@ -49,10 +49,10 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、MyBatis-Plus。 |
 | `frame-me-starter-auth` | 认证授权占位模块。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
-| `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `frame.me.swagger.enabled=true` 开启。 |
+| `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `me.swagger.enabled=true` 开启。 |
 | `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
 | `frame-me-starter-multi-redis` | Redis 能力 starter：封装 `RedisUtils`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动启用分布式锁、同步原语、Topic、限流。 |
-| `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `frame.me.cache.enabled=true` 开启。 |
+| `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `me.cache.enabled=true` 开启。 |
 | `frame-me-starter-sensi-encrypt` | 配置密钥加密 starter：基于 Jasypt 核心库，启动时解密配置中的 `ME(密文)`，主密码由环境变量注入、不入库。 |
 | `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt；不含 adapter 与 doc-openapi）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |

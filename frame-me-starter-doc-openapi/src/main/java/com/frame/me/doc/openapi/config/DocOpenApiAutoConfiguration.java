@@ -15,14 +15,14 @@ import org.springframework.context.annotation.Import;
  * OpenAPI 文档自动配置.
  *
  * <p>当类路径存在 {@link OpenAPI} 时自动启用，注册 OpenAPI 文档 bean 和 API 分组。
- * 需要通过配置 {@code frame.me.swagger.enabled=true} 开启。
- * API 分组通过 {@link GroupedOpenApiRegistrar} 根据 {@code frame.me.swagger.groups} 动态注册。
+ * 需要通过配置 {@code me.swagger.enabled=true} 开启。
+ * API 分组通过 {@link GroupedOpenApiRegistrar} 根据 {@code me.swagger.groups} 动态注册。
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "io.swagger.v3.oas.models.OpenAPI")
 @ConditionalOnProperty(
-        prefix = "frame.me.swagger",
+        prefix = "me.swagger",
         name = "enabled",
         havingValue = "true",
         matchIfMissing = true)

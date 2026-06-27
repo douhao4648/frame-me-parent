@@ -20,7 +20,7 @@ class EncryptAutoConfigurationTest {
 
     @Test
     void shouldExposeEncryptorWhenPasswordSet() {
-        runner.withPropertyValues("frame.me.encrypt.password=master-secret")
+        runner.withPropertyValues("me.encrypt.password=master-secret")
                 .run(context -> {
                     assertThat(context).hasSingleBean(StringEncryptor.class);
                     StringEncryptor encryptor = context.getBean(StringEncryptor.class);

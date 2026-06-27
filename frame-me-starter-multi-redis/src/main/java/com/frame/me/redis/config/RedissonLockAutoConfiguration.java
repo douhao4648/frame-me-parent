@@ -57,7 +57,7 @@ import java.util.List;
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "org.redisson.api.RedissonClient")
-@ConditionalOnProperty(prefix = "frame.me.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "me.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(RedissonProperties.class)
 public class RedissonLockAutoConfiguration {
 

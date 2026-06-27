@@ -11,10 +11,10 @@ import java.util.Map;
 /**
  * Redis 模块配置属性.
  *
- * <p>绑定前缀 {@code frame.me.redis}，控制 Redis 自动配置的启停，并支持多实例配置。</p>
+ * <p>绑定前缀 {@code me.redis}，控制 Redis 自动配置的启停，并支持多实例配置。</p>
  */
 @Data
-@ConfigurationProperties(prefix = "frame.me.redis")
+@ConfigurationProperties(prefix = "me.redis")
 public class RedisProperties {
 
     /**

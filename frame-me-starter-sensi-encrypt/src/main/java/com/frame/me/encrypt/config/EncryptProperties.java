@@ -7,12 +7,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * 配置加密模块属性.
  *
- * <p>绑定前缀 {@code frame.me.encrypt}，供 {@link EncryptAutoConfiguration} 构建业务用的
+ * <p>绑定前缀 {@code me.encrypt}，供 {@link EncryptAutoConfiguration} 构建业务用的
  * {@code StringEncryptor} Bean。与配置解密处理器
  * {@link com.frame.me.encrypt.env.EncryptablePropertyEnvironmentPostProcessor} 共用同一主密码。</p>
  */
 @Data
-@ConfigurationProperties(prefix = "frame.me.encrypt")
+@ConfigurationProperties(prefix = "me.encrypt")
 public class EncryptProperties {
 
     /**

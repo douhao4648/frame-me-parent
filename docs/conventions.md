@@ -237,7 +237,7 @@ MyBatis-Plus starter 会自动扫描启动类所在包及其子包下的 `@Mappe
 
 类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java`
 
-开启方式：`frame.me.mybatis.meta-object-handler.enabled=true`
+开启方式：`me.mybatis.meta-object-handler.enabled=true`
 
 自动填充行为：
 
@@ -348,7 +348,7 @@ spring:
 
 启用条件：
 
-- `frame.me.dynamic-datasource.enabled=true`（默认 `true`，可省略）。
+- `me.dynamic-datasource.enabled=true`（默认 `true`，可省略）。
 - `spring.datasource.dynamic.enabled=true`（默认 `true`，可省略）。
 - 存在 `spring.datasource.url` 时，自动创建名为 `master` 的默认数据源。
 - 若 `spring.datasource.dynamic.datasource` 中也显式配置了 `master`，显式配置优先级更高。
@@ -359,24 +359,23 @@ spring:
 
 ### OpenAPI 配置
 
-引入 `frame-me-starter-doc-openapi` 并开启后，通过 `frame.me.swagger` 前缀配置文档信息：
+引入 `frame-me-starter-doc-openapi` 并开启后，通过 `me.swagger` 前缀配置文档信息：
 
 ```yaml
-frame:
-  me:
-    swagger:
-      enabled: true
-      title: Frame Me API
-      description: Frame Me 接口文档
-      version: 1.0.0
-      contact:
-        name: Frame Me Team
-        email: team@frame.me
-        url: https://frame.me
-      groups:
-        - name: default
-          paths-to-match:
-            - /**
+me:
+  swagger:
+    enabled: true
+    title: Frame Me API
+    description: Frame Me 接口文档
+    version: 1.0.0
+    contact:
+      name: Frame Me Team
+      email: team@frame.me
+      url: https://frame.me
+    groups:
+      - name: default
+        paths-to-match:
+          - /**
 ```
 
 访问地址：

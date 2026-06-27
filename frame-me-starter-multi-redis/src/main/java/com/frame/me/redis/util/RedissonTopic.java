@@ -30,7 +30,7 @@ public final class RedissonTopic {
 
     private static void checkInit() {
         if (redissonClient == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the frame.me.redis configuration and redisson dependencies");
+            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
         }
     }
 

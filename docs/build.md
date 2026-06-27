@@ -105,13 +105,12 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 引入 `frame-me-starter-doc-openapi`，提供 `/swagger-ui.html` 和 `/v3/api-docs`。需要在 `application.yml` 中开启并配置：
 
 ```yaml
-frame:
-  me:
-    swagger:
-      enabled: true
-      title: Frame Me API
-      description: Frame Me 接口文档
-      version: 1.0.0
+me:
+  swagger:
+    enabled: true
+    title: Frame Me API
+    description: Frame Me 接口文档
+    version: 1.0.0
 ```
 
 ## 如何新增一个子模块

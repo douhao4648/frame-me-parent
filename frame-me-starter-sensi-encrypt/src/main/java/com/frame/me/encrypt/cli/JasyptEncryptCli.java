@@ -13,7 +13,7 @@ import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
  * <pre>
  *   java ... com.frame.me.encrypt.cli.JasyptEncryptCli &lt;明文&gt; &lt;主密码&gt;
  *   ME_ENCRYPT_PASSWORD=xxx java ... JasyptEncryptCli &lt;明文&gt;
- *   java -Dframe.me.encrypt.password=xxx ... JasyptEncryptCli &lt;明文&gt;
+ *   java -Dme.encrypt.password=xxx ... JasyptEncryptCli &lt;明文&gt;
  * </pre>
  */
 public final class JasyptEncryptCli {
@@ -29,14 +29,14 @@ public final class JasyptEncryptCli {
     public static void main(String[] args) {
         if (args.length < 1 || args[0].isBlank()) {
             System.err.println("用法: JasyptEncryptCli <明文> [主密码]");
-            System.err.println("  主密码也可由环境变量 ME_ENCRYPT_PASSWORD 或系统属性 frame.me.encrypt.password 提供");
+            System.err.println("  主密码也可由环境变量 ME_ENCRYPT_PASSWORD 或系统属性 me.encrypt.password 提供");
             return;
         }
 
         String plaintext = args[0];
         String password = args.length >= 2 ? args[1] : resolvePassword();
         if (password == null || password.isBlank()) {
-            System.err.println("缺少主密码：请通过命令行第 2 个参数、环境变量 ME_ENCRYPT_PASSWORD 或系统属性 frame.me.encrypt.password 提供");
+            System.err.println("缺少主密码：请通过命令行第 2 个参数、环境变量 ME_ENCRYPT_PASSWORD 或系统属性 me.encrypt.password 提供");
             return;
         }
 

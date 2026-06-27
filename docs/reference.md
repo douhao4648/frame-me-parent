@@ -117,7 +117,7 @@
 | `BaseMetaObjectHandler` | 公共字段自动填充处理器，需通过配置开启 |
 | `PageUtils` | 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换 |
 | `SnowflakeUtils` | 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID |
-| `MybatisPlusProperties` | `frame.me.mybatis` 配置属性绑定 |
+| `MybatisPlusProperties` | `me.mybatis` 配置属性绑定 |
 | `MybatisPlusConfiguration` | MyBatis-Plus 自动装配入口，注册分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器 |
 | `Result2ResponseAdvice` | 将 `IResult<T>` 转换为 `Response<T>` |
 | `Response<T>` | 外部 JSON 响应结构 |
@@ -128,13 +128,13 @@
 | `DynamicDataSourceAutoConfiguration` | 多数据源自动装配入口 |
 | `MeDynamicDataSourceProvider` | 根据 `spring.datasource.*` 创建默认 `master` 数据源 |
 | `RedisAutoConfiguration` | Redis 基础能力自动装配入口 |
-| `RedisProperties` | `frame.me.redis` 配置属性绑定 |
+| `RedisProperties` | `me.redis` 配置属性绑定 |
 | `RedisUtils` | 统一 Redis 操作工具类 |
 | `CacheAutoConfiguration` | JetCache 两级缓存自动装配入口 |
-| `CacheProperties` | `frame.me.cache` 配置属性绑定 |
+| `CacheProperties` | `me.cache` 配置属性绑定 |
 | `JetCacheInfrastructureRoleFixer` | 修复 JetCache 内部配置类的 BeanPostProcessor 警告 |
 | `DocOpenApiAutoConfiguration` | OpenAPI 文档自动装配入口 |
-| `DocOpenApiProperties` | `frame.me.swagger` 配置属性绑定 |
+| `DocOpenApiProperties` | `me.swagger` 配置属性绑定 |
 | `GroupedOpenApiRegistrar` | 动态注册 API 分组 |
 
 ### EnvironmentHelper 方法

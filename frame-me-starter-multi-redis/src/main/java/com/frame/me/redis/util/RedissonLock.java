@@ -39,7 +39,7 @@ public final class RedissonLock {
      */
     public static RLock getLock(String key) {
         if (redissonClient == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the frame.me.redis configuration and redisson dependencies");
+            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
         }
         return redissonClient.getLock(key);
     }

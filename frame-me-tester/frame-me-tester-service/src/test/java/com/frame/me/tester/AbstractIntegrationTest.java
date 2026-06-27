@@ -24,7 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
-@TestPropertySource(properties = "frame.me.mybatis.meta-object-handler.enabled=true")
+@TestPropertySource(properties = "me.mybatis.meta-object-handler.enabled=true")
 public abstract class AbstractIntegrationTest {
 
     /**

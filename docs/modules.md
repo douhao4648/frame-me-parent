@@ -36,16 +36,16 @@
   - `com.frame.me.base.BaseConstant` — 占位常量接口。
   - `com.frame.me.base.mybatis.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
   - `com.frame.me.base.mybatis.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
-  - `com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `frame.me.mybatis.meta-object-handler.enabled=true` 开启。
+  - `com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `me.mybatis.meta-object-handler.enabled=true` 开启。
   - `com.frame.me.base.mybatis.util.PageUtils` — 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换。
   - `com.frame.me.base.mybatis.util.SnowflakeUtils` — 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID。
-  - `com.frame.me.base.mybatis.config.MybatisPlusProperties` — `frame.me.mybatis` 配置属性绑定。
+  - `com.frame.me.base.mybatis.config.MybatisPlusProperties` — `me.mybatis` 配置属性绑定。
   - `com.frame.me.base.mybatis.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
 - **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`MybatisPlusConfiguration`。
 - **可配置项**：
-  - `frame.me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
-  - `frame.me.mybatis.snowflake.worker-id` — 雪花算法 workerId，未配置时使用 MyBatis-Plus 默认推导值。
-  - `frame.me.mybatis.snowflake.datacenter-id` — 雪花算法 datacenterId，默认 `0`。
+  - `me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
+  - `me.mybatis.snowflake.worker-id` — 雪花算法 workerId，未配置时使用 MyBatis-Plus 默认推导值。
+  - `me.mybatis.snowflake.datacenter-id` — 雪花算法 datacenterId，默认 `0`。
 - **Maven Profile**：
   - `p6spy` — 引入 `p6spy-spring-boot-starter`，用于 SQL 监控：`mvn ... -Pp6spy`。
   - `swagger` — 引入 `frame-me-starter-doc-openapi`，用于接口文档：`mvn ... -Pswagger`。
@@ -91,7 +91,7 @@
 - **自动装配**：通过 `frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `DynamicDataSourceAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 baomidou `DynamicDataSourceAutoConfiguration`。
-  - `frame.me.dynamic-datasource.enabled=true`（默认 `true`，可省略）。
+  - `me.dynamic-datasource.enabled=true`（默认 `true`，可省略）。
   - `spring.datasource.dynamic.enabled=true`（默认 `true`，可省略）。
 - **使用方式**：
   - 当存在 `spring.datasource.url` 时，自动创建 `master` 数据源。
@@ -131,20 +131,20 @@ spring:
 - **依赖**：`springdoc-openapi-starter-webmvc-ui`、`lombok`。
 - **关键类**：
   - `com.frame.me.doc.openapi.config.DocOpenApiAutoConfiguration` — 自动装配入口。
-  - `com.frame.me.doc.openapi.config.DocOpenApiProperties` — `frame.me.swagger` 配置属性绑定。
+  - `com.frame.me.doc.openapi.config.DocOpenApiProperties` — `me.swagger` 配置属性绑定。
   - `com.frame.me.doc.openapi.config.GroupedOpenApiRegistrar` — 动态注册 API 分组。
   - `com.frame.me.doc.openapi.DocOpenApiConstant` — 占位常量接口。
 - **自动装配**：通过 `frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `DocOpenApiAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 `io.swagger.v3.oas.models.OpenAPI`。
-  - 配置 `frame.me.swagger.enabled=true`（默认关闭）。
+  - 配置 `me.swagger.enabled=true`（默认关闭）。
 - **可配置项**：
-  - `frame.me.swagger.enabled` — 是否启用，默认 `false`。
-  - `frame.me.swagger.title` — 文档标题，默认 `Frame Me API`。
-  - `frame.me.swagger.description` — 文档描述，默认 `Frame Me 接口文档`。
-  - `frame.me.swagger.version` — 版本，默认 `1.0.0`。
-  - `frame.me.swagger.contact.name/email/url` — 联系人信息。
-  - `frame.me.swagger.groups` — API 分组列表；未配置时默认注册一个名为 `default`、匹配所有路径的分组。
+  - `me.swagger.enabled` — 是否启用，默认 `false`。
+  - `me.swagger.title` — 文档标题，默认 `Frame Me API`。
+  - `me.swagger.description` — 文档描述，默认 `Frame Me 接口文档`。
+  - `me.swagger.version` — 版本，默认 `1.0.0`。
+  - `me.swagger.contact.name/email/url` — 联系人信息。
+  - `me.swagger.groups` — API 分组列表；未配置时默认注册一个名为 `default`、匹配所有路径的分组。
 - **设计约定**：
   - 不纳入 `frame-me-booter`，由业务 `xx-service` 按需引入。
   - 在 `frame-me-starter-base` 中通过 Maven profile `swagger` 引入：`mvn ... -Pswagger`。
@@ -152,17 +152,16 @@ spring:
 **示例配置**：
 
 ```yaml
-frame:
-  me:
-    swagger:
-      enabled: true
-      title: Frame Me Tester API
-      description: Frame Me Tester 接口文档
-      version: 1.0.0
-      groups:
-        - name: tester-api
-          paths-to-match:
-            - /api/**
+me:
+  swagger:
+    enabled: true
+    title: Frame Me Tester API
+    description: Frame Me Tester 接口文档
+    version: 1.0.0
+    groups:
+      - name: tester-api
+        paths-to-match:
+          - /api/**
 ```
 
 访问地址：
@@ -192,7 +191,7 @@ frame:
 - **依赖**：`frame-me-starter-base`、`spring-boot-starter-data-redis`、`fastjson2`、`lombok`；`redisson` 为 optional 依赖。
 - **关键类**：
   - `com.frame.me.redis.config.RedisAutoConfiguration` — Spring Data Redis 自动装配入口，创建 `StringRedisTemplate` / `RedisTemplate` 并初始化 `RedisUtils`。
-  - `com.frame.me.redis.config.RedisProperties` — `frame.me.redis` 配置属性绑定（多实例、开关等）。
+  - `com.frame.me.redis.config.RedisProperties` — `me.redis` 配置属性绑定（多实例、开关等）。
   - `com.frame.me.redis.config.RedissonLockAutoConfiguration` — Redisson 自动装配入口，创建 `RedissonClient` 并初始化所有 Redisson 工具类。
   - `com.frame.me.redis.config.RedissonProperties` — `spring.data.redis.redisson` 配置属性绑定。
   - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、简单分布式锁等。
@@ -204,8 +203,8 @@ frame:
   - `com.frame.me.redis.RedisConstant` — 占位常量接口。
 - **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`、`RedissonLockAutoConfiguration`。
 - **启用条件**：
-  - `RedisAutoConfiguration`：类路径存在 `StringRedisTemplate`，`frame.me.redis.enabled=true`（默认开启，可显式关闭）。
-  - `RedissonLockAutoConfiguration`：类路径存在 `org.redisson.api.RedissonClient`，`frame.me.redis.enabled=true`（默认开启）。
+  - `RedisAutoConfiguration`：类路径存在 `StringRedisTemplate`，`me.redis.enabled=true`（默认开启，可显式关闭）。
+  - `RedissonLockAutoConfiguration`：类路径存在 `org.redisson.api.RedissonClient`，`me.redis.enabled=true`（默认开启）。
 - **使用方式**：
   - 直接调用 `RedisUtils.xxx()` 使用 Spring Data Redis 能力。
   - 分布式锁默认为简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；引入 Redisson 后自动启用 `RedissonLock`，提供可重入与看门狗续期。
@@ -219,30 +218,29 @@ frame:
 **示例配置**：
 
 ```yaml
-frame:
-  me:
-    redis:
-      enabled: true
-      # 额外实例（RedisUtils.getClient("name")），支持 standalone / cluster / sentinel
-      clients:
-        order:                    # 单机（默认）
-          host: 10.0.0.1
-          port: 6379
-          password: pwd
-        cache:                    # 集群（database 被忽略）
-          mode: cluster
-          nodes:
-            - 10.0.0.2:6379
-            - 10.0.0.3:6379
-            - 10.0.0.4:6379
-          password: pwd
-        session:                  # 哨兵
-          mode: sentinel
-          sentinel-master: mymaster
-          nodes:
-            - 10.0.0.5:26379
-            - 10.0.0.6:26379
-          database: 1
+me:
+  redis:
+    enabled: true
+    # 额外实例（RedisUtils.getClient("name")），支持 standalone / cluster / sentinel
+    clients:
+      order:                    # 单机（默认）
+        host: 10.0.0.1
+        port: 6379
+        password: pwd
+      cache:                    # 集群（database 被忽略）
+        mode: cluster
+        nodes:
+          - 10.0.0.2:6379
+          - 10.0.0.3:6379
+          - 10.0.0.4:6379
+        password: pwd
+      session:                  # 哨兵
+        mode: sentinel
+        sentinel-master: mymaster
+        nodes:
+          - 10.0.0.5:26379
+          - 10.0.0.6:26379
+        database: 1
 
 spring:
   data:
@@ -285,13 +283,13 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
 - **依赖**：`jetcache-starter-redis-lettuce`、`caffeine`、`lombok`。
 - **关键类**：
   - `com.frame.me.cache.config.CacheAutoConfiguration` — 自动装配入口，启用方法级缓存注解。
-  - `com.frame.me.cache.config.CacheProperties` — `frame.me.cache` 配置属性绑定。
+  - `com.frame.me.cache.config.CacheProperties` — `me.cache` 配置属性绑定。
   - `com.frame.me.cache.config.JetCacheInfrastructureRoleFixer` — 修复 JetCache 内部配置类的 BeanPostProcessor 警告。
   - `com.frame.me.cache.CacheConstant` — 占位常量接口。
 - **自动装配**：通过 `frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CacheAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 JetCache 核心类。
-  - `frame.me.cache.enabled=true`（默认关闭）。
+  - `me.cache.enabled=true`（默认关闭）。
 - **使用方式**：
   - 在 Service 方法上标注 `@Cached(name = "...", cacheType = CacheType.BOTH)` 启用两级缓存。
   - 使用 `@CacheInvalidate` 在写操作时使缓存失效。
@@ -305,10 +303,9 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
 **示例配置**：
 
 ```yaml
-frame:
-  me:
-    cache:
-      enabled: true
+me:
+  cache:
+    enabled: true
 
 jetcache:
   statIntervalMinutes: 15
@@ -363,12 +360,12 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.encrypt.config.EncryptAutoConfiguration` — 配了主密码后暴露 `org.jasypt.encryption.StringEncryptor` Bean，供业务代码对自身数据加解密（与配置解密共用主密码与算法，密文互通）。
   - `com.frame.me.encrypt.EncryptConstant` — 配置键与默认值常量。
 - **注册**：配置解密的 `EncryptablePropertyEnvironmentPostProcessor` 走 `META-INF/spring.factories` 的 `org.springframework.boot.EnvironmentPostProcessor` 键（EnvironmentPostProcessor 早于自动装配，**不能**用 `AutoConfiguration.imports`）；业务用的 `EncryptAutoConfiguration` 是普通自动装配，走 `AutoConfiguration.imports`。两者并存、互不影响。
-- **启用条件**：读到主密码 `frame.me.encrypt.password`（兼容环境变量 `ME_ENCRYPT_PASSWORD`、JVM 系统属性）时才解密；主密码缺失则跳过，对无密文应用零影响。
-- **可配置项**（前缀 `frame.me.encrypt`）：`password`、`algorithm`（默认 `PBEWITHHMACSHA512ANDAES_256`）、`iterations`（默认 1000）、`prefix`/`suffix`（默认 `ME(` / `)`）。
+- **启用条件**：读到主密码 `me.encrypt.password`（兼容环境变量 `ME_ENCRYPT_PASSWORD`、JVM 系统属性）时才解密；主密码缺失则跳过，对无密文应用零影响。
+- **可配置项**（前缀 `me.encrypt`）：`password`、`algorithm`（默认 `PBEWITHHMACSHA512ANDAES_256`）、`iterations`（默认 1000）、`prefix`/`suffix`（默认 `ME(` / `)`）。
 - **使用方式**：
   - 生成密文：`java -cp ... com.frame.me.encrypt.cli.JasyptEncryptCli <明文> <主密码>`。
   - 配置：把敏感值写成 `password: ME(密文)`。
-  - 运行：通过环境变量/启动参数注入主密码，**不写入配置文件**：`ME_ENCRYPT_PASSWORD=xxx` 或 `-Dframe.me.encrypt.password=xxx`。
+  - 运行：通过环境变量/启动参数注入主密码，**不写入配置文件**：`ME_ENCRYPT_PASSWORD=xxx` 或 `-Dme.encrypt.password=xxx`。
 - **设计约定**：
   - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即获得能力。
   - 跳过系统环境变量属性源（规避 Boot 3.5+ 系统环境源不被包装解密的已知行为，且密文放环境变量无意义）。

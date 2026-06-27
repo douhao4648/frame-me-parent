@@ -74,29 +74,28 @@ decorator:
     p6spy:
       enable-logging: true
 
-frame:
-  me:
-    # 依赖通过 Maven profile "swagger" 引入：mvn ... -Pswagger
-    swagger:
-      title: Frame Me Tester API
-      description: Frame Me Tester 接口文档
-      version: 1.0.0
-      groups:
-        - name: tester-api
-          paths-to-match:
-            - /api/**
-    redis:
-      clients:
-        second:
-          host: localhost
-          port: 6379
-          database: 1
-    # mybatis:
-    #   meta-object-handler:
-    #     enabled: true
-    #   snowflake:
-    #     worker-id: 1
-    #     datacenter-id: 0
+me:
+  # 依赖通过 Maven profile "swagger" 引入：mvn ... -Pswagger
+  swagger:
+    title: Frame Me Tester API
+    description: Frame Me Tester 接口文档
+    version: 1.0.0
+    groups:
+      - name: tester-api
+        paths-to-match:
+          - /api/**
+  redis:
+    clients:
+      second:
+        host: localhost
+        port: 6379
+        database: 1
+  # mybatis:
+  #   meta-object-handler:
+  #     enabled: true
+  #   snowflake:
+  #     worker-id: 1
+  #     datacenter-id: 0
 
 jetcache:
   decodeFilterAllowPatterns:

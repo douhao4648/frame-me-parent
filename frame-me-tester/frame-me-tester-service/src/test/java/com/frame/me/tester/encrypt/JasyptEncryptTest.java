@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *
  * <p>验证 {@code frame-me-starter-sensi-encrypt} 的 {@code EncryptablePropertyEnvironmentPostProcessor}
  * 能在应用启动早期把配置中的 {@code ME(密文)} 解密为明文。主密码通过系统属性
- * {@code frame.me.encrypt.password} 注入（模拟真实环境的环境变量），密文见
+ * {@code me.encrypt.password} 注入（模拟真实环境的环境变量），密文见
  * {@code application-encrypt.yml}。</p>
  *
  * <p>主密码在 static 块中设置——必须早于 Spring 上下文创建（EnvironmentPostProcessor 在启动早期运行）；
@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class JasyptEncryptTest {
 
-    private static final String PASSWORD_KEY = "frame.me.encrypt.password";
+    private static final String PASSWORD_KEY = "me.encrypt.password";
 
     static {
         System.setProperty(PASSWORD_KEY, "me2026");
@@ -45,6 +45,6 @@ class JasyptEncryptTest {
      */
     @Test
     void shouldDecryptEncPlaceholder() {
-        assertEquals("root", environment.getProperty("frame.me.demo.secret"));
+        assertEquals("root", environment.getProperty("me.demo.secret"));
     }
 }

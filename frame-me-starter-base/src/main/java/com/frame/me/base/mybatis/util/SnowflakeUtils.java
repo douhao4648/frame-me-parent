@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * 雪花 ID 生成工具类.
  *
  * <p>优先使用 Spring 容器中自定义的 {@link IdentifierGenerator} Bean（如项目里通过
- * {@code frame.me.mybatis.snowflake.worker-id} 配置的生成器），若不存在则回退到
+ * {@code me.mybatis.snowflake.worker-id} 配置的生成器），若不存在则回退到
  * MyBatis-Plus 默认的 {@link DefaultIdentifierGenerator#getInstance()}。
  *
  * <p>典型用法：

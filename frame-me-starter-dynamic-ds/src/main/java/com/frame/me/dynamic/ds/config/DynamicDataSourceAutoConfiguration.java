@@ -24,7 +24,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAutoConfiguration")
-@ConditionalOnProperty(prefix = "frame.me.dynamic-datasource", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "me.dynamic-datasource", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "spring.datasource.dynamic", name = "enabled", havingValue = "true", matchIfMissing = true)
 @AutoConfigureBefore(com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAutoConfiguration.class)
 public class DynamicDataSourceAutoConfiguration {

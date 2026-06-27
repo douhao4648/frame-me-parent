@@ -9,10 +9,10 @@ import java.util.List;
 /**
  * OpenAPI 文档配置属性.
  *
- * <p>绑定前缀 {@code frame.me.swagger}，支持显式配置文档标题、描述、版本、联系人、API 分组等信息。
+ * <p>绑定前缀 {@code me.swagger}，支持显式配置文档标题、描述、版本、联系人、API 分组等信息。
  */
 @Data
-@ConfigurationProperties(prefix = "frame.me.swagger")
+@ConfigurationProperties(prefix = "me.swagger")
 public class DocOpenApiProperties {
 
     /**

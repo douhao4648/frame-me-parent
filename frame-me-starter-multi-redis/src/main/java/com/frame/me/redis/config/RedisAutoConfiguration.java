@@ -26,12 +26,12 @@ import java.util.Map;
  * Redis 自动配置.
  *
  * <p>启用后注册 {@link RedisUtils} 所需的 RedisTemplate 引用。
- * 默认实例来自 {@code spring.data.redis.*}，额外实例通过 {@code frame.me.redis.clients.*} 配置。</p>
+ * 默认实例来自 {@code spring.data.redis.*}，额外实例通过 {@code me.redis.clients.*} 配置。</p>
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "org.springframework.data.redis.core.StringRedisTemplate")
-@ConditionalOnProperty(prefix = "frame.me.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "me.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(RedisProperties.class)
 public class RedisAutoConfiguration {
 

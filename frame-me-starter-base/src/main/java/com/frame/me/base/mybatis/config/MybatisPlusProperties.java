@@ -6,11 +6,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * MyBatis-Plus 扩展配置属性.
  *
- * <p>绑定前缀 {@code frame.me.mybatis}，支持显式配置雪花算法的 workerId / datacenterId
+ * <p>绑定前缀 {@code me.mybatis}，支持显式配置雪花算法的 workerId / datacenterId
  * 以及公共字段自动填充处理器的启停。
  */
 @Data
-@ConfigurationProperties(prefix = "frame.me.mybatis")
+@ConfigurationProperties(prefix = "me.mybatis")
 public class MybatisPlusProperties {
 
     /**

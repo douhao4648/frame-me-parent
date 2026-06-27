@@ -54,7 +54,7 @@ public class GroupedOpenApiRegistrar implements ImportBeanDefinitionRegistrar, E
      * @return 分组列表
      */
     private List<GroupProperties> loadGroups() {
-        List<GroupProperties> groups = Binder.get(environment).bind("frame.me.swagger.groups", Bindable.listOf(GroupProperties.class)).orElse(new ArrayList<>());
+        List<GroupProperties> groups = Binder.get(environment).bind("me.swagger.groups", Bindable.listOf(GroupProperties.class)).orElse(new ArrayList<>());
         if (groups.isEmpty()) {
             groups.add(DEFAULT_GROUP);
         }
