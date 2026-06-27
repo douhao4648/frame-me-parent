@@ -35,23 +35,25 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn test
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester-service spring-boot:run
+  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
-应用默认运行在 `8080` 端口，名称为 `frame-me-tester`。]
+应用默认运行在 `8080` 端口，名称为 `frame-me-tester`。
 
 ## 模块概览
 
 | 模块 | 定位 |
 |---|---|
-| `frame-me-api` | 纯接口/Interfacer 契约模块：`IResult<T>`、`ApiConstant`；供业务 `xx-api` 引用。 |
-| `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、自动装配、`IResult<T>` 实现与工厂。 |
-| `frame-me-starter-adapter` | 适配层：将内部 `IResult<T>` 转换为外部 `Response<T>`。可被外部项目重写。 |
-| `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，可按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
-| `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `frame.me.swagger.enabled=true` 开启。 |
+| `frame-me-api` | 纯接口/契约模块：`IResult<T>`、`ApiConstant`；供业务 `xx-api` 引用。 |
+| `frame-me-adapter` | 适配层聚合模块（`pom`），含 `frame-me-adapter-api`（老规范契约、分页参数/结果）与 `frame-me-adapter-starter`（`IResult`→`Response` 适配 + 老规范分页工具）。集成 `-starter` 即表示遵循老接口规范。 |
+| `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、MyBatis-Plus。 |
 | `frame-me-starter-auth` | 认证授权占位模块。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 dynamic-ds，不含 adapter）。 |
+| `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `frame.me.swagger.enabled=true` 开启。 |
+| `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
+| `frame-me-starter-multi-redis` | Redis 能力 starter：封装 `RedisUtils`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动启用分布式锁、同步原语、Topic、限流。 |
+| `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `frame.me.cache.enabled=true` 开启。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache；不含 adapter 与 doc-openapi）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定
@@ -72,8 +74,8 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
   - 通过 `frame-me-booter` 一键拉起通用 starter 能力（如 auth、cloud、base 等）。
   - `frame-me-booter` 本身不包含业务代码，只通过传递依赖聚合通用能力。
 
-- **`frame-me-starter-adapter` 不纳入 `frame-me-booter`**
-  - 适配层通常需要按项目自定义，因此保持独立，由业务 `xx-service` 按需引入或自行实现。
+- **`frame-me-adapter` 不纳入 `frame-me-booter`**
+  - 适配层通常需要按项目自定义，因此保持独立，由业务 `xx-service` 按需引入 `frame-me-adapter-starter` 或自行实现。`frame-me-starter-doc-openapi` 同样按需引入。
 
 ## License
 
