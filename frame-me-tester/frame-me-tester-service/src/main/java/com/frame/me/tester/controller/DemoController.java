@@ -1,10 +1,12 @@
 package com.frame.me.tester.controller;
 
 //import com.frame.me.adapter.api.result.PageResult;
+
 import com.frame.me.api.result.IResult;
 import com.frame.me.api.result.PageData;
 import com.frame.me.base.mybatis.util.SnowflakeUtils;
 import com.frame.me.base.result.Result;
+import com.frame.me.op.audit.annotation.AuditLog;
 import com.frame.me.tester.api.IDemoApi;
 import com.frame.me.tester.api.dto.DemoDTO;
 import com.frame.me.tester.api.query.DemoComplexQuery;
@@ -37,6 +39,7 @@ public class DemoController implements IDemoApi {
         return Result.success(list);
     }
 
+    @AuditLog(action = "查询Demo", category = "Demo管理", description = "查询Demo #query.minAge")
     @Override
     public IResult<List<DemoComplexVO>> complexList(DemoComplexQuery query) {
         return Result.success(demoService.complexList(query));
@@ -58,6 +61,7 @@ public class DemoController implements IDemoApi {
         return Result.success(demoService.getById(id));
     }
 
+    @AuditLog(action = "创建Demo", category = "Demo管理", description = "创建Demo #dto.age")
     @Override
     public IResult<Long> create(DemoDTO dto) {
         return Result.success(demoService.create(dto));
@@ -68,6 +72,7 @@ public class DemoController implements IDemoApi {
         return Result.success(demoService.update(id, dto));
     }
 
+    @AuditLog(action = "删除Demo", category = "Demo管理", description = "删除Demo #id")
     @Override
     public IResult<Boolean> delete(Long id) {
         return Result.success(demoService.delete(id));
