@@ -1,2 +1,3 @@
 com.frame.me.redis.config.RedisAutoConfiguration
 com.frame.me.redis.config.RedissonLockAutoConfiguration
+com.frame.me.redis.config.RedisEventTransportAutoConfiguration

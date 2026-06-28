@@ -18,6 +18,7 @@
 |---|---|
 | [build.md](./build.md) | 如何编译、测试、打包、运行？如何新增子模块？ |
 | [architecture.md](./architecture.md) | 模块如何分层？自动装配如何工作？请求响应如何流转？ |
+| [event-bridge.md](./event-bridge.md) | 事件桥接如何工作？进程内事件与跨服务事件如何统一？ |
 | [conventions.md](./conventions.md) | Result / Response / 异常 / 状态码怎么用？编码风格是什么？ |
 | [modules.md](./modules.md) | 每个子模块的职责、依赖、关键类是什么？ |
 | [testing.md](./testing.md) | 如何运行测试？如何启动应用？ |
