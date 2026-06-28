@@ -209,10 +209,9 @@ public class UserCreatedEvent extends MeApplicationEvent {
 
 ### 2. 注册事件类型
 
-在 `xx-service` 中把 `EventType` 声明为 Bean：
+在 `xx-api` 模块中声明 `EventType`，并通过配置类暴露：
 
 ```java
-@Component
 public class UserCreatedEventType implements EventType<UserCreatedPayload> {
 
     @Override
@@ -232,7 +231,29 @@ public class UserCreatedEventType implements EventType<UserCreatedPayload> {
 }
 ```
 
+```java
+@Configuration(proxyBeanMethods = false)
+public class UserCreatedEventConfiguration {
+
+    @Bean
+    public UserCreatedEventType userCreatedEventType() {
+        return new UserCreatedEventType();
+    }
+}
+```
+
+发布方和订阅方在各自的 `xx-service` 中通过 `@Import` 引入该配置：
+
+```java
+@Import(UserCreatedEventConfiguration.class)
+@SpringBootApplication
+public class UserServiceApplication {
+}
+```
+
 `EventBridgeListener` 会在启动时自动收集并注册所有 `EventType` Bean。
+
+> 为什么不用 `@Component`？因为 `xx-api` 会被不同服务引用，各服务的 Spring 组件扫描根包可能不一致，`@Component` 可能扫不到。显式 `@Import` 可以让消费方明确引入事件契约，避免事件类型遗漏注册。
 
 ### 3. 发布事件
 
