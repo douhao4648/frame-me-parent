@@ -23,7 +23,7 @@ public class AuditProperties {
     private boolean logEnabled = true;
 
     /**
-     * 审计服务名. 为空时只走本地事件；配置后通过事件桥接定向发送.
+     * 审计服务名. 为空时通过事件桥接广播；配置为具体服务名时定向发送.
      */
     private String targetService = "";
 

@@ -1,5 +1,6 @@
 package com.frame.me.ws.mvc.core;
 
+import com.frame.me.event.EventClientPermit;
 import com.frame.me.event.MeApplicationEvent;
 import com.frame.me.ws.mvc.config.WsMvcProperties;
 import org.junit.jupiter.api.Test;
@@ -69,13 +70,46 @@ class WsMvcEventDispatcherTest {
         verify(sessionManager, never()).broadcast(any(), any());
     }
 
+    @Test
+    void shouldSkipEventWithoutEventClientPermit() {
+        WsMvcEventDispatcher dispatcher = new WsMvcEventDispatcher(sessionManager, properties);
+        dispatcher.onApplicationEvent(new ForbiddenEvent("order:paid", null));
+
+        verify(sessionManager, never()).broadcast(any(), any());
+        verify(sessionManager, never()).pushToReceiver(any(), any());
+    }
+
     @SuppressWarnings("serial")
+    @EventClientPermit
     private static class TestEvent extends MeApplicationEvent {
 
         private final String eventType;
         private final String targetId;
 
         TestEvent(String eventType, String targetId) {
+            super("data");
+            this.eventType = eventType;
+            this.targetId = targetId;
+        }
+
+        @Override
+        public String getEventType() {
+            return eventType;
+        }
+
+        @Override
+        public String getTargetId() {
+            return targetId;
+        }
+    }
+
+    @SuppressWarnings("serial")
+    private static class ForbiddenEvent extends MeApplicationEvent {
+
+        private final String eventType;
+        private final String targetId;
+
+        ForbiddenEvent(String eventType, String targetId) {
             super("data");
             this.eventType = eventType;
             this.targetId = targetId;

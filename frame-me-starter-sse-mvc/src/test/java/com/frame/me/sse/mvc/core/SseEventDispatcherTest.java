@@ -1,5 +1,6 @@
 package com.frame.me.sse.mvc.core;
 
+import com.frame.me.event.EventClientPermit;
 import com.frame.me.event.MeApplicationEvent;
 import com.frame.me.sse.mvc.config.SseProperties;
 import org.junit.jupiter.api.Test;
@@ -70,13 +71,46 @@ class SseEventDispatcherTest {
         verify(emitterManager, never()).broadcast(any(), any());
     }
 
+    @Test
+    void shouldSkipEventWithoutEventClientPermit() {
+        SseEventDispatcher dispatcher = new SseEventDispatcher(emitterManager, properties);
+        dispatcher.onApplicationEvent(new ForbiddenEvent("order:paid", null));
+
+        verify(emitterManager, never()).broadcast(any(), any());
+        verify(emitterManager, never()).pushToReceiver(any(), any());
+    }
+
     @SuppressWarnings("serial")
+    @EventClientPermit
     private static class TestEvent extends MeApplicationEvent {
 
         private final String eventType;
         private final String targetId;
 
         TestEvent(String eventType, String targetId) {
+            super("data");
+            this.eventType = eventType;
+            this.targetId = targetId;
+        }
+
+        @Override
+        public String getEventType() {
+            return eventType;
+        }
+
+        @Override
+        public String getTargetId() {
+            return targetId;
+        }
+    }
+
+    @SuppressWarnings("serial")
+    private static class ForbiddenEvent extends MeApplicationEvent {
+
+        private final String eventType;
+        private final String targetId;
+
+        ForbiddenEvent(String eventType, String targetId) {
             super("data");
             this.eventType = eventType;
             this.targetId = targetId;

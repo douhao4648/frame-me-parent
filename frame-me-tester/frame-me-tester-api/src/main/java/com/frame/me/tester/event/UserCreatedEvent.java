@@ -1,5 +1,6 @@
 package com.frame.me.tester.event;
 
+import com.frame.me.event.EventClientPermit;
 import com.frame.me.event.MeApplicationEvent;
 import lombok.Getter;
 
@@ -9,6 +10,7 @@ import lombok.Getter;
  * @author frame-me
  */
 @Getter
+@EventClientPermit
 public class UserCreatedEvent extends MeApplicationEvent {
 
     private static final long serialVersionUID = 1L;

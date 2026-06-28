@@ -1,5 +1,6 @@
 package com.frame.me.sse.mvc.core;
 
+import com.frame.me.event.EventClientPermit;
 import com.frame.me.event.MeApplicationEvent;
 import com.frame.me.sse.mvc.config.SseProperties;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,11 @@ public class SseEventDispatcher {
     @EventListener
     @Order(Integer.MAX_VALUE - 100)
     public void onApplicationEvent(MeApplicationEvent event) {
+        if (!event.getClass().isAnnotationPresent(EventClientPermit.class)) {
+            log.debug("SSE skip event without @EventClientPermit: type={}", event.getEventType());
+            return;
+        }
+
         String eventType = event.getEventType();
         SsePayload payload = SsePayload.builder()
                 .eventType(eventType)

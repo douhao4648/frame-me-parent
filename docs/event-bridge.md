@@ -171,6 +171,22 @@ graph LR
 
 > `targetService` 由 `EventBridgeListener` 过滤；`targetId` 由 `frame-me-starter-sse-mvc` 的 `SseEventDispatcher` 和 `frame-me-starter-ws-mvc` 的 `WsMvcEventDispatcher` 自动识别：若事件携带 `targetId`，则调用定向推送 `pushToReceiver(targetId, ...)`，否则仍按 `eventType` 广播。
 
+### SSE / WebSocket 广播控制
+
+`SseEventDispatcher` 与 `WsMvcEventDispatcher` 默认监听所有 `MeApplicationEvent` 子类。为避免内部事件意外暴露到前端，只有标注了 `@EventClientPermit` 的事件类才会被转发：
+
+```java
+import com.frame.me.event.EventClientPermit;
+
+@EventClientPermit
+@Getter
+public class UserNotifyEvent extends MeApplicationEvent {
+    ...
+}
+```
+
+未标注 `@EventClientPermit` 的事件（如审计日志 `AuditLogEvent`）不会通过 SSE / WebSocket 推送给客户端。
+
 ## 使用示例
 
 ### 1. 定义事件与负载
