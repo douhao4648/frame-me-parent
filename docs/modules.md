@@ -277,6 +277,45 @@ int listenerId = RedissonTopic.topicSubscribe("order:event", OrderEvent.class, (
 RedissonTopic.topicUnsubscribe("order:event", listenerId);
 ```
 
+## `frame-me-starter-sse-mvc`
+
+- **定位**：SSE 服务端推送 starter，支持按事件类型广播与按接收者 ID 定向推送。
+- **依赖**：`frame-me-api`、`spring-boot-starter-web`、`fastjson2`、`lombok`。
+- **关键类**：
+  - `com.frame.me.sse.mvc.core.SseEmitterManager` — Emitter 生命周期与路由管理。
+  - `com.frame.me.sse.mvc.core.SseEventDispatcher` — 监听 `MeApplicationEvent` 并转发到 SSE。
+  - `com.frame.me.sse.mvc.service.SsePushService` — 业务推送 API。
+  - `com.frame.me.sse.mvc.web.SseController` — SSE 订阅端点。
+  - `com.frame.me.sse.mvc.config.SseAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.sse.mvc.config.SseProperties` — `me.sse` 配置属性绑定。
+  - `com.frame.me.sse.mvc.SseConstant` — 常量。
+- **自动装配**：通过 `frame-me-starter-sse-mvc/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `SseAutoConfiguration`。
+- **启用条件**：
+  - Servlet Web 应用。
+  - `me.sse.enabled=true`（默认 true，可显式关闭）。
+- **使用方式**：
+  - 广播订阅：`GET /me/sse/subscribe/{eventType}`。
+  - 定向订阅：`GET /me/sse/subscribe?receiverId={receiverId}`。
+  - 业务推送：注入 `SsePushService` 调用 `broadcast` / `pushToReceiver`。
+  - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 SSE 客户端自动收到。
+- **设计约定**：
+  - **不纳入 `frame-me-booter`**，由业务 `xx-service` 按需引入。
+  - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
+  - 无离线补偿，客户端断线期间消息直接丢弃。
+
+**示例配置**：
+
+```yaml
+me:
+  sse:
+    enabled: true
+    timeout: 0
+    retry: 3000
+    broadcast-enabled: true
+    targeted-enabled: true
+    max-emitters: 10000
+```
+
 ## `frame-me-starter-l1l2-cache`
 
 - **定位**：两级缓存 starter，基于 JetCache 提供 Caffeine（L1）+ Redis（L2）缓存能力。
@@ -460,6 +499,7 @@ public Boolean delete(Long id) { ... }
 | `frame-me-starter-doc-openapi` | 无内部框架依赖（仅 `springdoc-openapi-starter-webmvc-ui`） |
 | `frame-me-starter-auth` | `frame-me-starter-base` |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
+| `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |
