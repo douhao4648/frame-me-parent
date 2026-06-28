@@ -35,6 +35,10 @@
         <!--            <groupId>com.alibaba</groupId>-->
         <!--            <artifactId>druid-spring-boot-4-starter</artifactId>-->
         <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>com.frame.me</groupId>-->
+        <!--            <artifactId>frame-me-starter-ws-mvc</artifactId>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
