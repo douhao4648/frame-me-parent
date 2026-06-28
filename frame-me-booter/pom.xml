@@ -39,5 +39,9 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-sensi-encrypt</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-sse-mvc</artifactId>
+        </dependency>
     </dependencies>
 </project>
