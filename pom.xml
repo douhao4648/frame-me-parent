@@ -54,6 +54,7 @@
         <module>frame-me-starter-dynamic-ds</module>
         <module>frame-me-starter-multi-redis</module>
         <module>frame-me-starter-sse-mvc</module>
+        <module>frame-me-starter-ws-mvc</module>
         <module>frame-me-starter-l1l2-cache</module>
         <module>frame-me-starter-sensi-encrypt</module>
         <module>frame-me-booter</module>
@@ -129,6 +130,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-sse-mvc</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-ws-mvc</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

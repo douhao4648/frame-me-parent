@@ -32,8 +32,8 @@ public class DynamicDataSourceAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(DynamicDataSourceProvider.class)
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public DynamicDataSourceProvider frameMeDynamicDataSourceProvider(DefaultDataSourceCreator dataSourceCreator,
-                                                                     ConfigurableEnvironment environment) {
+    public DynamicDataSourceProvider meDynamicDataSourceProvider(DefaultDataSourceCreator dataSourceCreator,
+                                                                 ConfigurableEnvironment environment) {
         return new MeDynamicDataSourceProvider(dataSourceCreator, environment);
     }
 }

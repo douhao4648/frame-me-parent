@@ -316,6 +316,48 @@ me:
     max-emitters: 10000
 ```
 
+## `frame-me-starter-ws-mvc`
+
+- **定位**：Servlet 原生 WebSocket starter，支持按事件类型广播与按接收者 ID 定向推送，提供全双工通道。
+- **依赖**：`frame-me-api`、`spring-boot-starter-websocket`、`fastjson2`、`lombok`。
+- **关键类**：
+  - `com.frame.me.ws.mvc.core.WsMvcSessionManager` — WebSocketSession 生命周期与路由管理。
+  - `com.frame.me.ws.mvc.core.WsMvcEventDispatcher` — 监听 `MeApplicationEvent` 并转发到 WebSocket。
+  - `com.frame.me.ws.mvc.service.WsMvcPushService` — 业务推送 API。
+  - `com.frame.me.ws.mvc.handler.MeWsMvcHandler` — WebSocket 连接与消息处理。
+  - `com.frame.me.ws.mvc.config.WsMvcAutoConfiguration` — 自动装配入口（类 Javadoc 记录 WebFlux WebSocket / STOMP / RSocket 后续扩展方向）。
+  - `com.frame.me.ws.mvc.config.WsMvcProperties` — `me.ws.mvc` 配置属性绑定。
+  - `com.frame.me.ws.mvc.config.WsMvcHeartbeatTask` — 可选心跳任务。
+  - `com.frame.me.ws.mvc.WsMvcConstant` — 常量。
+- **自动装配**：通过 `frame-me-starter-ws-mvc/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `WsMvcAutoConfiguration`。
+- **启用条件**：
+  - Servlet Web 应用。
+  - `me.ws.mvc.enabled=true`（默认 true，可显式关闭）。
+- **使用方式**：
+  - 广播订阅：`ws://host/me/ws?type=broadcast&eventType=user:created`。
+  - 定向订阅：`ws://host/me/ws?type=targeted&receiverId=user:123`。
+  - 业务推送：注入 `WsMvcPushService` 调用 `broadcast` / `pushToReceiver`。
+  - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 WebSocket 客户端自动收到。
+- **设计约定**：
+  - **不纳入 `frame-me-booter`**，由业务 `xx-service` 按需引入。
+  - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
+  - 无离线补偿，客户端断线期间消息直接丢弃。
+  - 后续可扩展 `frame-me-starter-ws-webflux`（WebFlux 原生 WebSocket）、`frame-me-starter-ws-stomp`（Servlet STOMP）、`frame-me-starter-rsocket`（RSocket），路径与 auto-config 条件均与本模块不冲突。
+
+**示例配置**：
+
+```yaml
+me:
+  ws:
+    mvc:
+      enabled: true
+      broadcast-enabled: true
+      targeted-enabled: true
+      max-sessions: 10000
+      heartbeat-interval: 30
+      allowed-origins: []
+```
+
 ## `frame-me-starter-l1l2-cache`
 
 - **定位**：两级缓存 starter，基于 JetCache 提供 Caffeine（L1）+ Redis（L2）缓存能力。
@@ -500,6 +542,7 @@ public Boolean delete(Long id) { ... }
 | `frame-me-starter-auth` | `frame-me-starter-base` |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
+| `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |
