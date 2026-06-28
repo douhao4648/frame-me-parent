@@ -3,24 +3,29 @@
 ## 模块依赖图
 
 ```
-                         frame-me-starter-doc-openapi
-                                    ↓ 可选
-frame-me-api  →  frame-me-starter-base
-       ↓                   ↓
-frame-me-adapter-api → frame-me-adapter-starter   (老接口规范，可被外部项目重写)
+frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api → frame-me-adapter-starter
+   │  (无 Spring)        (Web + MyBatis-Plus)         (老接口规范，可被外部项目重写)
+   │
+   │  纳入 frame-me-booter 的通用 starter：
+   ├─ frame-me-starter-auth          (占位：Security/JWT/OAuth2)
+   ├─ frame-me-starter-cloud         (占位：Nacos/Gateway/Sentinel)
+   ├─ frame-me-starter-dynamic-ds    (多数据源，依赖 base)
+   ├─ frame-me-starter-multi-redis   (Redis + 可选 Redisson，依赖 base)
+   ├─ frame-me-starter-l1l2-cache    (JetCache 两级缓存，默认关闭)
+   ├─ frame-me-starter-sensi-encrypt (Jasypt 配置解密，不依赖 base)
+   ├─ frame-me-starter-sse-mvc      (SSE 服务端推送)
+   └─ frame-me-starter-op-audit      (审计日志，依赖 api + base)
                          ↓
-                   frame-me-starter-auth    ───────────────────────┐
-                         ↓                                  │
-                   frame-me-starter-cloud  ────────────────────┘   │
-                         ↓                            │   │
-           frame-me-starter-dynamic-ds ────────────────┘   │
-                         ↓                                 │
-                      frame-me-booter ------------------------┘
-                      （聚合启动模块，供外部 xx-service 引用，不含 adapter / openapi）
+                  frame-me-booter   （聚合启动模块，供外部 xx-service 引用）
                          ↓
               frame-me-tester-api  ←  契约接口（@HttpExchange）
                          ↓
               frame-me-tester-service  ←  可运行入口
+
+独立可选（不纳入 booter，依赖 frame-me-api，按需引入）：
+   frame-me-starter-sse-mvc      (SSE 服务端推送)
+   frame-me-starter-ws-mvc       (WebSocket 全双工推送)
+   frame-me-starter-doc-openapi  (SpringDoc 接口文档)
 ```
 
 更准确的依赖关系：
@@ -32,7 +37,7 @@ frame-me-adapter-api → frame-me-adapter-starter   (老接口规范，可被外
 - `frame-me-starter-doc-openapi`：依赖 `springdoc-openapi-starter-webmvc-ui`，接口文档能力，不依赖框架内部模块。
 - `frame-me-starter-auth`：依赖 `frame-me-starter-base`，认证授权占位模块。
 - `frame-me-starter-cloud`：依赖 `frame-me-starter-base`，微服务云组件占位模块。
-- `frame-me-booter`：聚合启动模块，依赖 `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力。`frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合。
+- `frame-me-booter`：聚合启动模块，依赖 `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力。`frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合。
 - `frame-me-tester`：`pom` 聚合模块，包含 `frame-me-tester-api`（契约接口）与 `frame-me-tester-service`（可运行入口）。`frame-me-tester-api` 依赖 `frame-me-api`；`frame-me-tester-service` 依赖 `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter`。通过 `frame-me-starter-base` 的 Maven profile 可选引入 `frame-me-starter-doc-openapi` 与 `p6spy`。
 
 ### interfacer / booter 使用约定
@@ -73,7 +78,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 
 - `frame-me-starter-base` 注册 `com.frame.me.base.config.BaseAutoConfiguration`
   - 文件路径：`frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-  - 注册 Bean：`GlobalExceptionHandler`、`EnvironmentHelper`
+  - 注册 Bean：`GlobalExceptionHandler`、`EnvironmentHelper`、`ResultJacksonModule`、`HttpServiceClientAutoConfiguration`、`QueryObjectArgumentResolver`、`EventBridgePublisher`、`EventBridgeListener`、`EventBridgeAutoConfiguration`
 - `frame-me-starter-base` 注册 `com.frame.me.base.mybatis.config.MybatisPlusConfiguration`
   - 注册 Bean：`MybatisPlusInterceptor`（含分页插件、乐观锁插件）、`BaseMetaObjectHandler`（需配置开启）、自定义 `IdentifierGenerator`（可选 worker-id 配置）。
 - `frame-me-adapter-starter` 注册 `com.frame.me.adapter.config.AdapterAutoConfiguration`
@@ -85,8 +90,21 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 - `frame-me-starter-doc-openapi` 注册 `com.frame.me.doc.openapi.config.DocOpenApiAutoConfiguration`
   - 文件路径：`frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
   - 注册 Bean：`OpenAPI`、`GroupedOpenApi`（分组）。
+- `frame-me-starter-multi-redis` 注册 `com.frame.me.redis.config.RedisAutoConfiguration`、`RedissonLockAutoConfiguration`
+  - 注册 Bean：`StringRedisTemplate`/`RedisTemplate` 并初始化 `RedisUtils`；引入 Redisson 后创建 `RedissonClient` 并初始化各 Redisson 工具类。
+- `frame-me-starter-l1l2-cache` 注册 `com.frame.me.cache.config.CacheAutoConfiguration`
+  - 启用 JetCache 方法级缓存注解（`me.cache.enabled=true` 开启）。
+- `frame-me-starter-sensi-encrypt`
+  - 配置解密 `com.frame.me.encrypt.env.EncryptablePropertyEnvironmentPostProcessor` 走 `META-INF/spring.factories` 的 `org.springframework.boot.EnvironmentPostProcessor` 键（早于自动装配）。
+  - 业务用 `com.frame.me.encrypt.config.EncryptAutoConfiguration` 走 `AutoConfiguration.imports`，配了主密码后暴露 `StringEncryptor` Bean。
+- `frame-me-starter-op-audit` 注册 `com.frame.me.op.audit.config.AuditAutoConfiguration`
+  - 注册 Bean：`AuditLogAspect`、`AuditLogLogger`（`me.audit.enabled=true`，默认开启）。
+- `frame-me-starter-sse-mvc` 注册 `com.frame.me.sse.mvc.config.SseAutoConfiguration`
+  - 注册 Bean：`SseEmitterManager`、`SseEventDispatcher`、`SsePushService`、`SseController`（`me.sse.enabled`，默认开启）。
+- `frame-me-starter-ws-mvc` 注册 `com.frame.me.ws.mvc.config.WsMvcAutoConfiguration`
+  - 注册 Bean：`WsMvcSessionManager`、`WsMvcEventDispatcher`、`WsMvcPushService`、`MeWsMvcHandler`（`me.ws.mvc.enabled`，默认开启）。
 
-`frame-me-booter` 作为聚合模块没有自己的自动装配类，它通过传递依赖自动引入 `frame-me-starter-base`、`frame-me-starter-dynamic-ds` 等模块的自动配置。`frame-me-adapter-starter` 与 `frame-me-starter-doc-openapi` 不纳入 `frame-me-booter`，因此外部项目可选择使用默认适配层/文档能力或自行实现。
+`frame-me-booter` 作为聚合模块没有自己的自动装配类，它通过传递依赖自动引入 `frame-me-starter-base`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit` 等模块的自动配置。`frame-me-adapter-starter`、`frame-me-starter-doc-openapi`、`frame-me-starter-ws-mvc` 不纳入 `frame-me-booter`，由外部项目按需引入或自行实现。
 
 ### 配置类约定
 

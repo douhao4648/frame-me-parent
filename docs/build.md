@@ -72,7 +72,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
-应用默认运行在 `8080` 端口，应用名称为 `frame-me-tester`。
+应用默认运行在 `9090` 端口（管理端口 `9091`），应用名称为 `frame-me-tester`。
 
 ## Maven Profile
 

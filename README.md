@@ -54,7 +54,10 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-multi-redis` | Redis 能力 starter：封装 `RedisUtils`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动启用分布式锁、同步原语、Topic、限流。 |
 | `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `me.cache.enabled=true` 开启。 |
 | `frame-me-starter-sensi-encrypt` | 配置密钥加密 starter：基于 Jasypt 核心库，启动时解密配置中的 `ME(密文)`，主密码由环境变量注入、不入库。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt；不含 adapter 与 doc-openapi）。 |
+| `frame-me-starter-op-audit` | 审计/行为日志 starter：方法标注 `@AuditLog` 记录动作/参数/返回/异常/耗时，默认打印日志，可经事件桥接发往审计服务。 |
+| `frame-me-starter-sse-mvc` | SSE 推送 starter（按需引入）：服务端事件推送，支持按事件类型广播与按接收者定向推送。 |
+| `frame-me-starter-ws-mvc` | WebSocket 推送 starter（按需引入）：Servlet 原生 WebSocket 全双工，支持广播与定向推送。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt/op-audit；不含 adapter、doc-openapi、sse-mvc、ws-mvc）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定

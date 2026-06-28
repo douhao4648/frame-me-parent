@@ -18,11 +18,19 @@
 |---|---|
 | [build.md](./build.md) | 如何编译、测试、打包、运行？如何新增子模块？ |
 | [architecture.md](./architecture.md) | 模块如何分层？自动装配如何工作？请求响应如何流转？ |
-| [event-bridge.md](./event-bridge.md) | 事件桥接如何工作？进程内事件与跨服务事件如何统一？ |
 | [conventions.md](./conventions.md) | Result / Response / 异常 / 状态码怎么用？编码风格是什么？ |
 | [modules.md](./modules.md) | 每个子模块的职责、依赖、关键类是什么？ |
 | [testing.md](./testing.md) | 如何运行测试？如何启动应用？ |
 | [reference.md](./reference.md) | 关键类与文件的路径索引、已知扩展点在哪里？ |
+
+### 专题指南（guides/）
+
+复杂横切特性的深度说明（怎么用 / 怎么运作），区别于上面的标准骨架文档：
+
+| 专题 | 回答的问题 |
+|---|---|
+| [guides/event-bridge.md](./guides/event-bridge.md) | 事件桥接如何工作？进程内事件与跨服务事件如何统一？ |
+| [guides/audit.md](./guides/audit.md) | 审计/行为日志如何工作？`@AuditLog` 怎么用？如何桥接到审计服务？ |
 
 ## 关键约定一句话
 

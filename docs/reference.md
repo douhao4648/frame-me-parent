@@ -14,6 +14,10 @@
 | `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
 | `frame-me-starter-multi-redis` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/pom.xml` |
 | `frame-me-starter-l1l2-cache` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/pom.xml` |
+| `frame-me-starter-op-audit` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/pom.xml` |
+| `frame-me-starter-sensi-encrypt` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/pom.xml` |
+| `frame-me-starter-sse-mvc` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/pom.xml` |
+| `frame-me-starter-ws-mvc` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/pom.xml` |
 | `frame-me-starter-doc-openapi` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/pom.xml` |
 | `frame-me-tester` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/pom.xml` |
 | `frame-me-tester-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-api/pom.xml` |
@@ -63,6 +67,35 @@
 | `DocOpenApiConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/DocOpenApiConstant.java` |
 | `AuthConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/AuthConstant.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
+| `AuditLog` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/annotation/AuditLog.java` |
+| `AuditLogAspect` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/aspect/AuditLogAspect.java` |
+| `AuditLogEvent` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/core/AuditLogEvent.java` |
+| `AuditLogRecord` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/core/AuditLogRecord.java` |
+| `AuditLogLogger` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/listener/AuditLogLogger.java` |
+| `AuditLogOperatorSupplier` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/spi/AuditLogOperatorSupplier.java` |
+| `AuditAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/config/AuditAutoConfiguration.java` |
+| `AuditProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/config/AuditProperties.java` |
+| `AuditConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/AuditConstant.java` |
+| `EncryptablePropertyEnvironmentPostProcessor` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/java/com/frame/me/encrypt/env/EncryptablePropertyEnvironmentPostProcessor.java` |
+| `JasyptEncryptor` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/java/com/frame/me/encrypt/util/JasyptEncryptor.java` |
+| `JasyptEncryptCli` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/java/com/frame/me/encrypt/cli/JasyptEncryptCli.java` |
+| `EncryptAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/java/com/frame/me/encrypt/config/EncryptAutoConfiguration.java` |
+| `EncryptConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/java/com/frame/me/encrypt/EncryptConstant.java` |
+| `SseEmitterManager` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/core/SseEmitterManager.java` |
+| `SseEventDispatcher` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/core/SseEventDispatcher.java` |
+| `SsePushService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/service/SsePushService.java` |
+| `SseController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/web/SseController.java` |
+| `SseAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/config/SseAutoConfiguration.java` |
+| `SseProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/config/SseProperties.java` |
+| `SseConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/java/com/frame/me/sse/mvc/SseConstant.java` |
+| `WsMvcSessionManager` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/core/WsMvcSessionManager.java` |
+| `WsMvcEventDispatcher` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/core/WsMvcEventDispatcher.java` |
+| `WsMvcPushService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/service/WsMvcPushService.java` |
+| `MeWsMvcHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/handler/MeWsMvcHandler.java` |
+| `WsMvcAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/config/WsMvcAutoConfiguration.java` |
+| `WsMvcProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/config/WsMvcProperties.java` |
+| `WsMvcHeartbeatTask` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/config/WsMvcHeartbeatTask.java` |
+| `WsMvcConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/WsMvcConstant.java` |
 | `RedisAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/config/RedisAutoConfiguration.java` |
 | `RedisProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/config/RedisProperties.java` |
 | `RedisUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/util/RedisUtils.java` |
@@ -84,6 +117,9 @@
 | `MybatisPlusOptimisticLockTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java` |
 | `MybatisPlusPaginationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java` |
 | `DemoServiceCacheTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java` |
+| `JasyptEncryptTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java` |
+| `UserCreatedEventFlowTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java` |
+| `RedissonLockTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/RedissonLockTest.java` |
 
 ## Spring Boot 自动装配注册文件
 
@@ -94,6 +130,11 @@
 | `frame-me-starter-dynamic-ds` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-multi-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-l1l2-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-op-audit` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-sensi-encrypt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-sensi-encrypt`（`EnvironmentPostProcessor`） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring.factories` |
+| `frame-me-starter-sse-mvc` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-ws-mvc` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-doc-openapi` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 
 ## 速查表：类名 → 作用
@@ -122,6 +163,15 @@
 | `Result2ResponseAdvice` | 将 `IResult<T>` 转换为 `Response<T>` |
 | `Response<T>` | 外部 JSON 响应结构 |
 | `ResponseJacksonModule` | 将 `IResult` 抽象类型反序列化映射为 `Response` |
+| `ResultJacksonModule` | 将 `IResult` 抽象类型反序列化映射为 `Result` 的 Jackson 模块 |
+| `HttpServiceClientAutoConfiguration` | HTTP Interface 客户端自动装配 |
+| `QueryObjectArgumentResolver` | `@QueryMap` 查询对象参数解析器 |
+| `EventBridgePublisher` | 事件桥接发布入口 |
+| `EventBridgeListener` | 订阅通道、按 `type` 分发、还原为本地事件 |
+| `EventTransport` | 传输通道抽象（`send` / `subscribe`） |
+| `EventBridgeProperties` | `me.event-bridge.*` 配置属性绑定 |
+| `EventBridgeAutoConfiguration` | 事件桥接自动装配入口 |
+| `User` | 通用用户模型占位类 |
 | `PageParam` | 老规范分页查询参数（`frame-me-adapter-api`） |
 | `PageResult<T>` | 老规范分页结果（`frame-me-adapter-api`） |
 | `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |
@@ -136,6 +186,31 @@
 | `DocOpenApiAutoConfiguration` | OpenAPI 文档自动装配入口 |
 | `DocOpenApiProperties` | `me.swagger` 配置属性绑定 |
 | `GroupedOpenApiRegistrar` | 动态注册 API 分组 |
+| `AuditLog` | 标记需要记录审计日志的方法 |
+| `AuditLogAspect` | AOP 切面，拦截方法并组装 `AuditLogRecord` |
+| `AuditLogEvent` | 审计事件，继承 `MeApplicationEvent` |
+| `AuditLogRecord` | 审计记录负载 |
+| `AuditLogLogger` | 本地 `@EventListener`，默认输出结构化日志 |
+| `AuditLogOperatorSupplier` | 操作人提供接口，默认返回 `anonymous` |
+| `AuditAutoConfiguration` | 审计自动装配入口 |
+| `AuditProperties` | `me.audit` 配置属性绑定 |
+| `EncryptablePropertyEnvironmentPostProcessor` | `EnvironmentPostProcessor`，扫描属性源解密 `ME(...)` |
+| `JasyptEncryptor` | 统一构建 `StandardPBEStringEncryptor` |
+| `JasyptEncryptCli` | 离线生成 `ME(密文)` 的 `main` 工具 |
+| `EncryptAutoConfiguration` | 暴露 `StringEncryptor` Bean 的自动装配入口 |
+| `SseEmitterManager` | Emitter 生命周期与路由管理 |
+| `SseEventDispatcher` | 监听 `MeApplicationEvent` 并转发到 SSE |
+| `SsePushService` | 业务推送 API |
+| `SseController` | SSE 订阅端点 |
+| `SseAutoConfiguration` | SSE 自动装配入口 |
+| `SseProperties` | `me.sse` 配置属性绑定 |
+| `WsMvcSessionManager` | WebSocketSession 生命周期与路由管理 |
+| `WsMvcEventDispatcher` | 监听 `MeApplicationEvent` 并转发到 WebSocket |
+| `WsMvcPushService` | 业务推送 API |
+| `MeWsMvcHandler` | WebSocket 连接与消息处理 |
+| `WsMvcAutoConfiguration` | WebSocket 自动装配入口 |
+| `WsMvcProperties` | `me.ws.mvc` 配置属性绑定 |
+| `WsMvcHeartbeatTask` | 可选心跳任务 |
 
 ### EnvironmentHelper 方法
 
@@ -165,7 +240,7 @@
    - 适合作为未来认证、鉴权、注册中心、配置中心、网关等能力的载体。
 
 4. **`HealthController` 故意触发 NPE**
-   - 实现 `IHealthApi`（`@HttpExchange("/api/health")`），用于验证异常处理链路是否正常工作。
+   - 实现 `IHealthApi`，用于验证异常处理链路是否正常工作。
    - 若后续需要真正的健康检查接口，需重写该方法。
 
 5. **`frame-me-tester` 已拆分为 `frame-me-tester-api` + `frame-me-tester-service`**

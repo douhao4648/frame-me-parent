@@ -7,13 +7,21 @@
 ```
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/ApplicationTests.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/RedissonLockTest.java
 ```
 
+- `DemoServiceCacheTest`：演示 JetCache 两级缓存集成测试。
+- `JasyptEncryptTest`：演示 Jasypt 配置加密解密测试。
+- `UserCreatedEventFlowTest`：演示事件桥接端到端测试。
+- `RedissonLockTest`：演示 Redisson 分布式锁集成测试。
 - `ApplicationTests`：使用 H2 内存数据库验证 Spring Boot 上下文能正常启动，不依赖 Docker。
 - `AbstractIntegrationTest`：Testcontainers + MySQL 集成测试基类。
 - `DemoMapperIntegrationTest`：覆盖插入/自动填充、查询、乐观锁、逻辑删除、分页。
@@ -81,14 +89,18 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 ```yaml
 server:
-  port: 8080
+  port: 9090
+
+management:
+  server:
+    port: 9091
 
 spring:
   application:
     name: frame-me-tester
 ```
 
-- 访问端口：`8080`
+- 访问端口：`9090`（管理端口 `9091`）
 - 应用名称：`frame-me-tester`
 - 当前未配置其他 profile 或外部配置中心。
 
@@ -137,6 +149,10 @@ public class HealthController {
 | `MybatisPlusLogicDeleteTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java` | 覆盖逻辑删除 |
 | `MybatisPlusOptimisticLockTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java` | 覆盖乐观锁 |
 | `MybatisPlusPaginationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java` | 覆盖分页插件 |
+| `DemoServiceCacheTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java` | 演示 JetCache 两级缓存集成测试 |
+| `JasyptEncryptTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java` | 演示 Jasypt 配置加密解密测试 |
+| `UserCreatedEventFlowTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java` | 演示事件桥接端到端测试 |
+| `RedissonLockTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/RedissonLockTest.java` | 演示 Redisson 分布式锁集成测试 |
 
 ### 运行集成测试
 

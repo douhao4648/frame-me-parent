@@ -12,7 +12,14 @@
   - `com.frame.me.validation.UpdateGroup` — 校验分组：更新场景。
   - `com.frame.me.validation.annotation.TimeRange` — 类级时间范围校验注解。
   - `com.frame.me.validation.validator.TimeRangeValidator` — `@TimeRange` 校验器实现。
-  - `com.frame.me.api.ApiConstant` — 占位常量接口。
+  - `com.frame.me.api.annotation.QueryMap` — HTTP Interface 查询参数映射注解。
+  - `com.frame.me.api.enums.IEnum` — 通用枚举接口。
+  - `com.frame.me.api.enums.GenderEnum` — 示例枚举（实现 `IEnum`）。
+  - `com.frame.me.api.enums.YesNoEnum` — 是/否枚举（实现 `IEnum`）。
+  - `com.frame.me.event.MeApplicationEvent` — 可桥接的本地事件基类。
+  - `com.frame.me.event.EventType<T>` — 事件类型映射接口。
+  - `com.frame.me.event.EventBridgeMessage` — 跨服务传输的通用包装。
+  - `com.frame.me.event.EventClientPermit` — 允许通过 SSE/WebSocket 推送给客户端的事件标记注解。
 - **使用方**：业务工程的 `xx-api` 模块。
 - **设计约定**：
   - 业务 `xx-api` 通过引入 `frame-me-api` 获得统一的接口契约与校验分组。
@@ -33,7 +40,15 @@
   - `com.frame.me.base.exception.BusinessException` — 业务异常。
   - `com.frame.me.base.exception.InternalException` — 内部异常。
   - `com.frame.me.base.exception.RetryException` — 重试异常。
-  - `com.frame.me.base.BaseConstant` — 占位常量接口。
+  - `com.frame.me.base.result.ResultJacksonModule` — 将 `IResult` 抽象类型反序列化映射为 `Result` 的 Jackson 模块。
+  - `com.frame.me.base.client.HttpServiceClientAutoConfiguration` — HTTP Interface 客户端自动装配（注册 `HttpServiceProxyFactory`）。
+  - `com.frame.me.base.client.QueryObjectArgumentResolver` — 将 `@QueryMap` 注解的查询对象解析为查询参数。
+  - `com.frame.me.base.event.EventBridgePublisher` — 事件桥接发布入口：本地发布 + 选择 transport 广播。
+  - `com.frame.me.base.event.EventBridgeListener` — 订阅通道、按 `type` 分发、还原为本地事件。
+  - `com.frame.me.base.event.EventTransport` — 传输通道抽象（`send` / `subscribe`）。
+  - `com.frame.me.base.event.EventBridgeProperties` — `me.event-bridge.*` 配置属性绑定。
+  - `com.frame.me.base.event.EventBridgeAutoConfiguration` — 事件桥接自动装配入口。
+  - `com.frame.me.base.user.User` — 通用用户模型占位类。
   - `com.frame.me.base.mybatis.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
   - `com.frame.me.base.mybatis.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
   - `com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `me.mybatis.meta-object-handler.enabled=true` 开启。
@@ -466,47 +481,12 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.op.audit.config.AuditAutoConfiguration` — 自动装配入口。
   - `com.frame.me.op.audit.config.AuditProperties` — `me.audit` 配置属性绑定。
 - **自动装配**：通过 `frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuditAutoConfiguration`。
-- **启用条件**：
-  - 类路径存在 AspectJ。
-  - `me.audit.enabled=true`（默认 true，可显式关闭）。
-- **使用方式**：
-  - 在业务方法上标注 `@AuditLog`。
-  - `description` 支持 `#paramName.xxx`、`#result`、`#error` 占位符。
-  - 配置 `me.audit.target-service=audit-service` 后，审计事件会定向桥接到审计服务。
-- **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得能力。
-  - 默认只打印本地日志，不走红外线；配置目标服务后才通过 Redis Pub/Sub 桥接。
-  - `targetService` 用于过滤，避免多个服务重复落库；但不解决 Redis Pub/Sub 本身不持久化的问题，强一致审计需后续接入 MQ transport。
-
-**示例配置**：
-
-```yaml
-me:
-  audit:
-    enabled: true
-    log-enabled: true
-    target-service: audit-service
-    max-param-length: 2000
-```
-
-**示例代码**：
-
-```java
-@Service
-public class UserService {
-
-    @AuditLog(action = "创建用户", category = "用户管理",
-              description = "创建用户 #user.username，手机号 #user.phone")
-    public User createUser(CreateUserRequest user) {
-        return ...;
-    }
-}
-```
+- **用法、配置与注意事项**：见 [guides/audit.md](./guides/audit.md)（`@AuditLog` 用法与 `description` 占位符、`me.audit.*` 配置、桥接审计服务、Redis Pub/Sub 不持久化的限制）。
 
 ## `frame-me-booter`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.booter.BooterConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-service` 模块。
@@ -552,11 +532,17 @@ public class UserService {
   - `com.frame.me.tester.api.IDemoApi` — 演示数据 API 契约，使用 Spring HTTP Interface（`@HttpExchange`、`@GetExchange`、`@PostExchange` 等）。
   - `com.frame.me.tester.api.IHealthApi` — 健康检查 API 契约。
   - `com.frame.me.tester.api.IDataSourceApi` — 数据源切换与连接池信息查询契约。
+  - `com.frame.me.tester.api.IRedisApi` — Redis 操作与 Redisson 分布式锁 API 契约。
   - `com.frame.me.tester.api.dto.DemoDTO` — 演示数据传输对象，含校验分组。
   - `com.frame.me.tester.api.query.DemoQuery` — 演示分页查询参数。
   - `com.frame.me.tester.api.query.DemoComplexQuery` — 演示复杂查询参数（含 `@TimeRange`）。
+  - `com.frame.me.tester.api.query.DemoOldQuery` — 演示老规范分页查询参数（使用 `PageParam`）。
   - `com.frame.me.tester.api.vo.DemoVO` — 演示返回视图对象。
   - `com.frame.me.tester.api.vo.DemoComplexVO` — 演示复杂查询返回视图对象。
+  - `com.frame.me.tester.event.UserCreatedPayload` — 用户创建事件负载。
+  - `com.frame.me.tester.event.UserCreatedEvent` — 用户创建事件（继承 `MeApplicationEvent`）。
+  - `com.frame.me.tester.event.UserCreatedEventType` — 用户创建事件类型映射。
+  - `com.frame.me.tester.event.UserCreatedEventConfiguration` — 事件配置类（暴露 `UserCreatedEventType` Bean）。
 - **设计约定**：
   - API 契约推荐用 Spring HTTP Interface 声明，便于后续生成 HTTP 客户端。
   - DTO / Query / VO 放在 `xx-api` 中，供服务提供方与消费方共享。
@@ -570,13 +556,18 @@ public class UserService {
   - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi`，故意触发 NPE 以验证异常处理。
   - `com.frame.me.tester.controller.DemoController` — 实现 `IDemoApi`，演示 MyBatis-Plus CRUD、分页、校验分组。
   - `com.frame.me.tester.controller.DataSourceController` — 实现 `IDataSourceApi`，演示多数据源切换与连接池信息查询。
+  - `com.frame.me.tester.controller.RedisController` — 实现 `IRedisApi`，演示 Redis 操作与 Redisson 分布式锁。
   - `com.frame.me.tester.service.IDemoService` / `com.frame.me.tester.service.impl.DemoServiceImpl` — 演示 Service 层。
   - `com.frame.me.tester.service.convert.DemoConvert` — MapStruct 转换器（`@Mapper(componentModel = "spring")`）。
   - `com.frame.me.tester.entity.DemoEntity` — 演示实体，继承 `BaseVersionEntity`，对应表 `demo_user`。
   - `com.frame.me.tester.mapper.DemoMapper` — 演示 Mapper，继承 MyBatis-Plus `BaseMapper<DemoEntity>`。
+  - `com.frame.me.tester.cache.DemoServiceCacheTest` — 演示 JetCache 两级缓存集成测试。
+  - `com.frame.me.tester.encrypt.JasyptEncryptTest` — 演示 Jasypt 配置加密解密测试。
+  - `com.frame.me.tester.event.UserCreatedEventFlowTest` — 演示事件桥接端到端测试。
+  - `com.frame.me.tester.redis.RedissonLockTest` — 演示 Redisson 分布式锁集成测试。
   - `com.frame.me.tester.ApplicationTests` — 上下文加载测试。
   - `com.frame.me.tester.AbstractIntegrationTest` — Testcontainers + MySQL 集成测试基类。
-  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 端口 `8080`，应用名 `frame-me-tester`，单/多数据源、MyBatis-Plus、OpenAPI、P6Spy 配置。
+  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 端口 `9090`（管理端口 `9091`），应用名 `frame-me-tester`，单/多数据源、MyBatis-Plus、OpenAPI、P6Spy 配置。
 - **构建插件**：包含 `spring-boot-maven-plugin`，用于打包可运行 Jar。
 - **扩展提示**：作为集成验证入口，新模块加入后应在此添加对应的集成测试或示例 Controller。
 
@@ -595,6 +586,6 @@ public class UserService {
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
-| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit` |
+| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |
