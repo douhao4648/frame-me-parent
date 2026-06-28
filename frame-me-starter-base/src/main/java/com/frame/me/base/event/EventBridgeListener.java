@@ -121,6 +121,15 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             return;
         }
 
+        String targetService = message.getTargetService();
+        if (targetService != null && !targetService.isEmpty()
+                && !"unknown".equals(currentService)
+                && !targetService.equals(currentService)) {
+            log.debug("Ignore event for other service: type={}, targetService={}, current={}",
+                    type, targetService, currentService);
+            return;
+        }
+
         try {
             @SuppressWarnings("unchecked")
             EventType<Object> typedEventType = (EventType<Object>) eventType;

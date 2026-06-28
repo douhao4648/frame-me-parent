@@ -49,8 +49,10 @@ public class EventBridgePublisher {
         }
 
         String payload = JSON.toJSONString(event.getPayload());
-        EventBridgeMessage message = EventBridgeMessage.of(type, payload, properties.getServiceName());
+        EventBridgeMessage message = EventBridgeMessage.of(type, payload, properties.getServiceName(),
+                event.getTargetService(), event.getTargetId());
         transport.send(type, message);
-        log.debug("Event broadcast via {}: type={}", transportName, type);
+        log.debug("Event broadcast via {}: type={}, targetService={}, targetId={}", transportName, type,
+                event.getTargetService(), event.getTargetId());
     }
 }

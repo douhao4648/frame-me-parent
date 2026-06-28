@@ -48,6 +48,24 @@ public abstract class MeApplicationEvent extends ApplicationEvent {
     }
 
     /**
+     * 目标服务名，默认 {@code null} 表示不限制目标服务（广播）。
+     *
+     * @return 目标服务名
+     */
+    public String getTargetService() {
+        return null;
+    }
+
+    /**
+     * 目标标识，默认 {@code null} 表示不限制目标实体/实例/用户。
+     *
+     * @return 目标标识
+     */
+    public String getTargetId() {
+        return null;
+    }
+
+    /**
      * 事件负载，默认返回事件源 {@link #getSource()}。
      *
      * <p>业务事件可覆盖此方法，把需要跨服务传输的数据与事件源解耦。</p>

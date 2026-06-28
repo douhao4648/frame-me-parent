@@ -24,15 +24,27 @@ public class SseEventDispatcher {
     @EventListener
     @Order(Integer.MAX_VALUE - 100)
     public void onApplicationEvent(MeApplicationEvent event) {
-        if (!properties.isBroadcastEnabled()) {
-            return;
-        }
         String eventType = event.getEventType();
         SsePayload payload = SsePayload.builder()
                 .eventType(eventType)
                 .data(event.getPayload())
                 .timestamp(Instant.now())
                 .build();
+
+        String targetId = event.getTargetId();
+        if (targetId != null && !targetId.isBlank()) {
+            if (!properties.isTargetedEnabled()) {
+                log.debug("SSE targeted dispatch disabled, skip targetId={}", targetId);
+                return;
+            }
+            int sent = emitterManager.pushToReceiver(targetId, payload);
+            log.debug("SSE targeted push: type={}, targetId={}, sent={}", eventType, targetId, sent);
+            return;
+        }
+
+        if (!properties.isBroadcastEnabled()) {
+            return;
+        }
         int sent = emitterManager.broadcast(eventType, payload);
         log.debug("SSE broadcast: type={}, sent={}", eventType, sent);
     }

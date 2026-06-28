@@ -139,6 +139,63 @@ class EventBridgePublisherTest {
         assertThat(captor.getValue().getValue()).isEqualTo("eve");
     }
 
+    @Test
+    void shouldCarryTargetFieldsInMessage() {
+        EventBridgeProperties properties = new EventBridgeProperties();
+        properties.setServiceName("producer-service");
+        Map<String, EventTransport> transports = new HashMap<>();
+        transports.put("redis", redisTransport);
+
+        EventBridgePublisher publisher = new EventBridgePublisher(localPublisher, properties, transports);
+
+        TestEvent event = new TestEvent(this, "user:notify", "alice",
+                "notification-service", "user:123");
+        publisher.publish(event);
+
+        ArgumentCaptor<EventBridgeMessage> captor = ArgumentCaptor.forClass(EventBridgeMessage.class);
+        verify(redisTransport).send(eq("user:notify"), captor.capture());
+
+        EventBridgeMessage message = captor.getValue();
+        assertThat(message.getTargetService()).isEqualTo("notification-service");
+        assertThat(message.getTargetId()).isEqualTo("user:123");
+    }
+
+    @Test
+    void listenerShouldIgnoreEventForOtherService() {
+        EventBridgeProperties properties = new EventBridgeProperties();
+        properties.setServiceName("consumer-service");
+        Map<String, EventTransport> transports = new HashMap<>();
+        transports.put("redis", redisTransport);
+
+        EventBridgeListener listener = new EventBridgeListener(localPublisher, properties, transports);
+        listener.register(new TestEventType());
+
+        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
+                "producer-service", "other-service", null);
+        listener.onMessage(message);
+
+        verify(localPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void listenerShouldDispatchEventForCurrentService() {
+        EventBridgeProperties properties = new EventBridgeProperties();
+        properties.setServiceName("consumer-service");
+        Map<String, EventTransport> transports = new HashMap<>();
+        transports.put("redis", redisTransport);
+
+        EventBridgeListener listener = new EventBridgeListener(localPublisher, properties, transports);
+        listener.register(new TestEventType());
+
+        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
+                "producer-service", "consumer-service", "user:123");
+        listener.onMessage(message);
+
+        ArgumentCaptor<TestEvent> captor = ArgumentCaptor.forClass(TestEvent.class);
+        verify(localPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().getValue()).isEqualTo("eve");
+    }
+
     /**
      * 测试事件.
      */
@@ -147,16 +204,34 @@ class EventBridgePublisherTest {
 
         private final String type;
         private final String value;
+        private final String targetService;
+        private final String targetId;
 
         TestEvent(Object source, String type, String value) {
+            this(source, type, value, null, null);
+        }
+
+        TestEvent(Object source, String type, String value, String targetService, String targetId) {
             super(value);
             this.type = type;
             this.value = value;
+            this.targetService = targetService;
+            this.targetId = targetId;
         }
 
         @Override
         public String getEventType() {
             return type;
+        }
+
+        @Override
+        public String getTargetService() {
+            return targetService;
+        }
+
+        @Override
+        public String getTargetId() {
+            return targetId;
         }
 
         public String getValue() {
