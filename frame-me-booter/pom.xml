@@ -43,5 +43,9 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-sse-mvc</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-op-audit</artifactId>
+        </dependency>
     </dependencies>
 </project>

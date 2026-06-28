@@ -452,10 +452,61 @@ public Boolean delete(Long id) { ... }
   - 跳过系统环境变量属性源（规避 Boot 3.5+ 系统环境源不被包装解密的已知行为，且密文放环境变量无意义）。
   - 本质是「用主密码加密其它密钥」，主密码仍需妥善保管；若要求密钥完全不落地，应改用 Vault/KMS 方案。
 
+## `frame-me-starter-op-audit`
+
+- **定位**：审计/行为日志 starter，通过注解无侵入地记录业务操作（动作、参数、返回值、异常、耗时），默认输出到日志，并可通过事件桥接将日志定向发送到专门的审计服务持久化。
+- **依赖**：`frame-me-api`、`frame-me-starter-base`、`spring-boot-starter`、`spring-aop`、`aspectjweaver`、`fastjson2`、`lombok`。
+- **关键类**：
+  - `com.frame.me.op.audit.annotation.AuditLog` — 标记需要记录审计日志的方法。
+  - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`。
+  - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `MeApplicationEvent`。
+  - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
+  - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志。
+  - `com.frame.me.op.audit.spi.AuditLogOperatorSupplier` — 操作人提供接口，默认返回 `anonymous`。
+  - `com.frame.me.op.audit.config.AuditAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.op.audit.config.AuditProperties` — `me.audit` 配置属性绑定。
+- **自动装配**：通过 `frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuditAutoConfiguration`。
+- **启用条件**：
+  - 类路径存在 AspectJ。
+  - `me.audit.enabled=true`（默认 true，可显式关闭）。
+- **使用方式**：
+  - 在业务方法上标注 `@AuditLog`。
+  - `description` 支持 `#paramName.xxx`、`#result`、`#error` 占位符。
+  - 配置 `me.audit.target-service=audit-service` 后，审计事件会定向桥接到审计服务。
+- **设计约定**：
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得能力。
+  - 默认只打印本地日志，不走红外线；配置目标服务后才通过 Redis Pub/Sub 桥接。
+  - `targetService` 用于过滤，避免多个服务重复落库；但不解决 Redis Pub/Sub 本身不持久化的问题，强一致审计需后续接入 MQ transport。
+
+**示例配置**：
+
+```yaml
+me:
+  audit:
+    enabled: true
+    log-enabled: true
+    target-service: audit-service
+    max-param-length: 2000
+```
+
+**示例代码**：
+
+```java
+@Service
+public class UserService {
+
+    @AuditLog(action = "创建用户", category = "用户管理",
+              description = "创建用户 #user.username，手机号 #user.phone")
+    public User createUser(CreateUserRequest user) {
+        return ...;
+    }
+}
+```
+
 ## `frame-me-booter`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.booter.BooterConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-service` 模块。
@@ -543,6 +594,7 @@ public Boolean delete(Long id) { ... }
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
-| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds` |
+| `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
+| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |
