@@ -8,15 +8,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 /**
  * MyBatis-Flex 插件配置.
  *
- * <p>当类路径存在 BaseMapper 时自动启用，注册全局配置以及可选的自定义雪花算法 ID 生成器适配器。</p>
+ * <p>当类路径存在 BaseMapper 时自动启用，注册全局配置以及可选的自定义雪花算法 ID 生成器适配器，
+ * 同时修复 MyBatis-Flex 内部配置类在 BeanPostProcessor 阶段被提前实例化而产生的 WARN。</p>
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "com.mybatisflex.core.BaseMapper")
+@Import(MybatisFlexInfrastructureRoleFixer.class)
 public class MybatisFlexConfiguration {
 
     /**

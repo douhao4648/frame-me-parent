@@ -49,6 +49,7 @@
     <logger name="org.springframework" level="WARN"/>
     <logger name="org.apache.ibatis" level="WARN"/>
     <logger name="com.baomidou.mybatisplus" level="WARN"/>
+    <logger name="com.mybatisflex" level="WARN"/>
     <logger name="com.zaxxer.hikari" level="WARN"/>
     <logger name="com.baomidou.mybatisplus.core.toolkit.Sequence" level="DEBUG"/>
 

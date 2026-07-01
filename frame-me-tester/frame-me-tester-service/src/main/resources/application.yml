@@ -9,13 +9,29 @@ spring:
   application:
     name: frame-me-tester
   datasource:
-    url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/frame_me_test3?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
     password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 10
+  #    druid:
+  #      stat-view-servlet:
+  #        enabled: true
+  #        url-pattern: /druid/*
+  #        login-username: admin
+  #        login-password: admin
+  #      initial-size: 5
+  #      min-idle: 5
+  #      max-active: 20
+  #      max-wait: 60000
+  #      time-between-eviction-runs-millis: 60000
+  #      min-evictable-idle-time-millis: 300000
+  #      validation-query: SELECT 1
+  #      test-while-idle: true
+  #      test-on-borrow: false
+  #      test-on-return: false
   #    dynamic:
   #      hikari:
   #        maximum-pool-size: 10
@@ -68,11 +84,36 @@ mybatis-flex:
       username: root
       password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
       driver-class-name: com.mysql.cj.jdbc.Driver
+      type: hikari
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+    #      type: druid
+    #      initial-size: 20
+    #      min-idle: 20
+    #      max-active: 20
+    #      max-wait: 60000
+    #      time-between-eviction-runs-millis: 60000
+    #      min-evictable-idle-time-millis: 300000
+    #      validation-query: SELECT 1
+    #      test-while-idle: true
+    #      test-on-borrow: false
+    #      test-on-return: false
     second:
       url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       username: root
       password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
       driver-class-name: com.mysql.cj.jdbc.Driver
+      type: hikari
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 2
 
 logging:
   file:

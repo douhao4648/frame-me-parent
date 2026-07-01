@@ -17,7 +17,7 @@
 //
 //    /**
 //     * 复杂查询：根据年龄区间和创建时间范围查询，并返回年龄分组.
-//     * <p>对应的 SQL 定义在 classpath:mapper/DemoMapper.xml 中。
+//     * <p>对应的 SQL 定义在 classpath:mapper/DemoMapper.xml.bak 中。
 //     *
 //     * @param minAge    最小年龄
 //     * @param maxAge    最大年龄
