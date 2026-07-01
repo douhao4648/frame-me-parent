@@ -40,7 +40,6 @@ import java.util.List;
  * @author frame-me
  */
 @Slf4j
-@EnableScheduling
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(WebSocketHandler.class)
@@ -74,11 +73,29 @@ public class WsMvcAutoConfiguration {
         return new MeWsMvcHandler(manager, properties);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnExpression("${me.ws.mvc.heartbeat-interval:0} > 0")
-    public WsMvcHeartbeatTask wsMvcHeartbeatTask(WsMvcSessionManager manager, WsMvcProperties properties) {
-        return new WsMvcHeartbeatTask(manager, properties);
+    /**
+     * 调度与心跳任务配置.
+     *
+     * <p>单独拆分为内部配置类，受 {@code me.ws.mvc.scheduling-enabled} 控制；关闭时不会启用
+     * {@link EnableScheduling @Scheduled}，也不会创建心跳任务。</p>
+     */
+    @Slf4j
+    @Configuration(proxyBeanMethods = false)
+    @EnableScheduling
+    @ConditionalOnProperty(prefix = "me.ws.mvc", name = "scheduling-enabled", havingValue = "true", matchIfMissing = true)
+    @RequiredArgsConstructor
+    public static class WsMvcSchedulingConfiguration {
+
+        private final WsMvcSessionManager manager;
+        private final WsMvcProperties properties;
+
+        @Bean
+        @ConditionalOnMissingBean
+        @ConditionalOnExpression("${me.ws.mvc.heartbeat-interval:0} > 0")
+        public WsMvcHeartbeatTask wsMvcHeartbeatTask() {
+            log.info("WsMvcHeartbeatTask initialized, heartbeatInterval={}", properties.getHeartbeatInterval());
+            return new WsMvcHeartbeatTask(manager, properties);
+        }
     }
 
     /**

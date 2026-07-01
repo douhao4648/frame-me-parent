@@ -308,7 +308,9 @@ public class UserCreatedEventHandler {
 me:
   event-bridge:
     enabled: true                       # 默认 true
-    service-name: ${spring.application.name:unknown}
+    # service-name 未配置时，自动取 spring.application.name；
+    # 若 spring.application.name 也未配置，则回退为 "unknown"。
+    service-name:                       # 默认 spring.application.name
     topic-prefix: "me:event:"           # Redis Topic 前缀
     default-transport: redis            # 未配置 type 时的默认通道
     transports:
@@ -319,7 +321,7 @@ me:
 | 配置项 | 说明 |
 |---|---|
 | `enabled` | 是否启用事件桥接 |
-| `service-name` | 当前服务名，用于追踪来源与自身消息过滤 |
+| `service-name` | 当前服务名，用于追踪来源与自身消息过滤；未配置时默认取 `spring.application.name`，再未配置时回退为 `unknown` |
 | `topic-prefix` | Redis Topic 前缀 |
 | `default-transport` | 默认 transport 名称，对应 Bean 名或去掉 `EventTransport` 后缀的名称 |
 | `transports.{type}` | 按事件类型指定 transport |

@@ -47,5 +47,9 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-op-audit</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-msg-notify</artifactId>
+        </dependency>
     </dependencies>
 </project>

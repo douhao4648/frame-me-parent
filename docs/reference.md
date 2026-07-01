@@ -15,6 +15,7 @@
 | `frame-me-starter-multi-redis` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/pom.xml` |
 | `frame-me-starter-l1l2-cache` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/pom.xml` |
 | `frame-me-starter-op-audit` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/pom.xml` |
+| `frame-me-starter-msg-notify` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-msg-notify/pom.xml` |
 | `frame-me-starter-sensi-encrypt` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/pom.xml` |
 | `frame-me-starter-sse-mvc` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/pom.xml` |
 | `frame-me-starter-ws-mvc` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/pom.xml` |
@@ -43,6 +44,8 @@
 | `TimeRangeValidator` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-api/src/main/java/com/frame/me/validation/validator/TimeRangeValidator.java` |
 | `GlobalExceptionHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/advice/GlobalExceptionHandler.java` |
 | `BaseAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/config/BaseAutoConfiguration.java` |
+| `SchedulingAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/config/SchedulingAutoConfiguration.java` |
+| `SchedulingProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/config/SchedulingProperties.java` |
 | `EnvironmentHelper` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/env/EnvironmentHelper.java` |
 | `BaseConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/BaseConstant.java` |
 | `BaseEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseEntity.java` |
@@ -131,6 +134,7 @@
 | `frame-me-starter-multi-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-l1l2-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-op-audit` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-msg-notify` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-msg-notify/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt`（`EnvironmentPostProcessor`） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring.factories` |
 | `frame-me-starter-sse-mvc` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sse-mvc/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
@@ -170,7 +174,12 @@
 | `EventBridgeListener` | 订阅通道、按 `type` 分发、还原为本地事件 |
 | `EventTransport` | 传输通道抽象（`send` / `subscribe`） |
 | `EventBridgeProperties` | `me.event-bridge.*` 配置属性绑定 |
-| `EventBridgeAutoConfiguration` | 事件桥接自动装配入口 |
+| `EventBridgeAutoConfiguration` | 事件桥接自动装配入口；`serviceName` 未配置时默认取 `spring.application.name`。 |
+| `INotifySender` | 通用通知发送接口（`frame-me-starter-base`）。 |
+| `AsyncAutoConfiguration` | 默认 `@Async` 线程池与未捕获异常处理。 |
+| `SchedulingAutoConfiguration` | 默认 `@Scheduled` 调度线程池。 |
+| `SchedulingProperties` | `me.scheduling.*` 配置属性绑定。 |
+| `PoolingRestClientAutoConfiguration` | 基于 HttpClient 5 的池化 `RestClient.Builder` 自动配置。 |
 | `User` | 通用用户模型占位类 |
 | `PageParam` | 老规范分页查询参数（`frame-me-adapter-api`） |
 | `PageResult<T>` | 老规范分页结果（`frame-me-adapter-api`） |
@@ -194,6 +203,14 @@
 | `AuditLogOperatorSupplier` | 操作人提供接口，默认返回 `anonymous` |
 | `AuditAutoConfiguration` | 审计自动装配入口 |
 | `AuditProperties` | `me.audit` 配置属性绑定 |
+| `MsgNotifySender` | `INotifySender` 实现，支持全局默认 / 指定通道 / 指定命名客户端发送 |
+| `NotifyAutoConfiguration` | 消息通知自动装配入口 |
+| `NotifyProperties` | `me.notify` 配置属性绑定 |
+| `NotifyClientFactory` | 通知客户端工厂 |
+| `NotifyUtils` | 通知发送工具 |
+| `EmailNotifyClient` | 邮件通知客户端 |
+| `WebhookNotifyClient` | Webhook 通知客户端 |
+| `SmsNotifyClient` | 短信通知客户端 |
 | `EncryptablePropertyEnvironmentPostProcessor` | `EnvironmentPostProcessor`，扫描属性源解密 `ME(...)` |
 | `JasyptEncryptor` | 统一构建 `StandardPBEStringEncryptor` |
 | `JasyptEncryptCli` | 离线生成 `ME(密文)` 的 `main` 工具 |
@@ -216,6 +233,7 @@
 
 | 方法 | 说明 |
 |---|---|
+| `String getApplicationName()` | 返回 `spring.application.name` 的值，未配置时返回空字符串 |
 | `String[] getActiveProfiles()` | 返回当前所有 active profile，未配置时返回空数组 |
 | `String getActiveProfile()` | 返回首个 active profile，未配置时返回 `"default"` |
 | `boolean isProfileActive(String profile)` | 判断指定 profile 是否激活 |

@@ -48,6 +48,10 @@
   - `com.frame.me.base.event.EventTransport` — 传输通道抽象（`send` / `subscribe`）。
   - `com.frame.me.base.event.EventBridgeProperties` — `me.event-bridge.*` 配置属性绑定。
   - `com.frame.me.base.event.EventBridgeAutoConfiguration` — 事件桥接自动装配入口。
+  - `com.frame.me.base.notify.INotifySender` — 通用通知发送接口，业务代码通过它发送通知而无需关心底层通道。
+  - `com.frame.me.base.config.AsyncAutoConfiguration` / `com.frame.me.base.config.AsyncProperties` — 默认 `@Async` 线程池与未捕获异常处理。
+  - `com.frame.me.base.config.SchedulingAutoConfiguration` / `com.frame.me.base.config.SchedulingProperties` — 默认 `@Scheduled` 调度线程池。
+  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 `RestClient.Builder` 自动配置。
   - `com.frame.me.base.user.User` — 通用用户模型占位类。
   - `com.frame.me.base.mybatis.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
   - `com.frame.me.base.mybatis.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
@@ -56,11 +60,34 @@
   - `com.frame.me.base.mybatis.util.SnowflakeUtils` — 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID。
   - `com.frame.me.base.mybatis.config.MybatisPlusProperties` — `me.mybatis` 配置属性绑定。
   - `com.frame.me.base.mybatis.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
-- **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`MybatisPlusConfiguration`。
+- **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`HttpServiceClientAutoConfiguration`、`PoolingRestClientAutoConfiguration`、`AsyncAutoConfiguration`、`SchedulingAutoConfiguration`、`MybatisPlusConfiguration`、`EventBridgeAutoConfiguration`。
 - **可配置项**：
   - `me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
   - `me.mybatis.snowflake.worker-id` — 雪花算法 workerId，未配置时使用 MyBatis-Plus 默认推导值。
   - `me.mybatis.snowflake.datacenter-id` — 雪花算法 datacenterId，默认 `0`。
+  - `me.async.enabled` — 是否启用默认 `@Async` 线程池，默认 `true`。
+  - `me.async.core-pool-size` — 核心线程数，默认 `4`。
+  - `me.async.max-pool-size` — 最大线程数，默认 `16`。
+  - `me.async.queue-capacity` — 任务队列容量，默认 `256`。
+  - `me.async.keep-alive-seconds` — 非核心线程空闲存活时间（秒），默认 `60`。
+  - `me.async.thread-name-prefix` — 线程名前缀，默认 `frame-me-async-`。
+  - `me.async.allow-core-thread-time-out` — 是否允许核心线程超时回收，默认 `false`。
+  - `me.async.await-termination-seconds` — 应用关闭时等待任务完成的最大秒数，`0` 表示不等待，默认 `0`。
+  - `me.async.rejection-policy` — 拒绝策略，可选 `ABORT`、`CALLER_RUNS`、`DISCARD`、`DISCARD_OLDEST`，默认 `CALLER_RUNS`。
+  - `me.async.exception-handler-enabled` — 是否注册默认异步异常处理器，默认 `true`。
+  - `me.async.exception-notify-enabled` — 异步方法异常时是否尝试发送通知，默认 `true`。
+  - `me.async.exception-notify-receivers` — 异步异常通知接收者列表，默认空列表；为空时由 `INotifySender` 实现回退到 `me.notify.global-receivers`。
+  - `me.scheduling.enabled` — 是否启用默认 `@Scheduled` 调度线程池，默认 `true`。
+  - `me.scheduling.pool-size` — 调度线程池大小，默认 `4`。
+  - `me.scheduling.thread-name-prefix` — 调度线程名前缀，默认 `me-scheduling-`。
+  - `me.scheduling.remove-on-cancel-policy` — 取消任务后是否立即从线程池移除，默认 `false`。
+  - `me.scheduling.await-termination-seconds` — 应用关闭时等待任务完成的最大秒数，`0` 表示不等待，默认 `0`。
+  - `me.scheduling.exception-handler-enabled` — 是否注册默认调度异常处理器，默认 `true`。
+  - `me.scheduling.exception-notify-enabled` — 调度任务异常时是否尝试发送通知，默认 `true`。
+  - `me.scheduling.exception-notify-receivers` — 调度异常通知接收者列表，默认空列表；为空时由 `INotifySender` 实现回退到 `me.notify.global-receivers`。
+  - `me.restclient.pool.max-total` — HttpClient 5 连接池最大连接总数，默认 `200`。
+  - `me.restclient.pool.max-per-route` — 每个路由的最大连接数，默认 `50`。
+  - `me.event-bridge.service-name` — 当前服务名，默认取 `spring.application.name`；未配置时回退为 `unknown`。用于事件来源追踪与自身消息过滤。
 - **Maven Profile**：
   - `p6spy` — 引入 `p6spy-spring-boot-starter`，用于 SQL 监控：`mvn ... -Pp6spy`。
   - `swagger` — 引入 `frame-me-starter-doc-openapi`，用于接口文档：`mvn ... -Pswagger`。
@@ -68,6 +95,48 @@
   - 表名到实体名映射：去掉第一个下划线前缀，例如 `spo_fms_device` → `FmsDevice`。
   - **Mapper 接口必须标注 `@Mapper` 注解**，并继承 MyBatis-Plus `BaseMapper<T>`，以便自动扫描与通用 CRUD。
 - **扩展提示**：与 Spring Web 相关的基础能力（拦截器、参数解析器、统一日志等）适合放在这里。
+
+**`@Async` 使用示例**：
+
+```java
+@Service
+public class DemoService {
+
+    @Async
+    public void runAsync() {
+        // 当前线程名以 frame-me-async- 开头
+    }
+}
+```
+
+业务工程无需再添加 `@EnableAsync` 或声明 `ThreadPoolTaskExecutor`；若需自定义，声明同名 `taskExecutor` Bean 或自定义 `AsyncConfigurer` 即可覆盖。关闭默认配置：
+
+```yaml
+me:
+  async:
+    enabled: false
+```
+
+**`@Scheduled` 使用示例**：
+
+```java
+@Service
+public class DemoSchedulingService {
+
+    @Scheduled(fixedRate = 60_000)
+    public void heartbeat() {
+        // 当前线程名以 frame-me-scheduling- 开头
+    }
+}
+```
+
+业务工程无需再添加 `@EnableScheduling` 或声明 `TaskScheduler`；若需自定义，声明同名 `taskScheduler` Bean 即可覆盖。关闭默认配置：
+
+```yaml
+me:
+  scheduling:
+    enabled: false
+```
 
 ## `frame-me-adapter`
 
@@ -348,6 +417,14 @@ me:
 - **启用条件**：
   - Servlet Web 应用。
   - `me.ws.mvc.enabled=true`（默认 true，可显式关闭）。
+- **可配置项**：
+  - `me.ws.mvc.enabled` — 是否启用 WebSocket MVC，默认 `true`。
+  - `me.ws.mvc.broadcast-enabled` — 是否自动广播 `MeApplicationEvent`，默认 `true`。
+  - `me.ws.mvc.targeted-enabled` — 是否启用定向订阅，默认 `true`。
+  - `me.ws.mvc.max-sessions` — 单服务实例最大并发 session 数，`0` 无限制，默认 `0`。
+  - `me.ws.mvc.heartbeat-interval` — 心跳间隔（秒），`0` 表示不发送心跳，默认 `30`。
+  - `me.ws.mvc.scheduling-enabled` — 是否启用调度支持（含心跳任务），默认 `true`；设为 `false` 时不加载 `@EnableScheduling`，也不会创建 `WsMvcHeartbeatTask`。
+  - `me.ws.mvc.allowed-origins` — 握手允许的 Origins，空表示允许所有（生产环境建议显式配置）。
 - **使用方式**：
   - 广播订阅：`ws://host/me/ws?type=broadcast&eventType=user:created`。
   - 定向订阅：`ws://host/me/ws?type=targeted&receiverId=user:123`。
@@ -370,6 +447,7 @@ me:
       targeted-enabled: true
       max-sessions: 10000
       heartbeat-interval: 30
+      scheduling-enabled: true
       allowed-origins: []
 ```
 
@@ -483,10 +561,88 @@ public Boolean delete(Long id) { ... }
 - **自动装配**：通过 `frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuditAutoConfiguration`。
 - **用法、配置与注意事项**：见 [guides/audit.md](./guides/audit.md)（`@AuditLog` 用法与 `description` 占位符、`me.audit.*` 配置、桥接审计服务、Redis Pub/Sub 不持久化的限制）。
 
+## `frame-me-starter-msg-notify`
+
+- **定位**：消息通知 starter，提供统一的邮件 / Webhook / 短信多渠道通知能力。业务代码通过 `INotifySender` 接口发送通知，无需关心底层通道；具体通道由 `me.notify.*` 配置决定。
+- **依赖**：`frame-me-api`、`frame-me-starter-base`、`spring-boot-starter-mail`、`fastjson2`；`freemarker` 为 optional 依赖。
+- **关键类**：
+  - `com.frame.me.base.notify.INotifySender` — 通用通知发送接口（定义在 `frame-me-starter-base`）。
+  - `com.frame.me.notify.api.INotifyClient` — 单个通知客户端抽象。
+  - `com.frame.me.notify.api.INotifyTemplateEngine` — 模板引擎抽象（支持 FreeMarker / 占位符）。
+  - `com.frame.me.notify.notify.MsgNotifySender` — `INotifySender` 实现，支持全局默认、指定通道、指定命名客户端三种发送方式。
+  - `com.frame.me.notify.util.NotifyClientFactory` / `com.frame.me.notify.util.NotifyUtils` — 客户端工厂与发送工具。
+  - `com.frame.me.notify.email.EmailNotifyClient` — 邮件客户端实现。
+  - `com.frame.me.notify.webhook.WebhookNotifyClient` — Webhook 客户端实现。
+  - `com.frame.me.notify.sms.SmsNotifyClient` — 短信客户端实现。
+  - `com.frame.me.notify.config.NotifyAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.notify.config.NotifyProperties` — `me.notify` 配置属性绑定。
+  - `com.frame.me.notify.config.EmailChannelProperties` / `WebhookChannelProperties` / `SmsChannelProperties` — 各通道配置。
+- **自动装配**：通过 `frame-me-starter-msg-notify/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `NotifyAutoConfiguration`。
+- **启用条件**：
+  - `me.notify.enabled=true`（默认 `true`，可显式关闭）。
+  - `me.notify.sender.enabled=true`（默认 `true`，控制是否注册 `INotifySender` Bean）。
+- **可配置项**（前缀 `me.notify`）：
+  - `enabled` — 是否启用通知模块，默认 `true`。
+  - `sender.enabled` — 是否注册 `INotifySender` Bean，默认 `true`。
+  - `global-default` — 全局默认通道类型，如 `email` / `webhook` / `sms`；未配置时无全局默认发送能力。
+  - `global-receivers` — 全局默认接收者列表；调用方未指定接收者时使用（例如异步异常通知）。
+  - `email.*` — 邮件通道配置（host、port、username、password、clients 等）。
+  - `webhook.*` — Webhook 通道配置（url、headers、clients 等）。
+  - `sms.*` — 短信通道配置（url、headers、clients 等）。
+- **设计约定**：
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得通知能力。
+  - 发送方法支持 `List<String>` 与单个 `String` 接收者两种重载。
+  - 传入接收者为空时，`MsgNotifySender` 会自动回退到 `me.notify.global-receivers`。
+
+**示例配置**：
+
+```yaml
+me:
+  notify:
+    global-default: email
+    global-receivers:
+      - ops@example.com
+      - admin@example.com
+    email:
+      host: smtp.example.com
+      port: 587
+      username: alert@example.com
+      password: ${EMAIL_PASSWORD}
+      clients:
+        marketing:
+          host: smtp.marketing.example.com
+          username: marketing@example.com
+```
+
+**示例代码**：
+
+```java
+@Service
+@RequiredArgsConstructor
+public class AlertService {
+
+    private final INotifySender notifySender;
+
+    public void alert(String title, String content) {
+        // 使用全局默认通道和全局默认接收者
+        notifySender.send(title, content, Collections.emptyList());
+
+        // 指定单个接收者
+        notifySender.send(title, content, "dev@example.com");
+
+        // 指定通道
+        notifySender.sendChannel("webhook", title, content, List.of("https://hooks.example.com/ops"));
+
+        // 指定命名客户端
+        notifySender.sendClient("email:marketing", title, content, List.of("user@example.com"));
+    }
+}
+```
+
 ## `frame-me-booter`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.booter.BooterConstant` — 占位常量接口。
 - **使用方**：业务工程的 `xx-service` 模块。
@@ -586,6 +742,7 @@ public Boolean delete(Long id) { ... }
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
-| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit` |
+| `frame-me-starter-msg-notify` | `frame-me-api`、`frame-me-starter-base` |
+| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |

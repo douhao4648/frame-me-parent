@@ -58,6 +58,7 @@
         <module>frame-me-starter-l1l2-cache</module>
         <module>frame-me-starter-sensi-encrypt</module>
         <module>frame-me-starter-op-audit</module>
+        <module>frame-me-starter-msg-notify</module>
         <module>frame-me-booter</module>
         <module>frame-me-tester</module>
     </modules>
@@ -151,6 +152,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-op-audit</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-msg-notify</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

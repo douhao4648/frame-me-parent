@@ -46,7 +46,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 |---|---|
 | `frame-me-api` | 纯接口/契约模块：`IResult<T>`、`ApiConstant`；供业务 `xx-api` 引用。 |
 | `frame-me-adapter` | 适配层聚合模块（`pom`），含 `frame-me-adapter-api`（老规范契约、分页参数/结果）与 `frame-me-adapter-starter`（`IResult`→`Response` 适配 + 老规范分页工具）。集成 `-starter` 即表示遵循老接口规范。 |
-| `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、MyBatis-Plus。 |
+| `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、MyBatis-Plus，以及统一的 `@Async` / `@Scheduled` 线程池。 |
 | `frame-me-starter-auth` | 认证授权占位模块。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
 | `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `me.swagger.enabled=true` 开启。 |
@@ -55,9 +55,10 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `me.cache.enabled=true` 开启。 |
 | `frame-me-starter-sensi-encrypt` | 配置密钥加密 starter：基于 Jasypt 核心库，启动时解密配置中的 `ME(密文)`，主密码由环境变量注入、不入库。 |
 | `frame-me-starter-op-audit` | 审计/行为日志 starter：方法标注 `@AuditLog` 记录动作/参数/返回/异常/耗时，默认打印日志，可经事件桥接发往审计服务。 |
+| `frame-me-starter-msg-notify` | 消息通知 starter：统一邮件/Webhook/短信多通道通知能力，支持 `INotifySender` 接口、全局默认接收者与多客户端配置。 |
 | `frame-me-starter-sse-mvc` | SSE 推送 starter（按需引入）：服务端事件推送，支持按事件类型广播与按接收者定向推送。 |
 | `frame-me-starter-ws-mvc` | WebSocket 推送 starter（按需引入）：Servlet 原生 WebSocket 全双工，支持广播与定向推送。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt/op-audit；不含 adapter、doc-openapi、sse-mvc、ws-mvc）。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt/sse-mvc/op-audit/msg-notify；不含 adapter、doc-openapi、ws-mvc）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定

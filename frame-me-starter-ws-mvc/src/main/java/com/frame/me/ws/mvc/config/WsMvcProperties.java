@@ -27,6 +27,9 @@ public class WsMvcProperties {
     /** 单服务实例最大并发 session 数，0 无限制. */
     private int maxSessions = 0;
 
+    /** 是否启用调度支持（含心跳任务），默认 true. */
+    private boolean schedulingEnabled = true;
+
     /** 心跳间隔（秒），0 表示不发送心跳. */
     private int heartbeatInterval = 30;
 

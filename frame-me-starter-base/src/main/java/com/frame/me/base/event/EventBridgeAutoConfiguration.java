@@ -1,11 +1,14 @@
 package com.frame.me.base.event;
 
+import com.frame.me.base.env.EnvironmentHelper;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,6 +26,30 @@ import java.util.Map;
 @ConditionalOnProperty(prefix = "me.event-bridge", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(EventBridgeProperties.class)
 public class EventBridgeAutoConfiguration {
+
+    private final EventBridgeProperties eventBridgeProperties;
+
+    private final EnvironmentHelper environmentHelper;
+
+    public EventBridgeAutoConfiguration(EventBridgeProperties eventBridgeProperties,
+                                        EnvironmentHelper environmentHelper) {
+        this.eventBridgeProperties = eventBridgeProperties;
+        this.environmentHelper = environmentHelper;
+    }
+
+    /**
+     * 若用户未显式配置 me.event-bridge.service-name，则回退到 spring.application.name。
+     */
+    @PostConstruct
+    public void applyServiceNameDefault() {
+        if ("unknown".equals(eventBridgeProperties.getServiceName())) {
+            String appName = environmentHelper.getApplicationName();
+            if (StringUtils.hasText(appName)) {
+                eventBridgeProperties.setServiceName(appName);
+                log.debug("EventBridge serviceName default to spring.application.name: {}", appName);
+            }
+        }
+    }
 
     @Bean
     public EventBridgePublisher eventBridgePublisher(ApplicationEventPublisher publisher,
