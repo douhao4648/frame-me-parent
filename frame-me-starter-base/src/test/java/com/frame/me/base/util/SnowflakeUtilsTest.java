@@ -1,11 +1,7 @@
-package com.frame.me.base.mybatis.util;
+package com.frame.me.base.util;
 
-import com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator;
-import com.baomidou.mybatisplus.core.incrementer.IdentifierGenerator;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -17,20 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * SnowflakeUtils 单元测试.
  */
 class SnowflakeUtilsTest {
-
-    @BeforeEach
-    void setUp() throws Exception {
-        setIdentifierGenerator(DefaultIdentifierGenerator.getInstance());
-    }
-
-    /**
-     * 通过反射设置静态 identifierGenerator 字段.
-     */
-    private void setIdentifierGenerator(IdentifierGenerator generator) throws Exception {
-        Field field = SnowflakeUtils.class.getDeclaredField("identifierGenerator");
-        field.setAccessible(true);
-        field.set(null, generator);
-    }
 
     @Test
     void shouldGeneratePositiveLongId() {

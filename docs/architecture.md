@@ -79,7 +79,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 - `frame-me-starter-base` 注册 `com.frame.me.base.config.BaseAutoConfiguration`
   - 文件路径：`frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
   - 注册 Bean：`GlobalExceptionHandler`、`EnvironmentHelper`、`ResultJacksonModule`、`HttpServiceClientAutoConfiguration`、`QueryObjectArgumentResolver`、`EventBridgePublisher`、`EventBridgeListener`、`EventBridgeAutoConfiguration`
-- `frame-me-starter-base` 注册 `com.frame.me.base.mybatis.config.MybatisPlusConfiguration`
+- `frame-me-starter-base` 注册 `config.com.frame.me.mybatis.plus.MybatisPlusConfiguration`
   - 注册 Bean：`MybatisPlusInterceptor`（含分页插件、乐观锁插件）、`BaseMetaObjectHandler`（需配置开启）、自定义 `IdentifierGenerator`（可选 worker-id 配置）。
 - `frame-me-adapter-starter` 注册 `com.frame.me.adapter.config.AdapterAutoConfiguration`
   - 文件路径：`frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
@@ -187,7 +187,7 @@ Result2ResponseAdvice.beforeBodyWrite()
 - `BaseMetaObjectHandler`：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java`
 - `PageUtils`（新规范）：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java`
 - `PageableUtils`（老规范）：`frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/mybatis/util/PageableUtils.java`
-- `SnowflakeUtils`：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/SnowflakeUtils.java`
+- `SnowflakeUtils`：`frame-me-starter-base/src/main/java/com/frame/me/base/util/SnowflakeUtils.java`
 - `IHealthApi`：`frame-me-tester/frame-me-tester-api/src/main/java/com/frame/me/tester/api/IHealthApi.java`
 - `HealthController`：`frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/HealthController.java`
 

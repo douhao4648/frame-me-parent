@@ -1,6 +1,7 @@
-package com.frame.me.base.mybatis.plugin;
+package com.frame.me.mybatis.plus.plugin;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
+import com.frame.me.mybatis.plus.config.MybatisPlusConfiguration;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.reflection.MetaObject;
 
@@ -10,7 +11,7 @@ import java.time.LocalDateTime;
  * 公共字段自动填充处理器.
  *
  * <p>自动填充 createTime、updateTime、deleted、version 等公共字段。
- * <p>由 {@link com.frame.me.base.mybatis.config.MybatisPlusConfiguration} 注册为 Spring Bean，避免依赖业务方的组件扫描路径。
+ * <p>由 {@link MybatisPlusConfiguration} 注册为 Spring Bean，避免依赖业务方的组件扫描路径。
  */
 @Slf4j
 public class BaseMetaObjectHandler implements MetaObjectHandler {

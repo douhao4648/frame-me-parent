@@ -53,18 +53,18 @@
   - `com.frame.me.base.config.SchedulingAutoConfiguration` / `com.frame.me.base.config.SchedulingProperties` — 默认 `@Scheduled` 调度线程池。
   - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 `RestClient.Builder` 自动配置。
   - `com.frame.me.base.user.User` — 通用用户模型占位类。
-  - `com.frame.me.base.mybatis.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
-  - `com.frame.me.base.mybatis.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
-  - `com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `me.mybatis.meta-object-handler.enabled=true` 开启。
-  - `com.frame.me.base.mybatis.util.PageUtils` — 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换。
-  - `com.frame.me.base.mybatis.util.SnowflakeUtils` — 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID。
-  - `com.frame.me.base.mybatis.config.MybatisPlusProperties` — `me.mybatis` 配置属性绑定。
-  - `com.frame.me.base.mybatis.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
+  - `entity.com.frame.me.mybatis.plus.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
+  - `entity.com.frame.me.mybatis.plus.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
+  - `plugin.com.frame.me.mybatis.plus.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `me.mybatis.meta-object-handler.enabled=true` 开启。
+  - `util.com.frame.me.mybatis.plus.PageUtils` — 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换。
+  - `com.frame.me.base.util.SnowflakeUtils` — 雪花 ID 生成工具，优先使用 MyBatis-Plus / MyBatis-Flex 的生成器实例，其次使用 base 的 `Snowflake` Bean，最后回退到 Hutool 默认生成器。
+  - `config.com.frame.me.mybatis.plus.MybatisPlusProperties` — `me.mybatis` 配置属性绑定。
+  - `config.com.frame.me.mybatis.plus.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
 - **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`HttpServiceClientAutoConfiguration`、`PoolingRestClientAutoConfiguration`、`AsyncAutoConfiguration`、`SchedulingAutoConfiguration`、`MybatisPlusConfiguration`、`EventBridgeAutoConfiguration`。
 - **可配置项**：
   - `me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
-  - `me.mybatis.snowflake.worker-id` — 雪花算法 workerId，未配置时使用 MyBatis-Plus 默认推导值。
-  - `me.mybatis.snowflake.datacenter-id` — 雪花算法 datacenterId，默认 `0`。
+  - `me.snowflake.worker-id` — 雪花算法 workerId，未配置时回退到 Hutool 默认生成器。
+  - `me.snowflake.datacenter-id` — 雪花算法 datacenterId，默认 `0`。
   - `me.async.enabled` — 是否启用默认 `@Async` 线程池，默认 `true`。
   - `me.async.core-pool-size` — 核心线程数，默认 `4`。
   - `me.async.max-pool-size` — 最大线程数，默认 `16`。

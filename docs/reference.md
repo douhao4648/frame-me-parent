@@ -52,7 +52,7 @@
 | `BaseVersionEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java` |
 | `BaseMetaObjectHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java` |
 | `PageUtils`（新规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java` |
-| `SnowflakeUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/SnowflakeUtils.java` |
+| `SnowflakeUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/util/SnowflakeUtils.java` |
 | `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/config/MybatisPlusConfiguration.java` |
 | `Result2ResponseAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/advice/Result2ResponseAdvice.java` |
 | `Response<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/Response.java` |
@@ -161,7 +161,7 @@
 | `BaseVersionEntity` | 继承 BaseEntity，额外提供 version（乐观锁） |
 | `BaseMetaObjectHandler` | 公共字段自动填充处理器，需通过配置开启 |
 | `PageUtils` | 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换 |
-| `SnowflakeUtils` | 基于 Spring 容器获取 `IdentifierGenerator` 生成雪花 ID |
+| `SnowflakeUtils` | 雪花 ID 生成工具，优先使用 ORM 生成器实例，其次 base `Snowflake` Bean，最后 Hutool 默认 |
 | `MybatisPlusProperties` | `me.mybatis` 配置属性绑定 |
 | `MybatisPlusConfiguration` | MyBatis-Plus 自动装配入口，注册分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器 |
 | `Result2ResponseAdvice` | 将 `IResult<T>` 转换为 `Response<T>` |

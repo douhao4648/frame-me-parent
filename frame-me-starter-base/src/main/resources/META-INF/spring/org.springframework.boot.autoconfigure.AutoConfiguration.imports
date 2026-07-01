@@ -3,5 +3,5 @@ com.frame.me.base.client.HttpServiceClientAutoConfiguration
 com.frame.me.base.config.PoolingRestClientAutoConfiguration
 com.frame.me.base.config.AsyncAutoConfiguration
 com.frame.me.base.config.SchedulingAutoConfiguration
-com.frame.me.base.mybatis.config.MybatisPlusConfiguration
 com.frame.me.base.event.EventBridgeAutoConfiguration
+com.frame.me.base.config.SnowflakeAutoConfiguration

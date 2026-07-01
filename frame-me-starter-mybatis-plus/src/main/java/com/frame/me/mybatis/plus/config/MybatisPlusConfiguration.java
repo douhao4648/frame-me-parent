@@ -1,4 +1,4 @@
-package com.frame.me.base.mybatis.config;
+package com.frame.me.mybatis.plus.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
 import com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator;
@@ -6,8 +6,7 @@ import com.baomidou.mybatisplus.core.incrementer.IdentifierGenerator;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
-import com.frame.me.base.mybatis.plugin.BaseMetaObjectHandler;
-import com.frame.me.base.mybatis.util.SnowflakeUtils;
+import com.frame.me.mybatis.plus.plugin.BaseMetaObjectHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -77,20 +76,6 @@ public class MybatisPlusConfiguration {
         long datacenterId = properties.getSnowflake().getDatacenterId();
         log.info("register custom Snowflake ID Generator：workerId={}, datacenterId={}", workerId, datacenterId);
         return new DefaultIdentifierGenerator(workerId, datacenterId);
-    }
-
-    /**
-     * 注册雪花 ID 生成工具类.
-     *
-     * <p>供业务代码手动生成雪花 ID，优先复用容器中自定义的 {@link IdentifierGenerator}，
-     * 否则回退到 MyBatis-Plus 默认实现。
-     *
-     * @return SnowflakeUtils
-     */
-    @Bean
-    @ConditionalOnMissingBean(SnowflakeUtils.class)
-    public SnowflakeUtils snowflakeUtils() {
-        return new SnowflakeUtils();
     }
 
 }

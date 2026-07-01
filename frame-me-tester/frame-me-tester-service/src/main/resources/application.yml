@@ -16,16 +16,16 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 10
-    dynamic:
-      hikari:
-        maximum-pool-size: 10
-        minimum-idle: 10
-      datasource:
-        second:
-          url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-          username: root
-          password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
-          driver-class-name: com.mysql.cj.jdbc.Driver
+  #    dynamic:
+  #      hikari:
+  #        maximum-pool-size: 10
+  #        minimum-idle: 10
+  #      datasource:
+  #        second:
+  #          url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+  #          username: root
+  #          password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
+  #          driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
     default-property-inclusion: non_null
   data:
@@ -40,17 +40,39 @@ spring:
       mode: always
       schema-locations: classpath:schema.sql
 
-mybatis-plus:
+#mybatis-plus:
+#  mapper-locations: classpath*:/mapper/**/*.xml
+#  configuration:
+#    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+#    map-underscore-to-camel-case: true
+#  global-config:
+#    db-config:
+#      logic-delete-field: deleted
+#      logic-delete-value: 1
+#      logic-not-delete-value: 0
+#      id-type: assign_id
+
+mybatis-flex:
+  default-datasource-key: master
   mapper-locations: classpath*:/mapper/**/*.xml
-  configuration:
-    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
-    map-underscore-to-camel-case: true
   global-config:
-    db-config:
-      logic-delete-field: deleted
-      logic-delete-value: 1
-      logic-not-delete-value: 0
-      id-type: assign_id
+    logic-delete-column: deleted
+    normal-value-of-logic-delete: 0
+    deleted-value-of-logic-delete: 1
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  datasource:
+    master:
+      url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      username: root
+      password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    second:
+      url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      username: root
+      password: ME(O30Gx4FH/kvKUyuawsrt4skU0l/YzE8S5XsezegH9V9gEq92XGCFTqR58+n3O6L1)
+      driver-class-name: com.mysql.cj.jdbc.Driver
 
 logging:
   file:

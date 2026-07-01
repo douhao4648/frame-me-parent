@@ -30,6 +30,7 @@
         <lombok.version>1.18.46</lombok.version>
         <hutool.version>5.8.46</hutool.version>
         <mybatis-plus.version>3.5.16</mybatis-plus.version>
+        <mybatis-flex.version>1.11.7</mybatis-flex.version>
         <mysql-connector.version>9.7.0</mysql-connector.version>
         <testcontainers.version>2.0.5</testcontainers.version>
         <mapstruct.version>1.6.3</mapstruct.version>
@@ -48,6 +49,8 @@
         <module>frame-me-adapter</module>
         <module>frame-me-api</module>
         <module>frame-me-starter-base</module>
+        <module>frame-me-starter-mybatis-plus</module>
+        <module>frame-me-starter-mybatis-flex</module>
         <module>frame-me-starter-auth</module>
         <module>frame-me-starter-cloud</module>
         <module>frame-me-starter-doc-openapi</module>
@@ -87,6 +90,16 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-base</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-mybatis-plus</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-mybatis-flex</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -189,6 +202,16 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-jsqlparser</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mybatis-flex</groupId>
+                <artifactId>mybatis-flex-spring-boot4-starter</artifactId>
+                <version>${mybatis-flex.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.mybatis-flex</groupId>
+                <artifactId>mybatis-flex-processor</artifactId>
+                <version>${mybatis-flex.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.baomidou</groupId>
@@ -296,6 +319,11 @@
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
                             <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.mybatis-flex</groupId>
+                            <artifactId>mybatis-flex-processor</artifactId>
+                            <version>${mybatis-flex.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

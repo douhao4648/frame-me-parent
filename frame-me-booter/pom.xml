@@ -25,10 +25,6 @@
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-dynamic-ds</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-multi-redis</artifactId>
         </dependency>
         <dependency>
