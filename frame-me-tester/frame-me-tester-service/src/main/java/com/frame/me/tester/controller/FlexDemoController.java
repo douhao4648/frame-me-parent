@@ -66,4 +66,9 @@ public class FlexDemoController implements IFlexDemoApi {
         long count = DS_SECOND.equalsIgnoreCase(ds) ? flexDemoService.countInSecond() : flexDemoService.count();
         return Result.success(count);
     }
+
+    @Override
+    public IResult<List<FlexDemoVO>> listByXml(FlexDemoQuery query) {
+        return Result.success(flexDemoService.listByXml(query));
+    }
 }

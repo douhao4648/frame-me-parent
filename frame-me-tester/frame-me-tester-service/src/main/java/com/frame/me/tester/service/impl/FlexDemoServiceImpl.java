@@ -104,6 +104,11 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
         return flexDemoMapper.selectCountByQuery(QueryWrapper.create());
     }
 
+    @Override
+    public List<FlexDemoVO> listByXml(FlexDemoQuery query) {
+        return flexDemoMapper.listByXml(query);
+    }
+
     private QueryWrapper buildWrapper(FlexDemoQuery query) {
         QueryWrapper wrapper = QueryWrapper.create();
         if (StrUtil.isNotBlank(query.getName())) {

@@ -65,4 +65,8 @@ public interface IFlexDemoApi {
     @Operation(summary = "统计指定数据源条数", description = "ds=second 时使用 @DS 切换到 second 数据源统计，否则统计 master")
     @GetExchange("/count/{ds}")
     IResult<Long> count(@Parameter(description = "数据源名称：master / second", required = true) @PathVariable String ds);
+
+    @Operation(summary = "XML 自定义 SQL 查询", description = "通过 mapper.xml 自定义 SQL 查询 Flex 演示数据")
+    @GetExchange("/xml-list")
+    IResult<List<FlexDemoVO>> listByXml(@Valid @QueryMap FlexDemoQuery query);
 }

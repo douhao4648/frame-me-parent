@@ -51,4 +51,12 @@ public interface IFlexDemoService {
      * @return 条数
      */
     long countInSecond();
+
+    /**
+     * 通过 mapper.xml 自定义 SQL 查询.
+     *
+     * @param query 查询参数
+     * @return 数据列表
+     */
+    List<FlexDemoVO> listByXml(FlexDemoQuery query);
 }

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.frame.me.tester.mapper.FlexDemoMapper">
+
+    <!--
+        mapper.xml 自定义 SQL 查询示例：
+        1. 手动指定结果字段映射
+        2. 使用动态 <where> / <if> 拼接姓名模糊查询、年龄精确查询条件
+        3. 过滤逻辑删除数据并按创建时间倒序
+    -->
+    <select id="listByXml" resultType="com.frame.me.tester.api.vo.FlexDemoVO">
+        SELECT
+            id,
+            name,
+            age,
+            version,
+            create_time,
+            update_time
+        FROM flex_demo
+        <where>
+            deleted = 0
+            <if test="query.name != null and query.name != ''">
+                AND name LIKE CONCAT('%', #{query.name}, '%')
+            </if>
+            <if test="query.age != null">
+                AND age = #{query.age}
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+</mapper>
