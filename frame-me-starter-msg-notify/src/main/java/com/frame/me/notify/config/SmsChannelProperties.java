@@ -34,7 +34,7 @@ public class SmsChannelProperties {
     private String signName;
 
     /**
-     * 请求超时（毫秒）.
+     * 请求超时（毫秒），默认 10000.
      */
     private int timeout = 10000;
 

@@ -15,22 +15,34 @@ import java.util.List;
 @ConfigurationProperties(prefix = "me.notify")
 public class NotifyProperties {
 
-    /** 是否启用通知模块，默认 true. */
+    /**
+     * 是否启用通知模块，默认 true.
+     */
     private boolean enabled = true;
 
-    /** 默认邮件通道配置. */
+    /**
+     * 默认邮件通道配置.
+     */
     private EmailChannelProperties email;
 
-    /** 默认 webhook 通道配置. */
+    /**
+     * 默认 Webhook 通道配置.
+     */
     private WebhookChannelProperties webhook;
 
-    /** 默认短信通道配置. */
+    /**
+     * 默认短信通道配置.
+     */
     private SmsChannelProperties sms;
 
-    /** 全局默认通道类型，如 email / webhook / sms。未配置时无全局默认发送能力。 */
+    /**
+     * 全局默认通道类型，如 email / webhook / sms。未配置时无全局默认发送能力.
+     */
     private String globalDefault;
 
-    /** 全局默认接收者列表。调用方未指定接收者时使用。 */
+    /**
+     * 全局默认接收者列表。调用方未指定接收者时使用，默认空列表.
+     */
     private List<String> globalReceivers = new ArrayList<>();
 
 }

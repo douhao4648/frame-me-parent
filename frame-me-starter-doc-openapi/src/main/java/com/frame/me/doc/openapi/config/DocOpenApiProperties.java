@@ -16,7 +16,7 @@ import java.util.List;
 public class DocOpenApiProperties {
 
     /**
-     * 是否启用 OpenAPI 文档，默认关闭.
+     * 是否启用 OpenAPI 文档，默认 true.
      */
     private boolean enabled = true;
 

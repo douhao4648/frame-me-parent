@@ -53,18 +53,9 @@
   - `com.frame.me.base.config.SchedulingAutoConfiguration` / `com.frame.me.base.config.SchedulingProperties` — 默认 `@Scheduled` 调度线程池。
   - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 `RestClient.Builder` 自动配置。
   - `com.frame.me.base.user.User` — 通用用户模型占位类。
-  - `entity.com.frame.me.mybatis.plus.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
-  - `entity.com.frame.me.mybatis.plus.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
-  - `plugin.com.frame.me.mybatis.plus.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `me.mybatis.meta-object-handler.enabled=true` 开启。
-  - `util.com.frame.me.mybatis.plus.PageUtils` — 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换。
   - `com.frame.me.base.util.SnowflakeUtils` — 雪花 ID 生成工具，优先使用 MyBatis-Plus / MyBatis-Flex 的生成器实例，其次使用 base 的 `Snowflake` Bean，最后回退到 Hutool 默认生成器。
-  - `config.com.frame.me.mybatis.plus.MybatisPlusProperties` — `me.mybatis` 配置属性绑定。
-  - `config.com.frame.me.mybatis.plus.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
-- **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`HttpServiceClientAutoConfiguration`、`PoolingRestClientAutoConfiguration`、`AsyncAutoConfiguration`、`SchedulingAutoConfiguration`、`MybatisPlusConfiguration`、`EventBridgeAutoConfiguration`。
+- **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`HttpServiceClientAutoConfiguration`、`PoolingRestClientAutoConfiguration`、`AsyncAutoConfiguration`、`SchedulingAutoConfiguration`、`EventBridgeAutoConfiguration`。
 - **可配置项**：
-  - `me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
-  - `me.snowflake.worker-id` — 雪花算法 workerId，未配置时回退到 Hutool 默认生成器。
-  - `me.snowflake.datacenter-id` — 雪花算法 datacenterId，默认 `0`。
   - `me.async.enabled` — 是否启用默认 `@Async` 线程池，默认 `true`。
   - `me.async.core-pool-size` — 核心线程数，默认 `4`。
   - `me.async.max-pool-size` — 最大线程数，默认 `16`。
@@ -87,13 +78,14 @@
   - `me.scheduling.exception-notify-receivers` — 调度异常通知接收者列表，默认空列表；为空时由 `INotifySender` 实现回退到 `me.notify.global-receivers`。
   - `me.restclient.pool.max-total` — HttpClient 5 连接池最大连接总数，默认 `200`。
   - `me.restclient.pool.max-per-route` — 每个路由的最大连接数，默认 `50`。
+  - `me.event-bridge.enabled` — 是否启用事件桥接，默认 `true`。
   - `me.event-bridge.service-name` — 当前服务名，默认取 `spring.application.name`；未配置时回退为 `unknown`。用于事件来源追踪与自身消息过滤。
+  - `me.event-bridge.topic-prefix` — Redis Topic 前缀，默认 `me:event:`。
+  - `me.event-bridge.default-transport` — 默认传输通道名称，默认 `redis`。
+  - `me.event-bridge.transports` — 按事件类型指定传输通道，key 为事件类型，value 为 transport Bean 名称。
 - **Maven Profile**：
   - `p6spy` — 引入 `p6spy-spring-boot-starter`，用于 SQL 监控：`mvn ... -Pp6spy`。
   - `swagger` — 引入 `frame-me-starter-doc-openapi`，用于接口文档：`mvn ... -Pswagger`。
-- **设计约定**：
-  - 表名到实体名映射：去掉第一个下划线前缀，例如 `spo_fms_device` → `FmsDevice`。
-  - **Mapper 接口必须标注 `@Mapper` 注解**，并继承 MyBatis-Plus `BaseMapper<T>`，以便自动扫描与通用 CRUD。
 - **扩展提示**：与 Spring Web 相关的基础能力（拦截器、参数解析器、统一日志等）适合放在这里。
 
 **`@Async` 使用示例**：
@@ -137,6 +129,46 @@ me:
   scheduling:
     enabled: false
 ```
+
+## `frame-me-starter-mybatis-plus`
+
+- **定位**：MyBatis-Plus 数据访问 starter，从 `frame-me-starter-base` 抽取独立，提供实体基类、分页插件、乐观锁、公共字段自动填充与雪花 ID 生成能力。
+- **依赖**：`frame-me-api`、`mybatis-plus-spring-boot4-starter`、`mybatis-plus-jsqlparser`、`spring-boot-starter-jdbc`、`mysql-connector-j`、`lombok`。
+- **关键类**：
+  - `com.frame.me.mybatis.plus.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
+  - `com.frame.me.mybatis.plus.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
+  - `com.frame.me.mybatis.plus.plugin.BaseMetaObjectHandler` — 公共字段自动填充，需通过 `me.mybatis.meta-object-handler.enabled=true` 开启。
+  - `com.frame.me.mybatis.plus.util.PageUtils` — 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换。
+  - `com.frame.me.mybatis.plus.config.MybatisPlusProperties` — `me.mybatis` 配置属性绑定。
+  - `com.frame.me.mybatis.plus.config.MybatisPlusConfiguration` — 分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器注册。
+- **自动装配**：通过 `frame-me-starter-mybatis-plus/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `MybatisPlusConfiguration`。
+- **可配置项**：
+  - `me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
+  - `me.mybatis.snowflake.worker-id` — 雪花算法 workerId，范围 `0~31`；未配置时使用 MyBatis-Plus 默认推导值。
+  - `me.mybatis.snowflake.datacenter-id` — 雪花算法 datacenterId，范围 `0~31`，默认 `0`；未配置时使用 MyBatis-Plus 默认推导值。
+  - `me.snowflake.worker-id` — 基础雪花算法 workerId，未配置时回退到 Hutool 默认生成器（定义在 `frame-me-starter-base`）。
+  - `me.snowflake.datacenter-id` — 基础雪花算法 datacenterId，默认 `0`（定义在 `frame-me-starter-base`）。
+- **设计约定**：
+  - 表名到实体名映射：去掉第一个下划线前缀，例如 `spo_fms_device` → `FmsDevice`。
+  - **Mapper 接口必须标注 `@Mapper` 注解**，并继承 MyBatis-Plus `BaseMapper<T>`，以便自动扫描与通用 CRUD。
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可默认获得 MyBatis-Plus 数据访问能力。
+
+## `frame-me-starter-mybatis-flex`
+
+- **定位**：MyBatis-Flex 数据访问 starter，作为 MyBatis-Plus 的替代方案，提供实体基类、分页工具与雪花 ID 适配能力。
+- **依赖**：`frame-me-api`、`frame-me-starter-base`、`mybatis-flex-spring-boot4-starter`、`spring-boot-starter-jdbc`、`mysql-connector-j`、`lombok`。
+- **关键类**：
+  - `com.frame.me.mybatis.flex.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
+  - `com.frame.me.mybatis.flex.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
+  - `com.frame.me.mybatis.flex.util.PageUtils` — 分页工具，`PageQuery` / `PageData` 与 MyBatis-Flex `Page` 转换。
+  - `com.frame.me.mybatis.flex.config.MybatisFlexConfiguration` — 自动装配入口，注册全局配置；当 base 的 `SnowflakeUtils` 可用且配置了 `me.snowflake.worker-id` 时，自动将 flex 内置雪花生成器委托给 `SnowflakeUtils`。
+  - `com.frame.me.mybatis.flex.config.MybatisFlexInfrastructureRoleFixer` — 修复 MyBatis-Flex 内部配置类在 BeanPostProcessor 阶段被提前实例化而产生的 WARN。
+- **自动装配**：通过 `frame-me-starter-mybatis-flex/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `MybatisFlexConfiguration`。
+- **启用条件**：类路径存在 `com.mybatisflex.core.BaseMapper`。
+- **设计约定**：
+  - 与 `frame-me-starter-mybatis-plus` **二选一**，不可同时引入。
+  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入以替换默认的 MyBatis-Plus。
+  - 雪花 ID 自动复用 base 的 `SnowflakeUtils`，与 MyBatis-Plus 使用同一套雪花实例。
 
 ## `frame-me-adapter`
 
@@ -212,7 +244,7 @@ spring:
 ## `frame-me-starter-doc-openapi`
 
 - **定位**：接口文档 starter，基于 SpringDoc OpenAPI 3。
-- **依赖**：`springdoc-openapi-starter-webmvc-ui`、`lombok`。
+- **依赖**：`spring-boot-autoconfigure`、`springdoc-openapi-starter-webmvc-ui`、`lombok`。
 - **关键类**：
   - `com.frame.me.doc.openapi.config.DocOpenApiAutoConfiguration` — 自动装配入口。
   - `com.frame.me.doc.openapi.config.DocOpenApiProperties` — `me.swagger` 配置属性绑定。
@@ -221,9 +253,9 @@ spring:
 - **自动装配**：通过 `frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `DocOpenApiAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 `io.swagger.v3.oas.models.OpenAPI`。
-  - 配置 `me.swagger.enabled=true`（默认关闭）。
+  - `me.swagger.enabled=true`（默认 `true`，可通过 `me.swagger.enabled=false` 显式关闭）。
 - **可配置项**：
-  - `me.swagger.enabled` — 是否启用，默认 `false`。
+  - `me.swagger.enabled` — 是否启用，默认 `true`。
   - `me.swagger.title` — 文档标题，默认 `Frame Me API`。
   - `me.swagger.description` — 文档描述，默认 `Frame Me 接口文档`。
   - `me.swagger.version` — 版本，默认 `1.0.0`。
@@ -289,6 +321,18 @@ me:
 - **启用条件**：
   - `RedisAutoConfiguration`：类路径存在 `StringRedisTemplate`，`me.redis.enabled=true`（默认开启，可显式关闭）。
   - `RedissonLockAutoConfiguration`：类路径存在 `org.redisson.api.RedissonClient`，`me.redis.enabled=true`（默认开启）。
+- **可配置项**：
+  - `me.redis.enabled` — 是否启用 Redis 自动配置，默认 `true`。
+  - `me.redis.clients` — 多 Redis 实例配置，key 为实例名；默认实例仍由 `spring.data.redis.*` 提供。
+  - `me.redis.clients.*.mode` — 部署模式（`standalone` / `cluster` / `sentinel`），默认 `standalone`。
+  - `me.redis.clients.*.host` — 主机地址（`standalone` 模式），默认 `localhost`。
+  - `me.redis.clients.*.port` — 端口（`standalone` 模式），默认 `6379`。
+  - `me.redis.clients.*.nodes` — 节点列表，格式 `host:port`（`cluster` / `sentinel` 模式）。
+  - `me.redis.clients.*.sentinel-master` — 哨兵监控的主节点名称（`sentinel` 模式）。
+  - `me.redis.clients.*.username` — 用户名（Redis 6.0+ ACL）。
+  - `me.redis.clients.*.password` — 密码。
+  - `me.redis.clients.*.database` — 数据库索引（`cluster` 模式不支持，将被忽略），默认 `0`。
+  - `spring.data.redis.redisson.config` — Redisson 原生配置文件位置（支持 `classpath:` / `file:` 前缀），可选。
 - **使用方式**：
   - 直接调用 `RedisUtils.xxx()` 使用 Spring Data Redis 能力。
   - 分布式锁默认为简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；引入 Redisson 后自动启用 `RedissonLock`，提供可重入与看门狗续期。
@@ -377,6 +421,13 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
 - **启用条件**：
   - Servlet Web 应用。
   - `me.sse.enabled=true`（默认 true，可显式关闭）。
+- **可配置项**：
+  - `me.sse.enabled` — 是否启用 SSE，默认 `true`。
+  - `me.sse.timeout` — `SseEmitter` 超时时间（毫秒），`0` 表示不超时，默认 `0`。
+  - `me.sse.retry` — 客户端重连间隔（毫秒），写入 `retry` 字段，默认 `3000`。
+  - `me.sse.broadcast-enabled` — 是否自动把 `MeApplicationEvent` 广播到 SSE，默认 `true`。
+  - `me.sse.targeted-enabled` — 是否启用定向订阅，默认 `true`。
+  - `me.sse.max-emitters` — 单服务实例最大并发 Emitter 数，`0` 表示无限制，默认 `0`。
 - **使用方式**：
   - 广播订阅：`GET /me/sse/subscribe/{eventType}`。
   - 定向订阅：`GET /me/sse/subscribe?receiverId={receiverId}`。
@@ -535,7 +586,10 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.encrypt.EncryptConstant` — 配置键与默认值常量。
 - **注册**：配置解密的 `EncryptablePropertyEnvironmentPostProcessor` 走 `META-INF/spring.factories` 的 `org.springframework.boot.EnvironmentPostProcessor` 键（EnvironmentPostProcessor 早于自动装配，**不能**用 `AutoConfiguration.imports`）；业务用的 `EncryptAutoConfiguration` 是普通自动装配，走 `AutoConfiguration.imports`。两者并存、互不影响。
 - **启用条件**：读到主密码 `me.encrypt.password`（兼容环境变量 `ME_ENCRYPT_PASSWORD`、JVM 系统属性）时才解密；主密码缺失则跳过，对无密文应用零影响。
-- **可配置项**（前缀 `me.encrypt`）：`password`、`algorithm`（默认 `PBEWITHHMACSHA512ANDAES_256`）、`iterations`（默认 1000）、`prefix`/`suffix`（默认 `ME(` / `)`）。
+- **可配置项**（前缀 `me.encrypt`）：
+  - `me.encrypt.password` — 主密码，运行时由环境变量 / 启动参数注入，**不落配置文件**。
+  - `me.encrypt.algorithm` — PBE 算法名，默认 `PBEWITHHMACSHA512ANDAES_256`。
+  - `me.encrypt.iterations` — 密钥迭代次数，默认 `1000`。
 - **使用方式**：
   - 生成密文：`java -cp ... com.frame.me.encrypt.cli.JasyptEncryptCli <明文> <主密码>`。
   - 配置：把敏感值写成 `password: ME(密文)`。
@@ -560,6 +614,11 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.op.audit.config.AuditProperties` — `me.audit` 配置属性绑定。
 - **自动装配**：通过 `frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuditAutoConfiguration`。
 - **用法、配置与注意事项**：见 [guides/audit.md](./guides/audit.md)（`@AuditLog` 用法与 `description` 占位符、`me.audit.*` 配置、桥接审计服务、Redis Pub/Sub 不持久化的限制）。
+- **可配置项**（前缀 `me.audit`）：
+  - `me.audit.enabled` — 是否启用审计模块，默认 `true`。
+  - `me.audit.log-enabled` — 是否在本地打印审计日志，默认 `true`。
+  - `me.audit.target-service` — 审计服务名；为空时通过事件桥接广播，配置为具体服务名时定向发送。
+  - `me.audit.max-param-length` — 参数 JSON 最大长度，`0` 表示不限制，默认 `0`。
 
 ## `frame-me-starter-msg-notify`
 
@@ -727,22 +786,30 @@ public class AlertService {
 - **构建插件**：包含 `spring-boot-maven-plugin`，用于打包可运行 Jar。
 - **扩展提示**：作为集成验证入口，新模块加入后应在此添加对应的集成测试或示例 Controller。
 
+## IDE 配置提示
+
+所有带 `@ConfigurationProperties` 的 starter 模块（`frame-me-starter-base`、`frame-me-starter-mybatis-plus`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-sse-mvc`、`frame-me-starter-ws-mvc`、`frame-me-starter-doc-openapi`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`）在编译时都会生成 `META-INF/spring-configuration-metadata.json`。在 IntelliJ IDEA（Ultimate / Community 均支持）或 VS Code（安装 Spring Boot Extension Pack）中编辑 `application.yml` / `application.properties` 时，输入 `me.` / `spring.data.redis.redisson.` 等前缀即可获得属性名、类型、默认值和中文描述提示。
+
+生成元数据依赖 `spring-boot-configuration-processor` 注解处理器，已统一配置在根 POM 的 `annotationProcessorPaths` 中，各 starter 模块无需额外依赖即可生效。
+
 ## 模块依赖速查表
 
 | 模块 | 直接依赖 |
 |---|---|
 | `frame-me-api` | 无内部依赖 |
 | `frame-me-starter-base` | `frame-me-api` |
+| `frame-me-starter-mybatis-plus` | `frame-me-api` |
+| `frame-me-starter-mybatis-flex` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-adapter-api` | `frame-me-api` |
 | `frame-me-adapter-starter` | `frame-me-adapter-api`、`frame-me-starter-base` |
 | `frame-me-starter-dynamic-ds` | `frame-me-starter-base` |
-| `frame-me-starter-doc-openapi` | 无内部框架依赖（仅 `springdoc-openapi-starter-webmvc-ui`） |
+| `frame-me-starter-doc-openapi` | `spring-boot-autoconfigure`（框架依赖） |
 | `frame-me-starter-auth` | `frame-me-starter-base` |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-starter-msg-notify` | `frame-me-api`、`frame-me-starter-base` |
-| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
+| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-mybatis-plus`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |

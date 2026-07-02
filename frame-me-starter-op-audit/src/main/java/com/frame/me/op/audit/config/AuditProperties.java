@@ -13,12 +13,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AuditProperties {
 
     /**
-     * 是否启用审计模块.
+     * 是否启用审计模块，默认 true.
      */
     private boolean enabled = true;
 
     /**
-     * 是否在本地打印审计日志.
+     * 是否在本地打印审计日志，默认 true.
      */
     private boolean logEnabled = true;
 

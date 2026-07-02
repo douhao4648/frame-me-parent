@@ -17,22 +17,22 @@ public class EmailChannelProperties {
     private String host;
 
     /**
-     * SMTP 端口.
+     * SMTP 端口，默认 25.
      */
     private int port = 25;
 
     /**
-     * 是否需要认证.
+     * 是否需要认证，默认 true.
      */
     private boolean auth = true;
 
     /**
-     * 是否启用 STARTTLS.
+     * 是否启用 STARTTLS，默认 false.
      */
     private boolean startTls = false;
 
     /**
-     * 是否启用 SSL.
+     * 是否启用 SSL，默认 false.
      */
     private boolean ssl = false;
 
@@ -57,12 +57,12 @@ public class EmailChannelProperties {
     private String fromName;
 
     /**
-     * 连接超时（毫秒）.
+     * 连接超时（毫秒），默认 10000.
      */
     private int connectionTimeout = 10000;
 
     /**
-     * 读取超时（毫秒）.
+     * 读取超时（毫秒），默认 10000.
      */
     private int readTimeout = 10000;
 

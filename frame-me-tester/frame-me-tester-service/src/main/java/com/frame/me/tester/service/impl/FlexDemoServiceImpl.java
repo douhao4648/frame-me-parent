@@ -41,10 +41,7 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
 
     @Override
     public PageData<FlexDemoVO> page(FlexDemoQuery query) {
-        Page<FlexDemoEntity> page = flexDemoMapper.paginate(
-                PageUtils.getPageNumber(query),
-                PageUtils.getPageSize(query),
-                buildWrapper(query));
+        Page<FlexDemoEntity> page = flexDemoMapper.paginate(PageUtils.toPage(query), buildWrapper(query));
         return PageUtils.toPageData(page, flexDemoConvert::toVo);
     }
 
@@ -117,7 +114,7 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
         if (query.getAge() != null) {
             wrapper.and(new QueryColumn("age").eq(query.getAge()));
         }
-        wrapper.orderBy(new QueryColumn("create_time").desc());
+        wrapper.orderBy(PageUtils.toOrderBy(query, "create_time"));
         return wrapper;
     }
 }

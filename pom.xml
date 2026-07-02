@@ -24,7 +24,7 @@
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring.boot.version>${project.parent.version}</spring.boot.version>
+        <spring.boot.version>4.0.7</spring.boot.version>
         <spring.cloud.version>2025.1.2</spring.cloud.version>
         <spring.cloud.alibaba.version>2025.1.0.0</spring.cloud.alibaba.version>
         <lombok.version>1.18.46</lombok.version>
@@ -295,6 +295,11 @@
                 <artifactId>jasypt</artifactId>
                 <version>${jasypt.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-configuration-processor</artifactId>
+                <version>${spring.boot.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -324,6 +329,11 @@
                             <groupId>com.mybatis-flex</groupId>
                             <artifactId>mybatis-flex-processor</artifactId>
                             <version>${mybatis-flex.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                            <version>${spring.boot.version}</version>
                         </path>
                     </annotationProcessorPaths>
                 </configuration>

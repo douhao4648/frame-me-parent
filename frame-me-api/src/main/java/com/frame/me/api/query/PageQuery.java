@@ -32,8 +32,8 @@ public class PageQuery implements Serializable {
     /**
      * 排序字段列表.
      *
-     * <p>格式：{@code 字段名[:方向]}，方向可选 {@code asc} 或 {@code desc}，省略时默认升序。</p>
+     * <p>格式：{@code 字段名[ 方向]}，方向可选 {@code asc} 或 {@code desc}，省略时默认升序。</p>
      */
-    @Schema(description = "排序字段列表，格式：字段名[:方向]，方向可选 asc 或 desc，省略时默认升序")
+    @Schema(description = "排序字段列表，格式：字段名[ 方向]，方向可选 asc 或 desc，省略时默认升序")
     private List<String> orderBy;
 }
