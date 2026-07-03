@@ -399,6 +399,7 @@ me:
 - **`AuthFilter`**：全局认证过滤器，默认拦截 `/*`。
   - 配置白名单路径（`me.auth.whitelist`）或 `@Anonymous` 注解可放行。
   - 非白名单请求未解析到用户时返回 401。
+  - 配置 `me.auth.enforce-login=false` 可关闭强制登录，此时过滤器仅尝试解析用户并写入 `AuthContext`，不返回 401。
   - **Filter 层错误响应格式由 `IFilterErrorResponseWriter` SPI 决定**：`frame-me-starter-base` 默认输出 `Result` 格式；引入 `frame-me-adapter-starter` 后自动切换为外部 `Response` 格式，与 Controller 层的老接口规范保持一致。
 - **`IAuthService` / `IAuthUserResolver`**：SPI 接口，供具体认证实现（如 JWT）接管。
 
@@ -480,6 +481,18 @@ me:
 
 - `secret` **必须配置**，长度不少于 32 字符。
 - Refresh Token 默认存储在 Redis，需配置 `spring.data.redis.*`。
+
+### 关闭强制登录
+
+默认情况下，非白名单请求未解析到用户时会返回 401。若希望过滤器只尝试解析用户、不拦截匿名请求（例如网关已做认证），可关闭强制登录：
+
+```yaml
+me:
+  auth:
+    enforce-login: false   # 默认 true
+```
+
+关闭后，未携带认证信息的请求也会被放行，但 `AuthContext` 中不会有用户；下游仍可通过 `AuthContext.getUser()` 是否为 null 判断当前是否已登录。
 
 ### 服务间调用传播用户信息
 

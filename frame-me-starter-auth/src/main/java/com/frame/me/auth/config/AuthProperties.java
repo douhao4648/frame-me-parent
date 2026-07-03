@@ -21,6 +21,14 @@ public class AuthProperties {
     private Boolean enabled = true;
 
     /**
+     * 是否强制要求登录，默认 {@code true}.
+     *
+     * <p>关闭后，非白名单请求未解析到用户时也不会返回 401，过滤器仅尝试解析用户并写入
+     * {@link com.frame.me.auth.core.AuthContext}；适合网关已做认证、下游只取用户不强制登录的场景。</p>
+     */
+    private Boolean enforceLogin = true;
+
+    /**
      * 匿名访问时是否跳过用户解析，默认 {@code false}.
      *
      * <p>为 {@code true} 时，匿名接口不会把请求头中的用户写入上下文。</p>

@@ -33,7 +33,8 @@ import java.io.IOException;
  * <p>职责：
  * <ol>
  *   <li>白名单接口直接放行（不强制认证）</li>
- *   <li>非白名单接口未登录时直接返回 401</li>
+ *   <li>{@code me.auth.enforce-login=false} 时仅尝试解析用户并写入 {@link AuthContext}，不返回 401</li>
+ *   <li>默认情况下非白名单接口未登录时直接返回 401</li>
  *   <li>已登录请求解析当前用户并写入 {@link AuthContext}</li>
  * </ol>
  * </p>
@@ -63,6 +64,13 @@ public class AuthFilter implements Filter {
                 if (!Boolean.TRUE.equals(properties.getSkipAnonymousContext())) {
                     resolveAndSetUser(httpRequest);
                 }
+                chain.doFilter(request, response);
+                return;
+            }
+
+            if (!Boolean.TRUE.equals(properties.getEnforceLogin())) {
+                // 不强制登录：尝试解析用户并放行，不返回 401
+                resolveAndSetUser(httpRequest);
                 chain.doFilter(request, response);
                 return;
             }

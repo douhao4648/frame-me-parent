@@ -140,6 +140,47 @@ class AuthFilterTest {
         assertNull(AuthContext.getUser());
     }
 
+    @Test
+    void testEnforceLoginOffPassWithoutAuth() throws Exception {
+        properties.setEnforceLogin(false);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        java.util.concurrent.atomic.AtomicBoolean invoked = new java.util.concurrent.atomic.AtomicBoolean(false);
+        FilterChain chain = (req, res) -> invoked.set(true);
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(invoked.get());
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
+    void testEnforceLoginOffResolvesUserWhenAvailable() throws Exception {
+        properties.setEnforceLogin(false);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        User user = new User();
+        user.setId(1L);
+        user.setAccount("admin");
+        when(userResolver.resolve(any(HttpServletRequest.class))).thenReturn(user);
+
+        java.util.concurrent.atomic.AtomicBoolean invoked = new java.util.concurrent.atomic.AtomicBoolean(false);
+        FilterChain chain = (req, res) -> {
+            invoked.set(true);
+            assertEquals(user, AuthContext.getUser());
+        };
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(invoked.get());
+    }
+
     @Anonymous
     static class AnonController {
         @Anonymous
