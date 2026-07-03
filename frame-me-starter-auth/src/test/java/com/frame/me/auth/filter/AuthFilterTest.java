@@ -1,0 +1,150 @@
+package com.frame.me.auth.filter;
+
+import tools.jackson.databind.ObjectMapper;
+import com.frame.me.auth.annotation.Anonymous;
+import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.core.AuthContext;
+import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.base.user.User;
+import com.frame.me.base.web.IFilterErrorResponseWriter;
+import com.frame.me.base.web.ResultFilterErrorResponseWriter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.HandlerExecutionChain;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+/**
+ * {@link AuthFilter} 单元测试.
+ *
+ * @author frame-me
+ */
+class AuthFilterTest {
+
+    private IAuthUserResolver userResolver;
+    private RequestMappingHandlerMapping handlerMapping;
+    private AuthProperties properties;
+    private IFilterErrorResponseWriter errorResponseWriter;
+    private AuthFilter filter;
+
+    @BeforeEach
+    void setUp() {
+        userResolver = mock(IAuthUserResolver.class);
+        handlerMapping = mock(RequestMappingHandlerMapping.class);
+        properties = new AuthProperties();
+        errorResponseWriter = new ResultFilterErrorResponseWriter(new ObjectMapper());
+        filter = new AuthFilter(userResolver, handlerMapping, properties, errorResponseWriter);
+    }
+
+    @AfterEach
+    void tearDown() {
+        AuthContext.clear();
+    }
+
+    @Test
+    void testWhitelistPassWithoutAuth() throws Exception {
+        properties.setWhitelist(List.of("/api/public/**"));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/public/info");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+    }
+
+    @Test
+    void testAnonymousAnnotationPass() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/anon");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        HandlerMethod handlerMethod = new HandlerMethod(new AnonController(),
+                AnonController.class.getMethod("anon"));
+        when(handlerMapping.getHandler(any(HttpServletRequest.class)))
+                .thenReturn(new HandlerExecutionChain(handlerMethod));
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+    }
+
+    @Test
+    void testUnauthorizedRequestBlocked() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(200, response.getStatus());
+        assertNull(chain.getRequest());
+        assertTrue(response.getContentAsString().contains("401"));
+    }
+
+    @Test
+    void testAuthorizedRequestPass() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        User user = new User();
+        user.setId(1L);
+        user.setAccount("admin");
+        when(userResolver.resolve(any(HttpServletRequest.class))).thenReturn(user);
+
+        java.util.concurrent.atomic.AtomicBoolean invoked = new java.util.concurrent.atomic.AtomicBoolean(false);
+        FilterChain chain = (req, res) -> {
+            invoked.set(true);
+            assertEquals(user, AuthContext.getUser());
+        };
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(invoked.get());
+    }
+
+    @Test
+    void testContextClearedAfterRequest() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        User user = new User();
+        user.setId(1L);
+        when(userResolver.resolve(any(HttpServletRequest.class))).thenReturn(user);
+
+        filter.doFilter(request, response, chain);
+
+        assertNull(AuthContext.getUser());
+    }
+
+    @Anonymous
+    static class AnonController {
+        @Anonymous
+        public String anon() {
+            return "anon";
+        }
+    }
+}

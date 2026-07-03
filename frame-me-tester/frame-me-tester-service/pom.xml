@@ -23,6 +23,10 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-booter</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-auth-jwt</artifactId>
+        </dependency>
         <!--        <dependency>-->
         <!--            <groupId>com.frame.me</groupId>-->
         <!--            <artifactId>frame-me-starter-mybatis-plus</artifactId>-->

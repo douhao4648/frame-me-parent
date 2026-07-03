@@ -138,6 +138,23 @@ decorator:
       enable-logging: true
 
 me:
+  auth:
+    enabled: true
+    jwt:
+      enabled: true
+      secret: me-jwt-secret-key-at-least-32-characters-long-ksndifkwenkfj
+      issuer: me-tester
+      access-token-expires: PT2H
+      refresh-token-expires: P7D
+      path: /base/auth
+    whitelist:
+      - /base/auth/login
+      - /base/auth/refresh
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
+      - /v3/api-docs
+      - /actuator/health
   # 依赖通过 Maven profile "swagger" 引入：mvn ... -Pswagger
   swagger:
     title: Frame Me Tester API
@@ -147,6 +164,9 @@ me:
       - name: tester-api
         paths-to-match:
           - /api/**
+      - name: base-api
+        paths-to-match:
+          - /base/**
   redis:
     clients:
       second:
@@ -159,6 +179,8 @@ me:
   #   snowflake:
   #     worker-id: 1
   #     datacenter-id: 0
+  sse:
+    path: /base/sse
 
 jetcache:
   decodeFilterAllowPatterns:

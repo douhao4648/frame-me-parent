@@ -43,6 +43,7 @@
         <fastjson2.version>2.0.62</fastjson2.version>
         <redisson.version>4.6.1</redisson.version>
         <jasypt.version>1.9.3</jasypt.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <modules>
@@ -52,6 +53,7 @@
         <module>frame-me-starter-mybatis-plus</module>
         <module>frame-me-starter-mybatis-flex</module>
         <module>frame-me-starter-auth</module>
+        <module>frame-me-starter-auth-jwt</module>
         <module>frame-me-starter-cloud</module>
         <module>frame-me-starter-doc-openapi</module>
         <module>frame-me-starter-dynamic-ds</module>
@@ -115,6 +117,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-auth-jwt</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -294,6 +301,23 @@
                 <groupId>org.jasypt</groupId>
                 <artifactId>jasypt</artifactId>
                 <version>${jasypt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
             </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>

@@ -4,10 +4,10 @@
 
 ```
 frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api → frame-me-adapter-starter
-   │  (无 Spring)        (Web + MyBatis-Plus)         (老接口规范，可被外部项目重写)
+   │  (无 Spring)        (Web 基础设施)              (老接口规范，可被外部项目重写)
    │
    │  纳入 frame-me-booter 的通用 starter：
-   ├─ frame-me-starter-auth          (占位：Security/JWT/OAuth2)
+   ├─ frame-me-starter-auth          (认证授权抽象：上下文、注解、SPI)
    ├─ frame-me-starter-cloud         (占位：Nacos/Gateway/Sentinel)
    ├─ frame-me-starter-dynamic-ds    (多数据源，依赖 base)
    ├─ frame-me-starter-multi-redis   (Redis + 可选 Redisson，依赖 base)
@@ -26,18 +26,20 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
    frame-me-starter-sse-mvc      (SSE 服务端推送)
    frame-me-starter-ws-mvc       (WebSocket 全双工推送)
    frame-me-starter-doc-openapi  (SpringDoc 接口文档)
+   frame-me-starter-auth-jwt     (JWT 认证实现，接管 auth 抽象层)
 ```
 
 更准确的依赖关系：
 
 - `frame-me-api`：最底层，无 Spring 依赖，纯接口/Interfacer 契约。
-- `frame-me-starter-base`：依赖 `frame-me-api` + `spring-boot-starter-web`，提供 Spring Web 基础设施与 MyBatis-Plus 数据访问能力。
+- `frame-me-starter-base`：依赖 `frame-me-api` + `spring-boot-starter-web`，提供 Spring Web 基础设施（响应规范、异常处理、事件桥接、HTTP Interface 客户端、池化 RestClient、异步/调度线程池等）。
 - `frame-me-adapter`：`pom` 聚合模块，承载老接口规范的适配层，拆为 `frame-me-adapter-api`（依赖 `frame-me-api`，含 `PageParam`/`PageResult` 等契约类）与 `frame-me-adapter-starter`（依赖 `frame-me-adapter-api` + `frame-me-starter-base`，含 `Response` 适配与 `PageableUtils` 等）。集成 `frame-me-adapter-starter` 即表示遵循老规范，可被外部项目重写。
-- `frame-me-starter-dynamic-ds`：依赖 `frame-me-starter-base` + baomidou `dynamic-datasource-spring-boot4-starter`，多数据源能力。
+- `frame-me-starter-dynamic-ds`：依赖 `frame-me-starter-base` + baomidou `dynamic-datasource-spring-boot4-starter`，多数据源能力，按需显式引入。
 - `frame-me-starter-doc-openapi`：依赖 `springdoc-openapi-starter-webmvc-ui`，接口文档能力，不依赖框架内部模块。
-- `frame-me-starter-auth`：依赖 `frame-me-starter-base`，认证授权占位模块。
+- `frame-me-starter-auth`：依赖 `frame-me-starter-base`，认证授权抽象层，提供 `AuthContext`、 `@LoginUser` / `@Anonymous`、 `IAuthService` / `IAuthUserResolver` SPI、 `AuthFilter` 等；默认提供一个基于请求头的极简兜底实现。
+- `frame-me-starter-auth-jwt`：依赖 `frame-me-starter-auth`，JWT 认证实现，完全接管 `IAuthService` / `IAuthUserResolver`，提供登录/登出/刷新/当前用户接口与默认 Controller，业务只需实现 `IAuthUserDetailsService`。
 - `frame-me-starter-cloud`：依赖 `frame-me-starter-base`，微服务云组件占位模块。
-- `frame-me-booter`：聚合启动模块，依赖 `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力。`frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合。
+- `frame-me-booter`：聚合启动模块，依赖 `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力。`frame-me-adapter`（含 `frame-me-adapter-starter`）、`frame-me-starter-doc-openapi`、`frame-me-starter-ws-mvc`、`frame-me-starter-auth-jwt`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 不纳入聚合。
 - `frame-me-tester`：`pom` 聚合模块，包含 `frame-me-tester-api`（契约接口）与 `frame-me-tester-service`（可运行入口）。`frame-me-tester-api` 依赖 `frame-me-api`；`frame-me-tester-service` 依赖 `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter`。通过 `frame-me-starter-base` 的 Maven profile 可选引入 `frame-me-starter-doc-openapi` 与 `p6spy`。
 
 ### interfacer / booter 使用约定
@@ -58,9 +60,9 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
 ## 分层原则
 
 1. **单向依赖**：下层模块不能依赖上层模块。`frame-me-api` 严禁引入 Spring 相关依赖。
-2. **基础设施下沉**：通用异常、响应包装、全局异常处理、MyBatis-Plus 数据访问等基础设施放在 `frame-me-starter-base`；跨模块共享的接口与常量放在 `frame-me-api`。
+2. **基础设施下沉**：通用异常、响应包装、全局异常处理、Filter 层错误响应 SPI、事件桥接、HTTP Interface 客户端、池化 `RestClient`、异步/调度线程池等基础设施放在 `frame-me-starter-base`；MyBatis-Plus / MyBatis-Flex 数据访问能力分别放在独立的 `frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex`；跨模块共享的接口与常量放在 `frame-me-api`。
 3. **适配层独立**：与外部交互的格式转换（如 `IResult<T>` → `Response<T>`）放在 `frame-me-adapter-starter`。
-4. **占位模块可扩展**：`frame-me-starter-auth` 与 `frame-me-starter-cloud` 当前仅含常量接口，用于未来承载认证、微服务云组件。
+4. **占位/可扩展模块**：`frame-me-starter-cloud` 当前为占位模块；`frame-me-starter-auth` 已实现认证授权抽象层，具体认证实现（如 JWT）通过额外 starter 按需引入。
 
 ## Spring Boot 自动装配
 
@@ -78,12 +80,12 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 
 - `frame-me-starter-base` 注册 `com.frame.me.base.config.BaseAutoConfiguration`
   - 文件路径：`frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-  - 注册 Bean：`GlobalExceptionHandler`、`EnvironmentHelper`、`ResultJacksonModule`、`HttpServiceClientAutoConfiguration`、`QueryObjectArgumentResolver`、`EventBridgePublisher`、`EventBridgeListener`、`EventBridgeAutoConfiguration`
-- `frame-me-starter-base` 注册 `config.com.frame.me.mybatis.plus.MybatisPlusConfiguration`
+  - 注册 Bean：`GlobalExceptionHandler`、`EnvironmentHelper`、`ResultJacksonModule`、`HttpServiceClientAutoConfiguration`、`QueryObjectArgumentResolver`、`EventBridgePublisher`、`EventBridgeListener`、`EventBridgeAutoConfiguration`、`IFilterErrorResponseWriter`（默认 `ResultFilterErrorResponseWriter`）
+- `frame-me-starter-mybatis-plus` 注册 `com.frame.me.mybatis.plus.config.MybatisPlusConfiguration`
   - 注册 Bean：`MybatisPlusInterceptor`（含分页插件、乐观锁插件）、`BaseMetaObjectHandler`（需配置开启）、自定义 `IdentifierGenerator`（可选 worker-id 配置）。
 - `frame-me-adapter-starter` 注册 `com.frame.me.adapter.config.AdapterAutoConfiguration`
   - 文件路径：`frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-  - 注册 Bean：`Result2ResponseAdvice`、`ResponseJacksonModule`
+  - 注册 Bean：`Result2ResponseAdvice`、`ResponseJacksonModule`、`ResponseFilterErrorResponseWriter`（覆盖 `IFilterErrorResponseWriter`，使 Filter 层错误响应输出 `Response` 格式）
 - `frame-me-starter-dynamic-ds` 注册 `com.frame.me.dynamic.ds.config.DynamicDataSourceAutoConfiguration`
   - 文件路径：`frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
   - 注册 Bean：`MeDynamicDataSourceProvider`（根据 `spring.datasource.*` 创建默认 `master` 数据源）。
@@ -99,12 +101,16 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
   - 业务用 `com.frame.me.encrypt.config.EncryptAutoConfiguration` 走 `AutoConfiguration.imports`，配了主密码后暴露 `StringEncryptor` Bean。
 - `frame-me-starter-op-audit` 注册 `com.frame.me.op.audit.config.AuditAutoConfiguration`
   - 注册 Bean：`AuditLogAspect`、`AuditLogLogger`（`me.audit.enabled=true`，默认开启）。
+- `frame-me-starter-auth` 注册 `com.frame.me.auth.config.AuthAutoConfiguration`
+  - 注册 Bean：`AuthFilter`（注册为 FilterRegistrationBean）、`HeaderAuthUserResolver`（默认兜底）、`LoginUserArgumentResolver` 配置、`AuditAuthOperatorSupplier`（可选）。
+- `frame-me-starter-auth-jwt` 注册 `com.frame.me.auth.jwt.config.JwtAutoConfiguration`
+  - 注册 Bean：`JwtTokenService`（实现 `IAuthService`）、`JwtAuthUserResolver`（实现 `IAuthUserResolver`）、`JwtAuthController`、默认 `RedisRefreshTokenStore`。通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 优先于 auth 抽象层加载，从而完全接管认证实现。
 - `frame-me-starter-sse-mvc` 注册 `com.frame.me.sse.mvc.config.SseAutoConfiguration`
   - 注册 Bean：`SseEmitterManager`、`SseEventDispatcher`、`SsePushService`、`SseController`（`me.sse.enabled`，默认开启）。
 - `frame-me-starter-ws-mvc` 注册 `com.frame.me.ws.mvc.config.WsMvcAutoConfiguration`
   - 注册 Bean：`WsMvcSessionManager`、`WsMvcEventDispatcher`、`WsMvcPushService`、`MeWsMvcHandler`（`me.ws.mvc.enabled`，默认开启）。
 
-`frame-me-booter` 作为聚合模块没有自己的自动装配类，它通过传递依赖自动引入 `frame-me-starter-base`、`frame-me-starter-dynamic-ds`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit` 等模块的自动配置。`frame-me-adapter-starter`、`frame-me-starter-doc-openapi`、`frame-me-starter-ws-mvc` 不纳入 `frame-me-booter`，由外部项目按需引入或自行实现。
+`frame-me-booter` 作为聚合模块没有自己的自动装配类，它通过传递依赖自动引入 `frame-me-starter-base`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`、`frame-me-starter-auth` 等模块的自动配置。`frame-me-adapter-starter`、`frame-me-starter-doc-openapi`、`frame-me-starter-ws-mvc`、`frame-me-starter-auth-jwt`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 不纳入 `frame-me-booter`，由外部项目按需引入或自行实现。
 
 ### 配置类约定
 
@@ -182,10 +188,10 @@ Result2ResponseAdvice.beforeBodyWrite()
 - `PageParam`（老规范）：`frame-me-adapter/frame-me-adapter-api/src/main/java/com/frame/me/adapter/api/query/PageParam.java`
 - `PageResult<T>`（老规范）：`frame-me-adapter/frame-me-adapter-api/src/main/java/com/frame/me/adapter/api/result/PageResult.java`
 - `GlobalExceptionHandler`：`frame-me-starter-base/src/main/java/com/frame/me/base/advice/GlobalExceptionHandler.java`
-- `BaseEntity`：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseEntity.java`
-- `BaseVersionEntity`：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java`
-- `BaseMetaObjectHandler`：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java`
-- `PageUtils`（新规范）：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java`
+- `BaseEntity`：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/entity/BaseEntity.java`
+- `BaseVersionEntity`：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/entity/BaseVersionEntity.java`
+- `BaseMetaObjectHandler`：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/plugin/BaseMetaObjectHandler.java`
+- `PageUtils`（新规范）：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/util/PageUtils.java`
 - `PageableUtils`（老规范）：`frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/mybatis/util/PageableUtils.java`
 - `SnowflakeUtils`：`frame-me-starter-base/src/main/java/com/frame/me/base/util/SnowflakeUtils.java`
 - `IHealthApi`：`frame-me-tester/frame-me-tester-api/src/main/java/com/frame/me/tester/api/IHealthApi.java`
@@ -195,5 +201,6 @@ Result2ResponseAdvice.beforeBodyWrite()
 
 - `IResult.rid` 与 `Response.requestId` 字段已预留，但尚未实现请求 ID 生成与传递。
 - `RetryException` 已定义，但 `GlobalExceptionHandler` 未对其单独处理，当前会落入通用 `Exception` 处理器。
-- `frame-me-starter-auth` 与 `frame-me-starter-cloud` 为空壳模块，适合作为未来 JWT、Spring Security、Nacos、Gateway 等功能的载体。
+- `frame-me-starter-cloud` 当前为空壳模块，适合作为未来 Nacos、Gateway 等微服务云组件能力的载体。
+- `frame-me-starter-auth` 已实现认证授权抽象层，`frame-me-starter-auth-jwt` 提供 JWT 实现；后续可继续扩展 `frame-me-starter-auth-sa-token`、`frame-me-starter-auth-security` 等替代实现。
 - `HealthController` 故意触发 NPE，用于验证异常处理链路是否正常工作。

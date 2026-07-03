@@ -28,7 +28,15 @@ class WsMvcAutoConfigurationTest {
             assertThat(context).hasSingleBean(WsMvcEventDispatcher.class);
             assertThat(context).hasSingleBean(WsMvcPushService.class);
             assertThat(context).hasSingleBean(MeWsMvcHandler.class);
+            assertThat(context.getBean(WsMvcProperties.class).getPath()).isEqualTo("/api/ws");
         });
+    }
+
+    @Test
+    void shouldBindCustomPath() {
+        webRunner.withPropertyValues("me.ws.mvc.path=/custom/ws")
+                .run(context ->
+                        assertThat(context.getBean(WsMvcProperties.class).getPath()).isEqualTo("/custom/ws"));
     }
 
     @Test

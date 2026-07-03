@@ -46,9 +46,12 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 |---|---|
 | `frame-me-api` | 纯接口/契约模块：`IResult<T>`、`ApiConstant`；供业务 `xx-api` 引用。 |
 | `frame-me-adapter` | 适配层聚合模块（`pom`），含 `frame-me-adapter-api`（老规范契约、分页参数/结果）与 `frame-me-adapter-starter`（`IResult`→`Response` 适配 + 老规范分页工具）。集成 `-starter` 即表示遵循老接口规范。 |
-| `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、MyBatis-Plus，以及统一的 `@Async` / `@Scheduled` 线程池。 |
-| `frame-me-starter-auth` | 认证授权占位模块。 |
+| `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、Filter 层错误响应 SPI、事件桥接、HTTP Interface 客户端、池化 `RestClient`，以及统一的 `@Async` / `@Scheduled` 线程池。 |
+| `frame-me-starter-auth` | 认证授权抽象层：`AuthContext`、`@LoginUser` / `@Anonymous`、`IAuthService` / `IAuthUserResolver` SPI、`AuthFilter`。 |
+| `frame-me-starter-auth-jwt` | JWT 认证实现 starter，接管 auth 抽象层，提供登录/登出/刷新/当前用户接口。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
+| `frame-me-starter-mybatis-plus` | MyBatis-Plus 数据访问 starter（实体基类、分页插件、公共字段填充、雪花 ID）。 |
+| `frame-me-starter-mybatis-flex` | MyBatis-Flex 数据访问 starter（与 mybatis-plus 二选一）。 |
 | `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `me.swagger.enabled=true` 开启。 |
 | `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
 | `frame-me-starter-multi-redis` | Redis 能力 starter：封装 `RedisUtils`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动启用分布式锁、同步原语、Topic、限流。 |
@@ -58,13 +61,14 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-msg-notify` | 消息通知 starter：统一邮件/Webhook/短信多通道通知能力，支持 `INotifySender` 接口、全局默认接收者与多客户端配置。 |
 | `frame-me-starter-sse-mvc` | SSE 推送 starter（按需引入）：服务端事件推送，支持按事件类型广播与按接收者定向推送。 |
 | `frame-me-starter-ws-mvc` | WebSocket 推送 starter（按需引入）：Servlet 原生 WebSocket 全双工，支持广播与定向推送。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/dynamic-ds/multi-redis/l1l2-cache/sensi-encrypt/sse-mvc/op-audit/msg-notify；不含 adapter、doc-openapi、ws-mvc）。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/multi-redis/l1l2-cache/sensi-encrypt/sse-mvc/op-audit/msg-notify；不含 adapter、doc-openapi、ws-mvc、auth-jwt、mybatis-plus/flex、dynamic-ds）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定
 
 - Controller 返回 `IResult<T>`，由 `Result2ResponseAdvice` 自动转为 `Response<T>` 给客户端。
 - 业务异常抛 `BusinessException`，内部异常抛 `InternalException`。
+- Filter 层错误响应由 `IFilterErrorResponseWriter` SPI 决定：base 默认输出 `Result` 格式，引入 `frame-me-adapter-starter` 后自动切换为 `Response` 格式。
 - 新增模块贡献 Bean 时，使用 `@Configuration(proxyBeanMethods = false)` + `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册。
 
 ## 模块设计约定
@@ -79,8 +83,11 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
   - 通过 `frame-me-booter` 一键拉起通用 starter 能力（如 auth、cloud、base 等）。
   - `frame-me-booter` 本身不包含业务代码，只通过传递依赖聚合通用能力。
 
-- **`frame-me-adapter` 不纳入 `frame-me-booter`**
-  - 适配层通常需要按项目自定义，因此保持独立，由业务 `xx-service` 按需引入 `frame-me-adapter-starter` 或自行实现。`frame-me-starter-doc-openapi` 同样按需引入。
+- **数据访问、JWT、适配层、文档按需引入**
+  - `frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 二选一，显式引入。
+  - `frame-me-starter-dynamic-ds` 按需显式引入。
+  - `frame-me-starter-auth-jwt` 按需显式引入以替换 auth 抽象层的默认兜底实现。
+  - `frame-me-adapter` 通常需要按项目自定义，因此保持独立，由业务 `xx-service` 按需引入 `frame-me-adapter-starter` 或自行实现。`frame-me-starter-doc-openapi` 同样按需引入。
 
 ## License
 

@@ -1,6 +1,5 @@
 package com.frame.me.ws.mvc.config;
 
-import com.frame.me.ws.mvc.WsMvcConstant;
 import com.frame.me.ws.mvc.core.WsMvcEventDispatcher;
 import com.frame.me.ws.mvc.core.WsMvcSessionManager;
 import com.frame.me.ws.mvc.handler.MeWsMvcHandler;
@@ -13,6 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.socket.WebSocketHandler;
+import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
@@ -41,6 +41,7 @@ import java.util.List;
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
+@EnableWebSocket
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(WebSocketHandler.class)
 @ConditionalOnProperty(prefix = "me.ws.mvc", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -111,14 +112,15 @@ public class WsMvcAutoConfiguration {
 
         @Override
         public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-            var registration = registry.addHandler(handler, WsMvcConstant.WS_ENDPOINT);
+            String path = properties.getPath();
+            var registration = registry.addHandler(handler, path);
             List<String> origins = properties.getAllowedOrigins();
             if (origins != null && !origins.isEmpty()) {
                 registration.setAllowedOrigins(origins.toArray(new String[0]));
             } else {
                 registration.setAllowedOrigins("*");
             }
-            log.info("WebSocket MVC endpoint registered: {}", WsMvcConstant.WS_ENDPOINT);
+            log.info("WebSocket MVC endpoint registered: {}", path);
         }
     }
 }

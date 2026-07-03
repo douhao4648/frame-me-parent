@@ -48,12 +48,15 @@
 | `SchedulingProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/config/SchedulingProperties.java` |
 | `EnvironmentHelper` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/env/EnvironmentHelper.java` |
 | `BaseConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/BaseConstant.java` |
-| `BaseEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseEntity.java` |
-| `BaseVersionEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java` |
-| `BaseMetaObjectHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java` |
-| `PageUtils`（新规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java` |
+| `IFilterErrorResponseWriter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/web/IFilterErrorResponseWriter.java` |
+| `ResultFilterErrorResponseWriter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/web/ResultFilterErrorResponseWriter.java` |
+| `ResponseFilterErrorResponseWriter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/web/ResponseFilterErrorResponseWriter.java` |
+| `BaseEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/entity/BaseEntity.java` |
+| `BaseVersionEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/entity/BaseVersionEntity.java` |
+| `BaseMetaObjectHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/plugin/BaseMetaObjectHandler.java` |
+| `PageUtils`（新规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/util/PageUtils.java` |
 | `SnowflakeUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/util/SnowflakeUtils.java` |
-| `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/config/MybatisPlusConfiguration.java` |
+| `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/config/MybatisPlusConfiguration.java` |
 | `Result2ResponseAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/advice/Result2ResponseAdvice.java` |
 | `Response<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/Response.java` |
 | `ResponseJacksonModule` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/ResponseJacksonModule.java` |
@@ -69,6 +72,28 @@
 | `GroupedOpenApiRegistrar` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/config/GroupedOpenApiRegistrar.java` |
 | `DocOpenApiConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-doc-openapi/src/main/java/com/frame/me/doc/openapi/DocOpenApiConstant.java` |
 | `AuthConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/AuthConstant.java` |
+| `AuthAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/config/AuthAutoConfiguration.java` |
+| `AuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/config/AuthProperties.java` |
+| `AuthContext` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/AuthContext.java` |
+| `HeaderAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/HeaderAuthUserResolver.java` |
+| `IAuthService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthService.java` |
+| `IAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthUserResolver.java` |
+| `@LoginUser` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/annotation/LoginUser.java` |
+| `@Anonymous` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/annotation/Anonymous.java` |
+| `AuthFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/filter/AuthFilter.java` |
+| `LoginUserArgumentResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/resolver/LoginUserArgumentResolver.java` |
+| `AuditAuthOperatorSupplier` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/audit/AuditAuthOperatorSupplier.java` |
+| `JwtAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAutoConfiguration.java` |
+| `JwtAuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAuthProperties.java` |
+| `JwtTokenService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtTokenService.java` |
+| `JwtAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtAuthUserResolver.java` |
+| `IAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/IAuthUserDetailsService.java` |
+| `RefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/RefreshTokenStore.java` |
+| `RedisRefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/RedisRefreshTokenStore.java` |
+| `JwtAuthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/JwtAuthController.java` |
+| `LoginDTO` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/dto/LoginDTO.java` |
+| `TokenVO` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/vo/TokenVO.java` |
+| `PasswordUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/util/PasswordUtils.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
 | `AuditLog` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/annotation/AuditLog.java` |
 | `AuditLogAspect` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/aspect/AuditLogAspect.java` |
@@ -134,6 +159,8 @@
 | `frame-me-starter-multi-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-l1l2-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-op-audit` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-auth` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-auth-jwt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-msg-notify` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-msg-notify/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt`（`EnvironmentPostProcessor`） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring.factories` |
@@ -203,6 +230,14 @@
 | `AuditLogOperatorSupplier` | 操作人提供接口，默认返回 `anonymous` |
 | `AuditAutoConfiguration` | 审计自动装配入口 |
 | `AuditProperties` | `me.audit` 配置属性绑定 |
+| `AuthContext` | ThreadLocal 当前用户上下文 |
+| `AuthFilter` | 认证过滤器，解析并写入当前用户 |
+| `HeaderAuthUserResolver` | 默认请求头兜底用户解析器 |
+| `JwtTokenService` | JWT 认证服务实现：登录/登出/刷新/解析 |
+| `JwtAuthUserResolver` | 从 `Authorization: Bearer ...` 解析当前用户 |
+| `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码 |
+| `RedisRefreshTokenStore` | 基于 Redis 的 Refresh Token 存储 |
+| `JwtAuthController` | 默认 JWT 认证接口：登录/登出/刷新/当前用户 |
 | `MsgNotifySender` | `INotifySender` 实现，支持全局默认 / 指定通道 / 指定命名客户端发送 |
 | `NotifyAutoConfiguration` | 消息通知自动装配入口 |
 | `NotifyProperties` | `me.notify` 配置属性绑定 |
@@ -253,18 +288,21 @@
    - `GlobalExceptionHandler` 没有 `@ExceptionHandler(RetryException.class)`。
    - 当前会落入通用 `Exception` 处理器，返回 HTTP 默认 200 + code 500。
 
-3. **`frame-me-starter-auth` 与 `frame-me-starter-cloud` 为空壳**
+3. **`frame-me-starter-cloud` 为空壳模块**
    - 当前仅包含占位常量接口。
-   - 适合作为未来认证、鉴权、注册中心、配置中心、网关等能力的载体。
+   - 适合作为未来 Nacos、Gateway 等微服务云组件能力的载体。
 
-4. **`HealthController` 故意触发 NPE**
+4. **`frame-me-starter-auth` 已实现认证授权抽象层，`frame-me-starter-auth-jwt` 提供 JWT 实现**
+   - 后续可继续扩展 `frame-me-starter-auth-sa-token`、`frame-me-starter-auth-security` 等替代实现。
+
+5. **`HealthController` 故意触发 NPE**
    - 实现 `IHealthApi`，用于验证异常处理链路是否正常工作。
    - 若后续需要真正的健康检查接口，需重写该方法。
 
-5. **`frame-me-tester` 已拆分为 `frame-me-tester-api` + `frame-me-tester-service`**
+6. **`frame-me-tester` 已拆分为 `frame-me-tester-api` + `frame-me-tester-service`**
    - API 契约放在 `frame-me-tester-api`，使用 Spring HTTP Interface 声明。
    - 实现与可运行入口放在 `frame-me-tester-service`。
 
-6. **Spring Cloud / Spring Cloud Alibaba BOM 已声明但未使用**
+7. **Spring Cloud / Spring Cloud Alibaba BOM 已声明但未使用**
    - 父 POM 中已导入 `spring-cloud-dependencies` 与 `spring-cloud-alibaba-dependencies`。
    - 尚未在任何模块中引入具体 starter，为后续微服务化预留。

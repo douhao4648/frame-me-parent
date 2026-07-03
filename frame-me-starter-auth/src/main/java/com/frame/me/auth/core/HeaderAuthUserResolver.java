@@ -1,0 +1,46 @@
+package com.frame.me.auth.core;
+
+import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.base.user.User;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 基于请求头的默认用户解析器.
+ *
+ * <p>仅用于开发/测试兜底，从请求头中读取用户 ID 和账号构建 {@link User}。
+生产环境应使用 JWT、Sa-Token、Spring Security 等真实实现替换。</p>
+ *
+ * @author frame-me
+ */
+@Slf4j
+public class HeaderAuthUserResolver implements IAuthUserResolver {
+
+    /**
+     * 请求头：用户 ID.
+     */
+    public static final String HEADER_USER_ID = "X-User-Id";
+
+    /**
+     * 请求头：用户账号.
+     */
+    public static final String HEADER_USER_ACCOUNT = "X-User-Account";
+
+    @Override
+    public User resolve(HttpServletRequest request) {
+        String userId = request.getHeader(HEADER_USER_ID);
+        String account = request.getHeader(HEADER_USER_ACCOUNT);
+        if (userId == null || userId.isEmpty()) {
+            return null;
+        }
+        try {
+            User user = new User();
+            user.setId(Long.valueOf(userId));
+            user.setAccount(account);
+            return user;
+        } catch (NumberFormatException e) {
+            log.warn("请求头中用户 ID 格式非法: {}", userId);
+            return null;
+        }
+    }
+}

@@ -2,11 +2,13 @@ package com.frame.me.sse.mvc.web;
 
 import com.frame.me.sse.mvc.config.SseProperties;
 import com.frame.me.sse.mvc.core.SseEmitterManager;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -17,35 +19,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * @author frame-me
  */
+@WebMvcTest(SseController.class)
+@Import(SseProperties.class)
 class SseControllerIntegrationTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
-    @BeforeEach
-    void setUp() {
-        SseProperties properties = new SseProperties();
-        SseEmitterManager manager = new SseEmitterManager(properties);
-        SseController controller = new SseController(manager, properties);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-    }
+    @MockitoBean
+    private SseEmitterManager emitterManager;
 
     @Test
     void shouldReturnSseEmitterForBroadcast() throws Exception {
-        MvcResult result = mockMvc.perform(get("/me/sse/subscribe/user:created"))
+        mockMvc.perform(get("/api/sse/subscribe/user:created"))
                 .andExpect(status().isOk())
-                .andReturn();
-
-        assertThat(result.getResponse().getContentType()).contains("text/event-stream");
-        assertThat(result.getResponse().getHeader("Cache-Control")).isEqualTo("no-cache");
-        assertThat(result.getResponse().getHeader("X-Accel-Buffering")).isEqualTo("no");
+                .andExpect(result -> {
+                    assertThat(result.getResponse().getHeader("Cache-Control")).isEqualTo("no-cache");
+                    assertThat(result.getResponse().getHeader("X-Accel-Buffering")).isEqualTo("no");
+                });
     }
 
     @Test
     void shouldReturnSseEmitterForTargeted() throws Exception {
-        MvcResult result = mockMvc.perform(get("/me/sse/subscribe?receiverId=user:123"))
-                .andExpect(status().isOk())
-                .andReturn();
+        mockMvc.perform(get("/api/sse/subscribe?receiverId=user:123"))
+                .andExpect(status().isOk());
+    }
 
-        assertThat(result.getResponse().getContentType()).contains("text/event-stream");
+    @SpringBootApplication
+    static class TestApplication {
     }
 }

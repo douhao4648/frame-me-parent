@@ -196,7 +196,7 @@ public class DemoComplexQuery {
 
 ### 基础实体 `BaseEntity`
 
-类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseEntity.java`
+类路径：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/entity/BaseEntity.java`
 
 所有业务实体建议继承 `BaseEntity`，已内置以下公共字段：
 
@@ -209,7 +209,7 @@ public class DemoComplexQuery {
 
 ### 基础实体 `BaseVersionEntity`
 
-类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/entity/BaseVersionEntity.java`
+类路径：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/entity/BaseVersionEntity.java`
 
 继承 `BaseEntity`，额外提供乐观锁版本号：
 
@@ -235,7 +235,7 @@ MyBatis-Plus starter 会自动扫描启动类所在包及其子包下的 `@Mappe
 
 ### 公共字段自动填充 `BaseMetaObjectHandler`
 
-类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/plugin/BaseMetaObjectHandler.java`
+类路径：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/plugin/BaseMetaObjectHandler.java`
 
 开启方式：`me.mybatis.meta-object-handler.enabled=true`
 
@@ -255,7 +255,7 @@ MyBatis-Plus starter 会自动扫描启动类所在包及其子包下的 `@Mappe
 
 **新规范 `PageUtils`**（默认）
 
-类路径：`frame-me-starter-base/src/main/java/com/frame/me/base/mybatis/util/PageUtils.java`
+类路径：`frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/util/PageUtils.java`
 
 在 `com.frame.me.api.query.PageQuery` / `com.frame.me.api.result.PageData` 与 MyBatis-Plus `Page` 之间转换。例如：
 
@@ -384,3 +384,99 @@ me:
 - Swagger UI：`/swagger-ui.html`
 
 未配置 `groups` 时，默认注册一个名为 `default`、匹配所有路径的分组。
+
+## 认证与授权
+
+### 认证抽象层 `frame-me-starter-auth`
+
+类路径：`frame-me-starter-auth/src/main/java/com/frame/me/auth`
+
+`frame-me-booter` 已默认引入 `frame-me-starter-auth`，业务 `xx-service` 无需额外配置即可获得以下能力：
+
+- **`AuthContext`**：ThreadLocal 当前用户上下文，提供 `getUser()` / `getUserId()` / `getAccount()` / `setUser(User)` / `clear()`。
+- **`@LoginUser`**：标注在 Controller 方法参数上，自动注入当前登录用户。
+- **`@Anonymous`**：标注在 Controller 类或方法上，表示该接口允许匿名访问。
+- **`AuthFilter`**：全局认证过滤器，默认拦截 `/*`。
+  - 配置白名单路径（`me.auth.whitelist`）或 `@Anonymous` 注解可放行。
+  - 非白名单请求未解析到用户时返回 401。
+  - **Filter 层错误响应格式由 `IFilterErrorResponseWriter` SPI 决定**：`frame-me-starter-base` 默认输出 `Result` 格式；引入 `frame-me-adapter-starter` 后自动切换为外部 `Response` 格式，与 Controller 层的老接口规范保持一致。
+- **`IAuthService` / `IAuthUserResolver`**：SPI 接口，供具体认证实现（如 JWT）接管。
+
+示例：
+
+```java
+@RestController
+@RequestMapping("/api/demo")
+public class DemoController {
+
+    @Anonymous
+    @GetMapping("/public")
+    public IResult<String> publicApi() {
+        return Result.success("public");
+    }
+
+    @GetMapping("/private")
+    public IResult<String> privateApi(@LoginUser User user) {
+        return Result.success("hello " + user.getAccount());
+    }
+}
+```
+
+### JWT 认证实现 `frame-me-starter-auth-jwt`
+
+类路径：`frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt`
+
+业务 `xx-service` 需要显式引入：
+
+```xml
+<dependency>
+    <groupId>com.frame.me</groupId>
+    <artifactId>frame-me-starter-auth-jwt</artifactId>
+</dependency>
+```
+
+引入后自动接管 `IAuthService` / `IAuthUserResolver`，并提供默认接口：
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/api/auth/login` | POST | 账号密码登录，返回 Access Token + Refresh Token |
+| `/api/auth/logout` | POST | 使当前 Access Token 对应的 Refresh Token 失效 |
+| `/api/auth/refresh` | POST | 使用 Refresh Token 换取新的 Token 对 |
+| `/api/auth/me` | GET | 获取当前登录用户信息 |
+
+业务只需实现 `IAuthUserDetailsService`：
+
+```java
+@Service
+public class UserDetailsServiceImpl implements IAuthUserDetailsService {
+
+    @Override
+    public User loadUserByAccount(String account) {
+        // 按账号查询用户，返回包含加密密码的 User
+    }
+
+    @Override
+    public User loadUserById(Long id) {
+        // 按用户 ID 查询用户
+    }
+
+    @Override
+    public boolean matches(String rawPassword, String encodedPassword) {
+        return PasswordUtils.matches(rawPassword, encodedPassword);
+    }
+}
+```
+
+### 配置示例
+
+```yaml
+me:
+  auth:
+    jwt:
+      secret: your-secret-key-at-least-32-characters-long
+      access-token-expires: PT2H
+      refresh-token-expires: P7D
+```
+
+- `secret` **必须配置**，长度不少于 32 字符。
+- Refresh Token 默认存储在 Redis，需配置 `spring.data.redis.*`。

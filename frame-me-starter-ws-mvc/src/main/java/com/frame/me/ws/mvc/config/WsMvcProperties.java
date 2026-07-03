@@ -49,4 +49,12 @@ public class WsMvcProperties {
      * 握手允许的 Origins，空表示允许所有（生产环境建议显式配置），默认空列表.
      */
     private List<String> allowedOrigins = Collections.emptyList();
+
+    /**
+     * WebSocket 端点路径，默认 {@code /api/ws}.
+     * <p>
+     * 必须以 {@code /} 开头，除根路径 {@code /} 外不能以 {@code /} 结尾。
+     * 配置后，广播/定向订阅接口均会迁移到该路径下。
+     */
+    private String path = "/api/ws";
 }

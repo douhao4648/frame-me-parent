@@ -33,7 +33,7 @@ class MeWsMvcHandlerTest {
 
     @Test
     void shouldRegisterBroadcastOnConnection() throws Exception {
-        WebSocketSession session = mockSession("ws://localhost/me/ws?type=broadcast&eventType=user:created");
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=broadcast&eventType=user:created");
 
         handler.afterConnectionEstablished(session);
 
@@ -43,7 +43,7 @@ class MeWsMvcHandlerTest {
 
     @Test
     void shouldRegisterTargetedOnConnection() throws Exception {
-        WebSocketSession session = mockSession("ws://localhost/me/ws?type=targeted&receiverId=user:123");
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=targeted&receiverId=user:123");
 
         handler.afterConnectionEstablished(session);
 
@@ -52,7 +52,7 @@ class MeWsMvcHandlerTest {
 
     @Test
     void shouldCloseWhenSubscribeTypeInvalid() throws Exception {
-        WebSocketSession session = mockSession("ws://localhost/me/ws?type=unknown");
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=unknown");
 
         handler.afterConnectionEstablished(session);
 
@@ -63,7 +63,7 @@ class MeWsMvcHandlerTest {
     @Test
     void shouldCloseWhenBroadcastDisabled() throws Exception {
         properties.setBroadcastEnabled(false);
-        WebSocketSession session = mockSession("ws://localhost/me/ws?type=broadcast&eventType=user:created");
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=broadcast&eventType=user:created");
 
         handler.afterConnectionEstablished(session);
 
@@ -72,7 +72,7 @@ class MeWsMvcHandlerTest {
 
     @Test
     void shouldRespondPongToPing() throws Exception {
-        WebSocketSession session = mockSession("ws://localhost/me/ws?type=broadcast&eventType=user:created");
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=broadcast&eventType=user:created");
 
         handler.handleTextMessage(session, new TextMessage("ping"));
 
@@ -81,7 +81,7 @@ class MeWsMvcHandlerTest {
 
     @Test
     void shouldRemoveSessionOnClose() throws Exception {
-        WebSocketSession session = mockSession("ws://localhost/me/ws?type=broadcast&eventType=user:created");
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=broadcast&eventType=user:created");
 
         handler.afterConnectionClosed(session, CloseStatus.NORMAL);
 

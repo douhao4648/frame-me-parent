@@ -3,12 +3,14 @@ package com.frame.me.sse.mvc.web;
 import com.frame.me.sse.mvc.SseConstant;
 import com.frame.me.sse.mvc.config.SseProperties;
 import com.frame.me.sse.mvc.core.SseEmitterManager;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -18,8 +20,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  *
  * @author frame-me
  */
+@Tag(name = "SSE 订阅", description = "广播订阅、定向订阅")
 @Slf4j
 @RestController
+@RequestMapping("${me.sse.path:/api/sse}")
 @RequiredArgsConstructor
 public class SseController {
 
@@ -33,7 +37,7 @@ public class SseController {
      * @param response  HTTP 响应
      * @return SseEmitter
      */
-    @GetMapping(value = SseConstant.BROADCAST_PATH + "{eventType}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = SseConstant.SUBSCRIBE_PATH + "/{eventType}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeBroadcast(@PathVariable String eventType, HttpServletResponse response) {
         prepareResponse(response);
         if (!properties.isBroadcastEnabled()) {
@@ -50,7 +54,7 @@ public class SseController {
      * @param response   HTTP 响应
      * @return SseEmitter
      */
-    @GetMapping(value = SseConstant.TARGETED_PATH, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = SseConstant.SUBSCRIBE_PATH, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeTargeted(@RequestParam("receiverId") String receiverId, HttpServletResponse response) {
         prepareResponse(response);
         if (!properties.isTargetedEnabled()) {

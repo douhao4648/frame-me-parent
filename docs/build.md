@@ -76,7 +76,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 ## Maven Profile
 
-`frame-me-starter-base` 中定义了两个可选 Maven profile，用于在开发/调试时按需引入额外能力：
+`frame-me-tester/frame-me-tester-service` 中定义了两个可选 Maven profile，用于在开发/调试时按需引入额外能力：
 
 ### `p6spy` — SQL 监控
 

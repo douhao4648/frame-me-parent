@@ -10,11 +10,8 @@ public final class SseConstant {
     private SseConstant() {
     }
 
-    /** 广播订阅路径. */
-    public static final String BROADCAST_PATH = "/me/sse/subscribe/";
-
-    /** 定向订阅路径. */
-    public static final String TARGETED_PATH = "/me/sse/subscribe";
+    /** 订阅路径后缀. */
+    public static final String SUBSCRIBE_PATH = "/subscribe";
 
     /** 默认 SSE 超时（毫秒），0 表示不超时. */
     public static final long DEFAULT_TIMEOUT = 0L;

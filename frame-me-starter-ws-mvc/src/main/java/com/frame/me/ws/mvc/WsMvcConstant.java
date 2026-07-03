@@ -5,13 +5,10 @@ package com.frame.me.ws.mvc;
  *
  * @author frame-me
  */
-public final class WsMvcConstant {
+public class WsMvcConstant {
 
     private WsMvcConstant() {
     }
-
-    /** WebSocket 端点路径. */
-    public static final String WS_ENDPOINT = "/me/ws";
 
     /** 订阅类型字段. */
     public static final String FIELD_SUBSCRIBE_TYPE = "type";

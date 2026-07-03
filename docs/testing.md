@@ -7,9 +7,13 @@
 ```
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/ApplicationTests.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/async/AsyncCustomPrefixTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/async/AsyncIntegrationTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/JwtAuthEndToEndTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/flex/FlexMultiDataSourceTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java
@@ -18,9 +22,13 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybati
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/RedissonLockTest.java
 ```
 
+- `AsyncCustomPrefixTest`：验证自定义 `@Async` 线程池前缀。
+- `AsyncIntegrationTest`：验证默认 `@Async` 线程池与异常通知行为。
+- `JwtAuthEndToEndTest`：验证 JWT 登录/刷新/当前用户/登出端到端流程。
 - `DemoServiceCacheTest`：演示 JetCache 两级缓存集成测试。
 - `JasyptEncryptTest`：演示 Jasypt 配置加密解密测试。
 - `UserCreatedEventFlowTest`：演示事件桥接端到端测试。
+- `FlexMultiDataSourceTest`：演示 MyBatis-Flex + dynamic-ds 多数据源切换。
 - `RedissonLockTest`：演示 Redisson 分布式锁集成测试。
 - `ApplicationTests`：使用 H2 内存数据库验证 Spring Boot 上下文能正常启动，不依赖 Docker。
 - `AbstractIntegrationTest`：Testcontainers + MySQL 集成测试基类。
@@ -144,7 +152,9 @@ public class HealthController {
 | 测试类 | 路径 | 说明 |
 |---|---|---|
 | `AbstractIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java` | 测试基类，负责启动 MySQL 容器并注入数据源配置 |
+| `JwtAuthEndToEndTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/JwtAuthEndToEndTest.java` | 覆盖 JWT 登录/刷新/当前用户/登出 |
 | `DemoMapperIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java` | 覆盖插入/自动填充、查询、乐观锁、逻辑删除、分页 |
+| `FlexMultiDataSourceTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/flex/FlexMultiDataSourceTest.java` | 演示 MyBatis-Flex + dynamic-ds 多数据源切换 |
 | `MybatisPlusCrudAndFillTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java` | 覆盖 CRUD 与自动填充 |
 | `MybatisPlusLogicDeleteTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java` | 覆盖逻辑删除 |
 | `MybatisPlusOptimisticLockTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java` | 覆盖乐观锁 |
