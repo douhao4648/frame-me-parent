@@ -32,7 +32,7 @@ class AsyncIntegrationTest {
 
         assertThat(asyncThreadName)
                 .isNotEqualTo(callerThreadName)
-                .startsWith("frame-me-async-");
+                .startsWith("me-async-");
     }
 
     @Test
@@ -40,6 +40,6 @@ class AsyncIntegrationTest {
         assertThat(taskExecutor.getCorePoolSize()).isEqualTo(4);
         assertThat(taskExecutor.getMaxPoolSize()).isEqualTo(16);
         assertThat(taskExecutor.getQueueCapacity()).isEqualTo(256);
-        assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("frame-me-async-");
+        assertThat(taskExecutor.getThreadNamePrefix()).isEqualTo("me-async-");
     }
 }

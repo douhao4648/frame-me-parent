@@ -3,8 +3,11 @@ package com.frame.me.auth.config;
 import com.frame.me.auth.audit.AuditAuthOperatorSupplier;
 import com.frame.me.auth.core.HeaderAuthUserResolver;
 import com.frame.me.auth.filter.AuthFilter;
+import com.frame.me.auth.propagation.AuthContextTaskDecorator;
+import com.frame.me.auth.propagation.AuthPropagationInterceptor;
 import com.frame.me.auth.resolver.LoginUserArgumentResolver;
 import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.base.config.AsyncAutoConfiguration;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.op.audit.config.AuditAutoConfiguration;
 import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
@@ -19,6 +22,8 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.core.task.TaskDecorator;
+import org.springframework.web.client.support.RestClientHttpServiceGroupConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -33,7 +38,7 @@ import java.util.List;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(AuthProperties.class)
-@AutoConfigureBefore(AuditAutoConfiguration.class)
+@AutoConfigureBefore({AuditAutoConfiguration.class, AsyncAutoConfiguration.class})
 public class AuthAutoConfiguration {
 
     /**
@@ -83,5 +88,41 @@ public class AuthAutoConfiguration {
     @ConditionalOnMissingBean(AuditLogOperatorSupplier.class)
     public AuditLogOperatorSupplier auditAuthOperatorSupplier() {
         return new AuditAuthOperatorSupplier();
+    }
+
+    /**
+     * 认证信息传播拦截器，用于把当前请求的认证头复制到 {@code @ImportHttpServices} 出站请求.
+     */
+    @Bean
+    @ConditionalOnClass(RestClientHttpServiceGroupConfigurer.class)
+    @ConditionalOnProperty(prefix = "me.auth.propagate", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public AuthPropagationInterceptor authPropagationInterceptor(AuthProperties properties) {
+        return new AuthPropagationInterceptor(properties);
+    }
+
+    /**
+     * 为所有声明式 HTTP 客户端分组注册认证传播拦截器.
+     */
+    @Bean
+    @ConditionalOnClass(RestClientHttpServiceGroupConfigurer.class)
+    @ConditionalOnProperty(prefix = "me.auth.propagate", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public RestClientHttpServiceGroupConfigurer authPropagationGroupConfigurer(
+            AuthPropagationInterceptor authPropagationInterceptor) {
+        return groups -> groups.forEachClient((group, clientBuilder) ->
+                clientBuilder.requestInterceptor(authPropagationInterceptor));
+    }
+
+    /**
+     * 认证上下文异步任务装饰器.
+     *
+     * <p>当 {@code me.auth.propagate.async.enabled=true} 时，在默认 {@code @Async} 线程池上
+     * 捕获并恢复 {@link com.frame.me.auth.core.AuthContext} 用户以及当前请求的认证头。
+     * 关闭时不会注册到线程池，异步线程中无法获取认证上下文。</p>
+     */
+    @Bean
+    @ConditionalOnClass(TaskDecorator.class)
+    @ConditionalOnProperty(prefix = "me.auth.propagate.async", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public AuthContextTaskDecorator authContextTaskDecorator(AuthProperties properties) {
+        return new AuthContextTaskDecorator(properties);
     }
 }

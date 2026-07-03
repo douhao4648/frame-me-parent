@@ -480,3 +480,62 @@ me:
 
 - `secret` **必须配置**，长度不少于 32 字符。
 - Refresh Token 默认存储在 Redis，需配置 `spring.data.redis.*`。
+
+### 服务间调用传播用户信息
+
+当使用 `@ImportHttpServices` / Spring HTTP Interface 进行服务间调用时，`frame-me-starter-auth` 会自动把当前请求的认证信息传播到下游服务，使下游无需改动即可通过 `@LoginUser` 获取同一用户。
+
+传播范围：
+
+- 仅作用于 `@ImportHttpServices` 生成的声明式 HTTP 客户端，不影响普通 `RestClient` / `RestTemplate`（避免把内部 token 泄露给外部 webhook 等调用）。
+- 默认从当前请求原样传播以下头：
+  - `Authorization`：覆盖 JWT（`Bearer ...`）场景。
+  - `X-User-Id`、`X-User-Account`：覆盖 `HeaderAuthUserResolver` 场景。
+- 若当前请求已通过认证（无论 JWT 还是 header-auth），还会从 `AuthContext` 把用户 ID 和账号作为 `X-User-Id` / `X-User-Account` 补充到出站请求，使 **JWT 上游调用 header-auth 下游** 的混合场景也能被识别。
+
+配置示例：
+
+```yaml
+me:
+  auth:
+    propagate:
+      enabled: true                    # 默认 true
+      headers:                         # 需要从当前请求原样传播的头
+        - Authorization
+        - X-User-Id
+        - X-User-Account
+      user-info:
+        enabled: true                  # 默认 true，从 AuthContext 补充 X-User-Id / X-User-Account
+        user-id-header: X-User-Id
+        user-account-header: X-User-Account
+```
+
+- `enabled`：是否启用传播，默认 `true`。
+- `headers`：需要从当前请求原样传播到下游的头名列表。
+- `user-info.enabled`：是否从 `AuthContext` 补充用户头，默认 `true`。
+- `user-info.user-id-header` / `user-info.user-account-header`：用户 ID / 账号对应的头名，可自定义。
+
+**注意：** 传播依赖当前线程是否绑定了 `HttpServletRequest`。如果在 `@Async`、定时任务等无线程绑定请求的上下文里发起调用，拦截器会静默跳过，不会传播认证头。
+
+### 异步线程传播
+
+如果需要在 `@Async` 方法内部继续使用 `AuthContext` 中的用户信息（例如 `@LoginUser`、审计等），或继续通过 `@ImportHttpServices` 向下游传播认证头，开启异步传播开关：
+
+```yaml
+me:
+  auth:
+    propagate:
+      async:
+        enabled: true   # 默认 true
+```
+
+**默认启用**；关闭后异步线程中无法获取 `AuthContext` 用户，下游调用也不会携带认证头。
+
+传播内容：
+
+- `AuthContext` 中的当前用户。
+- `me.auth.propagate.headers` 配置的请求头（来自当前 `HttpServletRequest`）。
+
+实现方式：默认异步线程池的 `TaskDecorator` 在任务提交时捕获当前上下文，并在异步线程执行前恢复。
+
+**注意：** 异步传播与 header 传播开关（`me.auth.propagate.enabled`）相互独立。即使关闭 header 传播，只要 `me.auth.propagate.async.enabled=true`，异步线程中仍然能拿到 `AuthContext` 用户；但此时通过 `@ImportHttpServices` 调用下游服务不会携带认证头。

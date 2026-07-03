@@ -25,6 +25,21 @@ mybatis-plus:
       logic-not-delete-value: 0
       id-type: assign_id
 
+mybatis-flex:
+  datasource:
+    master:
+      url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+      type: hikari
+    second:
+      url: jdbc:h2:mem:testdb2;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+      type: hikari
+
 me:
   mybatis:
     meta-object-handler:
