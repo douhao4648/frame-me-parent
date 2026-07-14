@@ -53,6 +53,7 @@
         <module>frame-me-starter-mybatis-plus</module>
         <module>frame-me-starter-mybatis-flex</module>
         <module>frame-me-starter-auth</module>
+        <module>frame-me-starter-auth-rbac</module>
         <module>frame-me-starter-auth-jwt</module>
         <module>frame-me-starter-cloud</module>
         <module>frame-me-starter-doc-openapi</module>
@@ -117,6 +118,11 @@
             <dependency>
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-auth-rbac</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

@@ -552,3 +552,109 @@ me:
 实现方式：默认异步线程池的 `TaskDecorator` 在任务提交时捕获当前上下文，并在异步线程执行前恢复。
 
 **注意：** 异步传播与 header 传播开关（`me.auth.propagate.enabled`）相互独立。即使关闭 header 传播，只要 `me.auth.propagate.async.enabled=true`，异步线程中仍然能拿到 `AuthContext` 用户；但此时通过 `@ImportHttpServices` 调用下游服务不会携带认证头。
+
+### 权限控制
+
+`frame-me-starter-auth-rbac` 提供基于角色 + 资源/操作的轻量级权限控制，不依赖 Spring Security，需要搭配 `frame-me-starter-auth` 使用。
+
+#### 权限模型
+
+- **角色（Role）**：字符串标识，如 `admin`、`operator`。
+- **权限（Permission）**：由 `resource`（资源）和 `action`（操作）组成，如 `user:read`、`order:create`；支持 `*` 通配。
+- **数据权限（Data Permission）**：预留 `resource` + `action` + `dataScope` + `dataIds` 模型，业务可通过 `IAuthPermissionProvider#getDataPermissions` 自行扩展。
+
+#### 权限数据源
+
+默认使用配置化数据源；业务可声明自定义 `IAuthPermissionProvider` bean 接入数据库或远程服务。
+
+配置示例：
+
+```yaml
+me:
+  auth:
+    permission:
+      enabled: true
+      roles:
+        admin:
+          - resource: user
+            action: "*"
+        operator:
+          - resource: order
+            action: read
+      users:
+        "1":   # 用户 ID
+          - admin
+```
+
+#### 方法级注解
+
+标注在 Controller 类或方法上：
+
+| 注解 | 说明 |
+|---|---|
+| `@RequireRole("admin")` | 需要指定角色 |
+| `@RequireAnyRole({"admin", "operator"})` | 拥有任意一个角色即可 |
+| `@RequirePermission(resource = "user", action = "read")` | 需要指定资源/操作权限 |
+| `@RequireAnyPermission({@RequirePermission(...), ...})` | 满足任意一个权限即可 |
+| `@RequireAllPermissions({@RequirePermission(...), ...})` | 需要同时满足所有权限 |
+
+示例：
+
+```java
+@RestController
+@RequestMapping("/api/order")
+public class OrderController {
+
+    @RequireRole("admin")
+    @DeleteMapping("/{id}")
+    public IResult<Boolean> delete(@PathVariable Long id) {
+        // 仅 admin 可访问
+    }
+
+    @RequirePermission(resource = "order", action = "read")
+    @GetMapping("/{id}")
+    public IResult<OrderVO> get(@PathVariable Long id) {
+        // 拥有 order:read 权限可访问
+    }
+}
+```
+
+#### Filter 层路径规则
+
+按 URL 路径批量控制：
+
+```yaml
+me:
+  auth:
+    permission:
+      rules:
+        - path: /api/admin/**
+          methods: [GET, POST]
+          roles: [admin]
+        - path: /api/order/**
+          permissions:
+            - resource: order
+              action: read
+```
+
+#### 运行时判断
+
+在 Service / Mapper 中可通过 `AuthContext` 判断：
+
+```java
+if (AuthPermissionUtils.hasRole("admin")) {
+    // ...
+}
+if (AuthPermissionUtils.hasPermission("order", "read")) {
+    // ...
+}
+if (AuthPermissionUtils.hasDataPermission("order", "read", orderId)) {
+    // 数据权限判断（需业务扩展）
+}
+```
+
+#### 与 `@Anonymous` 的关系
+
+- 标注了 `@Anonymous` 的类或方法自动跳过权限拦截器，但**仍受 Filter 层路径规则约束**。
+- 未标注 `@Anonymous` 的接口，未登录时由 `AuthFilter` 返回 401；已登录但无权限时由权限层返回 403。
+- 关闭 `me.auth.enforce-login` 后，未登录请求会放行到权限层，因无法获取用户角色/权限，有注解的方法会返回 403。

@@ -41,6 +41,15 @@ mybatis-flex:
       type: hikari
 
 me:
+  auth:
+    permission:
+#      rules:
+#        /api/admin/** : "role('admin')"
+#        /api/order/** : "role('admin') and perm('order', 'r')"
+      roles:
+        admin: "user:*,order,order:r"
+      users:
+        "1": admin
   mybatis:
     meta-object-handler:
       enabled: true

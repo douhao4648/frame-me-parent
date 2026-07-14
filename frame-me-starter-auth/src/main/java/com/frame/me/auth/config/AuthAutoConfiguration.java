@@ -13,6 +13,7 @@ import com.frame.me.op.audit.config.AuditAutoConfiguration;
 import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -74,7 +75,7 @@ public class AuthAutoConfiguration {
     public WebMvcConfigurer loginUserArgumentResolverConfigurer() {
         return new WebMvcConfigurer() {
             @Override
-            public void addArgumentResolvers(List<org.springframework.web.method.support.HandlerMethodArgumentResolver> resolvers) {
+            public void addArgumentResolvers(@NonNull List<org.springframework.web.method.support.HandlerMethodArgumentResolver> resolvers) {
                 resolvers.add(new LoginUserArgumentResolver());
             }
         };

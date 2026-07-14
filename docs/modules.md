@@ -292,7 +292,7 @@ me:
 
 ## `frame-me-starter-auth`
 
-- **定位**：认证授权抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点，默认带一个基于请求头的极简兜底实现；后续可通过新增 `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-security` 等模块完全接管具体实现。
+- **定位**：认证抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点，默认带一个基于请求头的极简兜底实现；后续可通过新增 `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-security` 等模块完全接管具体实现。RBAC 授权能力已独立到 `frame-me-starter-auth-rbac`。
 - **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现。
 - **关键类**：
   - `com.frame.me.auth.config.AuthAutoConfiguration` — 自动装配入口。
@@ -313,6 +313,32 @@ me:
   - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得认证上下文能力。
   - 默认的 `HeaderAuthUserResolver` 仅用于开发/测试，生产环境应由真实认证实现替换。
   - 通过 `@AutoConfigureBefore(AuditAutoConfiguration.class)` 保证审计模块能拿到当前登录用户 ID。
+
+## `frame-me-starter-auth-rbac`
+
+- **定位**：框架无关的轻量 RBAC 授权模块，依赖 `frame-me-starter-auth`。提供角色/资源-操作权限注解、拦截器、Filter 和 SPI。
+- **依赖**：`frame-me-starter-auth`、`lombok`。
+- **关键类**：
+  - `com.frame.me.auth.rbac.config.RbacAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.auth.rbac.config.RbacProperties` — `me.auth.permission.*` 配置属性绑定。
+  - `com.frame.me.auth.rbac.annotation.RequireRole` / `@RequireAnyRole` — 角色校验注解。
+  - `com.frame.me.auth.rbac.annotation.RequirePermission` / `@RequireAnyPermission` / `@RequireAllPermissions` — 权限校验注解。
+  - `com.frame.me.auth.rbac.permission.Permission` / `DataPermission` — 权限值对象。
+  - `com.frame.me.auth.rbac.permission.IAuthPermissionProvider` — 权限数据源 SPI。
+  - `com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider` — 默认配置化权限提供者。
+  - `com.frame.me.auth.rbac.permission.AuthPermissionUtils` — 程序化权限判断工具类（`hasRole` / `hasPermission` / `hasDataPermission`）。
+  - `com.frame.me.auth.rbac.filter.PermissionFilter` — 路径规则权限过滤器。
+  - `com.frame.me.auth.rbac.interceptor.PermissionInterceptor` — 注解权限拦截器。
+- **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacAutoConfiguration`。
+- **可配置项**：
+  - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。
+  - `me.auth.permission.rules` — Filter 层路径权限规则。
+  - `me.auth.permission.roles` — 角色到权限映射。
+  - `me.auth.permission.users` — 用户到角色映射。
+- **设计约定**：
+  - RBAC 模块是可选依赖；Sa-Token / Spring Security 等自带 RBAC 的方案不需要引入此模块。
+  - 引入此模块后，Controller 上使用 `@RequireRole` / `@RequirePermission` 注解，Service 中使用 `AuthPermissionUtils` 静态方法。
+  - `PermissionFilter` 在 `AuthFilter` 之后执行（`Ordered.HIGHEST_PRECEDENCE + 200`）。
 
 ## `frame-me-starter-auth-jwt`
 
