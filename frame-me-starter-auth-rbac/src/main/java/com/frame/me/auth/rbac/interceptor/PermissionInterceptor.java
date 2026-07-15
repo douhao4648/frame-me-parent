@@ -1,9 +1,9 @@
 package com.frame.me.auth.rbac.interceptor;
 
 import com.frame.me.auth.annotation.Anonymous;
+import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.rbac.annotation.RequireAuth;
 import com.frame.me.auth.rbac.config.RbacProperties;
-import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.rbac.permission.AuthExpressionRoot;
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
@@ -22,8 +22,10 @@ import java.lang.reflect.Method;
 /**
  * 权限拦截器.
  *
- * <p>解析 {@link RequireAuth} 上的 SpEL 表达式，调用 {@link AuthExpressionRoot} 中的
- * {@code role} / {@code perm} 函数进行权限校验，无权限时返回 403。</p>
+ * <p>仅对标注了 {@link RequireAuth} 的 Controller 方法生效：解析其 SpEL 表达式，
+ * 调用 {@link AuthExpressionRoot} 中的 {@code role} / {@code perm} 函数进行权限校验。
+ * 未登录访问受保护方法返回 401，已登录但无权限返回 403。
+ * 未标注 {@link RequireAuth} 的方法不干预（登录校验交由 {@code AuthFilter}）。</p>
  *
  * @author frame-me
  */
@@ -46,24 +48,29 @@ public class PermissionInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        User user = AuthContext.getUser();
-        if (user == null) {
-            writeForbidden(response);
-            return false;
-        }
-
-        ensurePermissionsLoaded(user);
-
+        // 先解析注解：无 @RequireAuth 的接口直接放行，避免无谓的权限加载（DB 查询）
         RequireAuth annotation = resolveAnnotation(handlerMethod);
         if (annotation == null) {
             return true;
         }
 
+        User user = AuthContext.getUser();
+        if (user == null) {
+            // 声明了权限要求但未登录：401 未认证（语义上区别于 403 已认证无权限）
+            AuthPermissionHolder.clear();
+            writeError(response, ResultCode.UNAUTHORIZED);
+            return false;
+        }
+
+        AuthPermissionHolder.ensureLoaded(user, permissionProvider);
+
         if (AuthExpressionRoot.evaluate(annotation.value())) {
             return true;
         }
 
-        writeForbidden(response);
+        // 已登录但无权限：403。preHandle 返回 false 时 Spring 不会回调 afterCompletion，需自行清理
+        AuthPermissionHolder.clear();
+        writeError(response, ResultCode.FORBIDDEN);
         return false;
     }
 
@@ -93,15 +100,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
         return annotation;
     }
 
-    private void ensurePermissionsLoaded(User user) {
-        if (!AuthPermissionHolder.getRoles().isEmpty() || !AuthPermissionHolder.getPermissions().isEmpty()) {
-            return;
-        }
-        AuthPermissionHolder.setRoles(permissionProvider.getRoles(user));
-        AuthPermissionHolder.setPermissions(permissionProvider.getPermissions(user));
-    }
-
-    private void writeForbidden(HttpServletResponse response) throws Exception {
-        errorResponseWriter.write(response, ResultCode.FORBIDDEN, null);
+    private void writeError(HttpServletResponse response, ResultCode resultCode) throws Exception {
+        errorResponseWriter.write(response, resultCode, null);
     }
 }

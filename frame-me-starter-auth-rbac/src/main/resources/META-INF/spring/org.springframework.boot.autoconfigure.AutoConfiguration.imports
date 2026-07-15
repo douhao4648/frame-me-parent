@@ -1,1 +1,2 @@
 com.frame.me.auth.rbac.config.RbacAutoConfiguration
+com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration

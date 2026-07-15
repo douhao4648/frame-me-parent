@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * 权限注解集成测试.
+ * 权限注解 + Filter 路径规则集成测试.
  *
  * @author frame-me
  */
@@ -57,6 +57,7 @@ class PermissionIntegrationTest {
         ResponseEntity<Result> response = restTemplate.getForEntity(
                 baseUrl() + "/api/perm-test/admin", Result.class);
 
+        // 未登录：401（由 AuthFilter 强制登录产生）
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(401, response.getBody().getCode());
     }
@@ -64,11 +65,7 @@ class PermissionIntegrationTest {
     @SuppressWarnings("unchecked")
     @Test
     void testAuthorizedWithJwtToken() {
-        String accessToken = loginAndGetAccessToken();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(accessToken);
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
+        HttpEntity<Void> entity = bearerEntity();
 
         ResponseEntity<Result> adminResponse = restTemplate.exchange(
                 baseUrl() + "/api/perm-test/admin", HttpMethod.GET, entity, Result.class);
@@ -79,6 +76,42 @@ class PermissionIntegrationTest {
                 baseUrl() + "/api/perm-test/order", HttpMethod.GET, entity, Result.class);
         assertEquals(HttpStatus.OK, orderResponse.getStatusCode());
         assertEquals(200, orderResponse.getBody().getCode());
+    }
+
+    @Test
+    void testForbiddenWhenLoggedInButNoPermission() {
+        // admin 已登录，但没有 superadmin 角色 → RBAC 拦截器返回 403
+        ResponseEntity<Result> response = restTemplate.exchange(
+                baseUrl() + "/api/perm-test/super", HttpMethod.GET, bearerEntity(), Result.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(403, response.getBody().getCode());
+    }
+
+    @Test
+    void testFilterRulePass() {
+        // 命中 Filter 规则 role('admin')，admin 满足 → 放行
+        ResponseEntity<Result> response = restTemplate.exchange(
+                baseUrl() + "/api/filter-test/data", HttpMethod.GET, bearerEntity(), Result.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(200, response.getBody().getCode());
+    }
+
+    @Test
+    void testFilterRuleForbidden() {
+        // 命中 Filter 规则 role('superadmin')，admin 不满足 → Filter 返回 403
+        ResponseEntity<Result> response = restTemplate.exchange(
+                baseUrl() + "/api/filter-deny/data", HttpMethod.GET, bearerEntity(), Result.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(403, response.getBody().getCode());
+    }
+
+    private HttpEntity<Void> bearerEntity() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(loginAndGetAccessToken());
+        return new HttpEntity<>(headers);
     }
 
     @SuppressWarnings("unchecked")
@@ -102,6 +135,11 @@ class PermissionIntegrationTest {
         PermissionTestController permissionTestController() {
             return new PermissionTestController();
         }
+
+        @Bean
+        FilterTestController filterTestController() {
+            return new FilterTestController();
+        }
     }
 
     @RestController
@@ -124,6 +162,29 @@ class PermissionIntegrationTest {
         @GetMapping("/order")
         public IResult<String> orderEndpoint() {
             return Result.success("order");
+        }
+
+        @RequireAuth("role('superadmin')")
+        @GetMapping("/super")
+        public IResult<String> superEndpoint() {
+            return Result.success("super");
+        }
+    }
+
+    /**
+     * 仅用于 Filter 层路径规则测试，方法本身不标 {@link RequireAuth}.
+     */
+    @RestController
+    static class FilterTestController {
+
+        @GetMapping("/api/filter-test/data")
+        public IResult<String> data() {
+            return Result.success("filter-ok");
+        }
+
+        @GetMapping("/api/filter-deny/data")
+        public IResult<String> deny() {
+            return Result.success("filter-deny");
         }
     }
 }

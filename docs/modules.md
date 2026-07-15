@@ -316,29 +316,47 @@ me:
 
 ## `frame-me-starter-auth-rbac`
 
-- **定位**：框架无关的轻量 RBAC 授权模块，依赖 `frame-me-starter-auth`。提供角色/资源-操作权限注解、拦截器、Filter 和 SPI。
-- **依赖**：`frame-me-starter-auth`、`lombok`。
+- **定位**：框架无关的轻量 RBAC 授权模块，依赖 `frame-me-starter-auth`。提供 `@RequireAuth`(SpEL) 注解、方法拦截器、路径 Filter 与权限数据源 SPI；另内置可选的 Redis 权限后端（read-through 缓存，支持跨服务共享与吊销）。
+- **依赖**：`frame-me-starter-auth`、`caffeine`（零传递叶子 jar，供 Redis 后端 L1 缓存）、`lombok`；`frame-me-starter-multi-redis` 为 **optional** 依赖——消费方显式引入即激活 Redis 权限后端，不引入则核心零 Redisson。
 - **关键类**：
-  - `com.frame.me.auth.rbac.config.RbacAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.auth.rbac.config.RbacAutoConfiguration` — 自动装配入口，注册权限数据源插槽 `authPermissionSource`（默认配置版实现，业务声明任意 `IAuthPermissionProvider` bean 即退避）。
   - `com.frame.me.auth.rbac.config.RbacProperties` — `me.auth.permission.*` 配置属性绑定。
-  - `com.frame.me.auth.rbac.annotation.RequireRole` / `@RequireAnyRole` — 角色校验注解。
-  - `com.frame.me.auth.rbac.annotation.RequirePermission` / `@RequireAnyPermission` / `@RequireAllPermissions` — 权限校验注解。
+  - `com.frame.me.auth.rbac.annotation.RequireAuth` — 权限校验注解（SpEL 表达式）。
+  - `com.frame.me.auth.rbac.permission.AuthExpressionRoot` — SpEL root，提供 `role()` / `perm()` 函数（表达式按字符串缓存）。
+  - `com.frame.me.auth.rbac.permission.AuthPermissionHolder` — 请求级角色/权限 ThreadLocal 缓存（独立 `loaded` 标志）。
   - `com.frame.me.auth.rbac.permission.Permission` / `DataPermission` — 权限值对象。
   - `com.frame.me.auth.rbac.permission.IAuthPermissionProvider` — 权限数据源 SPI。
   - `com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider` — 默认配置化权限提供者。
-  - `com.frame.me.auth.rbac.permission.AuthPermissionUtils` — 程序化权限判断工具类（`hasRole` / `hasPermission` / `hasDataPermission`）。
   - `com.frame.me.auth.rbac.filter.PermissionFilter` — 路径规则权限过滤器。
-  - `com.frame.me.auth.rbac.interceptor.PermissionInterceptor` — 注解权限拦截器。
-- **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacAutoConfiguration`。
+  - `com.frame.me.auth.rbac.interceptor.PermissionInterceptor` — `@RequireAuth` 注解权限拦截器。
+  - `com.frame.me.auth.rbac.propagation.AuthPermissionTaskDecorator` — `@Async` 权限上下文传播装饰器。
+  - `com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration` — 可选 Redis 后端装配入口（`@ConditionalOnClass(RedisUtils.class)` + `@AutoConfigureAfter(RbacAutoConfiguration.class)`，必须在插槽注册后处理）。
+  - `com.frame.me.auth.rbac.redis.config.RbacRedisProperties` — `me.auth.permission.redis.*` 配置绑定。
+  - `com.frame.me.auth.rbac.redis.RedisAuthPermissionProvider` — `@Primary` 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 read-through，提供 `evict(userId)` 失效。
+  - `com.frame.me.auth.rbac.redis.UserPermissionSnapshot` — Redis 缓存的用户权限快照。
+  - `com.frame.me.auth.rbac.redis.store.PermissionCacheStore` / `RedisPermissionCacheStore` — 二级缓存存储 SPI 与 Redis 实现。
+- **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacRedisAutoConfiguration`（先于）与 `RbacAutoConfiguration`。
 - **可配置项**：
-  - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。
-  - `me.auth.permission.rules` — Filter 层路径权限规则。
-  - `me.auth.permission.roles` — 角色到权限映射。
-  - `me.auth.permission.users` — 用户到角色映射。
+  - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。**总开关，为 `false` 时 Redis 后端一并退避。**
+  - `me.auth.permission.rules` — Filter 层「Ant 路径 → SpEL 表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 会剥离 `/`、`*` 导致规则静默失效（详见 `docs/conventions.md`）。
+  - `me.auth.permission.roles` — 角色到权限映射（逗号分隔 `resource:action`，action 可省略默认 `*`）。
+  - `me.auth.permission.users` — 用户 ID 到角色映射（逗号分隔）。
+  - `me.auth.permission.propagate.async.enabled` — 是否传播权限上下文到 `@Async` 线程，默认 `true`。
+  - `me.auth.permission.redis.enabled` — 是否启用 Redis 缓存层，默认 `true`（需 classpath 存在 multi-redis）。
+  - `me.auth.permission.redis.keyPrefix` — 缓存 key 前缀，默认 `auth:perms:`。
+  - `me.auth.permission.redis.clientName` — Redis 实例名（对应 `me.redis.clients`），默认 `default`。
+  - `me.auth.permission.redis.redisTtl` / `localTtl` / `localMaxSize` — L2 Redis 过期、L1 本地过期与容量。
 - **设计约定**：
   - RBAC 模块是可选依赖；Sa-Token / Spring Security 等自带 RBAC 的方案不需要引入此模块。
-  - 引入此模块后，Controller 上使用 `@RequireRole` / `@RequirePermission` 注解，Service 中使用 `AuthPermissionUtils` 静态方法。
+  - 未登录访问受保护接口返回 401，已登录无权限返回 403（统一 `Result`，HTTP 200、业务码在 body）。
   - `PermissionFilter` 在 `AuthFilter` 之后执行（`Ordered.HIGHEST_PRECEDENCE + 200`）。
+  - **可选 Redis 后端**：显式引入 `frame-me-starter-multi-redis` 即激活（`@ConditionalOnClass(RedisUtils.class)`），`RedisAuthPermissionProvider` 以 `@Primary` 生效、配置版 provider 退避；不引入则仅配置版 provider，classpath 零 Redisson。激活后如需 caffeine 之外的调整见 `me.auth.permission.redis.*`。
+  - 委托数据源默认 `ConfigAuthPermissionProvider`；声明名为 `authPermissionSource` 的 `IAuthPermissionProvider` bean 可接入数据库等真实数据源。
+  - **bean 命名约束**：`RedisAuthPermissionProvider` 无条件 `@Primary`。业务自定义 provider 若作为数据源，必须命名为 `authPermissionSource` 且**不要**标 `@Primary`——否则会出现两个 `@Primary` 导致按类型注入处 `NoUniqueBeanDefinitionException`；启用 Redis 后端时业务 provider 若未命名为 `authPermissionSource`，默认插槽按类型退避后包装器按名注入失败，**启动 fail-fast**（不会静默忽略）。
+  - 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）；Redis 异常自动降级回源。
+  - **吊销最终一致**：`evict` 只清当前实例的 L1，其他实例的 L1 在 `localTtl`（默认 5s）内仍提供旧权限，即吊销最长延迟 = `localTtl`。需要即时生效的场景应调低 `localTtl` 或直接清 Redis。
+  - **测试注意**：本模块 test classpath 带 redisson 系（multi-redis 在自身 classpath 上），未来在本模块内写全量 `@SpringBootTest` 可能触发 Redisson 装配连接 Redis，应优先用 `ApplicationContextRunner` 切片测试。
+  - 所有服务共享同一 Redis 时 RBAC 判定天然一致，适合多服务统一权限语义。
 
 ## `frame-me-starter-auth-jwt`
 

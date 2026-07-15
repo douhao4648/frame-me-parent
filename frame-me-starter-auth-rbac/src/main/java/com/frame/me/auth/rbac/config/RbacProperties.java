@@ -1,6 +1,8 @@
 package com.frame.me.auth.rbac.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.HashMap;
@@ -12,6 +14,7 @@ import java.util.Map;
  *
  * @author frame-me
  */
+@Slf4j
 @Data
 @ConfigurationProperties(prefix = "me.auth.permission")
 public class RbacProperties {
@@ -25,11 +28,15 @@ public class RbacProperties {
      * Filter 层路径 → SpEL 表达式映射.
      *
      * <p>key 为 Ant 风格路径，value 为 SpEL 表达式。
-     * 示例：
+     *
+     * <p><b>注意：</b>Spring Boot 对 {@code Map} 的 key 做 relaxed binding 时，会剥离
+     * 除字母数字、{@code -}、{@code .} 之外的字符，路径里的 {@code /} 和 {@code *}
+     * 会被删掉（{@code /api/admin/**} 变成 {@code apiadmin}），导致规则静默失效（fail-open）。
+     * 因此 YAML 中必须用方括号记法保留原始 key：
      * <pre>{@code
      * rules:
-     *   /api/admin/** : "role('admin')"
-     *   /api/order/** : "role('admin') and perm('order', 'r')"
+     *   "[/api/admin/**]": "role('admin')"
+     *   "[/api/order/**]": "role('admin') and perm('order', 'r')"
      * }</pre>
      */
     private Map<String, String> rules = new LinkedHashMap<>();
@@ -56,4 +63,19 @@ public class RbacProperties {
      * }</pre>
      */
     private Map<String, String> users = new HashMap<>();
+
+    /**
+     * 启动时校验规则 key：若不以 {@code /} 开头，多半是 YAML 中未用方括号记法，
+     * 导致路径里的 {@code /}、{@code *} 被 relaxed binding 剥离，规则会静默失效（fail-open）。
+     */
+    @PostConstruct
+    void validateRuleKeys() {
+        for (String key : rules.keySet()) {
+            if (!key.startsWith("/")) {
+                log.warn("权限规则 key [{}] 不是以 '/' 开头的有效路径，该规则不会生效。"
+                        + "YAML 中 Map key 含 '/' 或 '*' 时会被 Spring Boot relaxed binding 剥离字符，"
+                        + "请改用方括号记法：\"[/api/xxx/**]\"", key);
+            }
+        }
+    }
 }

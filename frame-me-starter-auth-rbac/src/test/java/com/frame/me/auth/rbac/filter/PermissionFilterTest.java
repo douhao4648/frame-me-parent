@@ -127,7 +127,7 @@ class PermissionFilterTest {
     }
 
     @Test
-    void testUnauthenticatedPassToAuthFilter() throws Exception {
+    void testUnauthenticatedReturns401() throws Exception {
         properties.getRules().put("/api/admin/**", "role('admin')");
 
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/admin/users");
@@ -136,7 +136,10 @@ class PermissionFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        assertEquals(request, chain.getRequest());
+        // 命中权限规则但未登录：统一 Result（HTTP 200，body code 401），不再放行
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getContentAsString().contains("401"));
+        assertNull(chain.getRequest());
     }
 
     @Test

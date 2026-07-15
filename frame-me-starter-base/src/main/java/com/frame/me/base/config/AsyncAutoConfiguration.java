@@ -62,9 +62,35 @@ public class AsyncAutoConfiguration {
             executor.setAwaitTerminationSeconds(properties.getAwaitTerminationSeconds());
         }
         executor.setRejectedExecutionHandler(resolveRejectionPolicy(properties.getRejectionPolicy()));
-        taskDecorator.ifAvailable(executor::setTaskDecorator);
+        applyTaskDecorators(executor, taskDecorator);
         executor.initialize();
         return executor;
+    }
+
+    /**
+     * 应用所有 {@link TaskDecorator}：多个装饰器按 {@code @Order} 组合成链，
+     * 顺序最靠前者位于最外层（最先执行、最后清理）；仅一个时直接使用，保持原行为。
+     *
+     * @param executor              线程池
+     * @param taskDecoratorProvider 装饰器提供者
+     */
+    private void applyTaskDecorators(ThreadPoolTaskExecutor executor,
+                                     ObjectProvider<TaskDecorator> taskDecoratorProvider) {
+        List<TaskDecorator> decorators = taskDecoratorProvider.orderedStream().toList();
+        if (decorators.isEmpty()) {
+            return;
+        }
+        if (decorators.size() == 1) {
+            executor.setTaskDecorator(decorators.getFirst());
+            return;
+        }
+        executor.setTaskDecorator(runnable -> {
+            Runnable result = runnable;
+            for (int i = decorators.size() - 1; i >= 0; i--) {
+                result = decorators.get(i).decorate(result);
+            }
+            return result;
+        });
     }
 
     /**

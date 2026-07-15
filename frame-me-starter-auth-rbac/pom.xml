@@ -19,6 +19,17 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-auth</artifactId>
         </dependency>
+        <!-- 可选 Redis 权限后端：消费方显式引入 multi-redis 即激活 RbacRedisAutoConfiguration,optional 阻断传递 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-multi-redis</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Redis 后端的 L1 本地缓存：零传递叶子 jar,非 optional,避免"只补 multi-redis 忘补 caffeine"的半启用状态 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

@@ -1,11 +1,13 @@
 package com.frame.me.auth.rbac.interceptor;
 
+import com.frame.me.auth.annotation.Anonymous;
+import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.rbac.annotation.RequireAuth;
 import com.frame.me.auth.rbac.config.RbacProperties;
-import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.Permission;
+import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +23,11 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -55,10 +61,7 @@ class PermissionInterceptorTest {
         AuthContext.setUser(createUser(1L));
         when(permissionProvider.getRoles(any())).thenReturn(List.of("admin"));
 
-        HandlerMethod handler = handlerOf("adminOnly");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertTrue(result);
+        assertTrue(preHandle("adminOnly"));
     }
 
     @Test
@@ -66,10 +69,9 @@ class PermissionInterceptorTest {
         AuthContext.setUser(createUser(1L));
         when(permissionProvider.getRoles(any())).thenReturn(List.of("operator"));
 
-        HandlerMethod handler = handlerOf("adminOnly");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertFalse(result);
+        assertFalse(preHandle("adminOnly"));
+        // 已登录但无权限：403
+        verify(errorResponseWriter).write(any(HttpServletResponse.class), eq(ResultCode.FORBIDDEN), isNull());
     }
 
     @Test
@@ -77,10 +79,7 @@ class PermissionInterceptorTest {
         AuthContext.setUser(createUser(1L));
         when(permissionProvider.getRoles(any())).thenReturn(List.of("operator"));
 
-        HandlerMethod handler = handlerOf("anyAdminOrOperator");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertTrue(result);
+        assertTrue(preHandle("anyAdminOrOperator"));
     }
 
     @Test
@@ -88,10 +87,7 @@ class PermissionInterceptorTest {
         AuthContext.setUser(createUser(1L));
         when(permissionProvider.getPermissions(any())).thenReturn(List.of(new Permission("user", "r")));
 
-        HandlerMethod handler = handlerOf("readUser");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertTrue(result);
+        assertTrue(preHandle("readUser"));
     }
 
     @Test
@@ -99,10 +95,7 @@ class PermissionInterceptorTest {
         AuthContext.setUser(createUser(1L));
         when(permissionProvider.getPermissions(any())).thenReturn(Collections.emptyList());
 
-        HandlerMethod handler = handlerOf("readUser");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertFalse(result);
+        assertFalse(preHandle("readUser"));
     }
 
     @Test
@@ -110,27 +103,64 @@ class PermissionInterceptorTest {
         AuthContext.setUser(createUser(1L));
         when(permissionProvider.getPermissions(any())).thenReturn(List.of(new Permission("order", "r")));
 
-        HandlerMethod handler = handlerOf("readUserOrOrder");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertTrue(result);
+        assertTrue(preHandle("readUserOrOrder"));
     }
 
     @Test
-    void testAnonymousUserForbidden() throws Exception {
-        HandlerMethod handler = handlerOf("adminOnly");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
+    void testUnauthenticatedReturns401() throws Exception {
+        // 声明了权限要求但未登录：401 未认证
+        assertFalse(preHandle("adminOnly"));
+        verify(errorResponseWriter).write(any(HttpServletResponse.class), eq(ResultCode.UNAUTHORIZED), isNull());
+    }
 
-        assertFalse(result);
+    @Test
+    void testNoAnnotationPassesWithoutLoadingPermissions() throws Exception {
+        AuthContext.setUser(createUser(1L));
+
+        // 无 @RequireAuth：直接放行，且不触发权限加载（顺序修复回归）
+        assertTrue(preHandle("noAnnotation"));
+        verifyNoInteractions(permissionProvider);
+    }
+
+    @Test
+    void testAnonymousPassesWithoutLogin() throws Exception {
+        // @Anonymous 方法：未登录放行，不触发权限加载
+        assertTrue(preHandle("publicEndpoint"));
+        verifyNoInteractions(permissionProvider);
+    }
+
+    @Test
+    void testClassLevelRequireAuthForbidden() throws Exception {
+        AuthContext.setUser(createUser(1L));
+        when(permissionProvider.getRoles(any())).thenReturn(List.of("operator"));
+
+        // 类级 @RequireAuth：方法未标注也生效
+        assertFalse(classLevelPreHandle());
+    }
+
+    @Test
+    void testClassLevelRequireAuthPass() throws Exception {
+        AuthContext.setUser(createUser(1L));
+        when(permissionProvider.getRoles(any())).thenReturn(List.of("admin"));
+
+        assertTrue(classLevelPreHandle());
+    }
+
+    @Test
+    void testInvalidSpelReturns403() throws Exception {
+        AuthContext.setUser(createUser(1L));
+        when(permissionProvider.getRoles(any())).thenReturn(List.of("admin"));
+
+        // SpEL 语法错误：evaluate 返回 false → 403
+        assertFalse(preHandle("badExpr"));
+        verify(errorResponseWriter).write(any(HttpServletResponse.class), eq(ResultCode.FORBIDDEN), isNull());
     }
 
     @Test
     void testPermissionDisabled() throws Exception {
         properties.setEnabled(false);
-        HandlerMethod handler = handlerOf("adminOnly");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
 
-        assertTrue(result);
+        assertTrue(preHandle("adminOnly"));
     }
 
     @Test
@@ -139,10 +169,7 @@ class PermissionInterceptorTest {
         when(permissionProvider.getRoles(any())).thenReturn(List.of("admin"));
         when(permissionProvider.getPermissions(any())).thenReturn(List.of(new Permission("order", "w")));
 
-        HandlerMethod handler = handlerOf("adminAndWriteOrder");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertTrue(result);
+        assertTrue(preHandle("adminAndWriteOrder"));
     }
 
     @Test
@@ -151,14 +178,17 @@ class PermissionInterceptorTest {
         when(permissionProvider.getRoles(any())).thenReturn(List.of("admin"));
         when(permissionProvider.getPermissions(any())).thenReturn(Collections.emptyList());
 
-        HandlerMethod handler = handlerOf("adminAndWriteOrder");
-        boolean result = interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
-
-        assertFalse(result);
+        assertFalse(preHandle("adminAndWriteOrder"));
     }
 
-    private HandlerMethod handlerOf(String methodName) throws NoSuchMethodException {
-        return new HandlerMethod(new TestController(), TestController.class.getMethod(methodName));
+    private boolean preHandle(String methodName) throws Exception {
+        HandlerMethod handler = new HandlerMethod(new TestController(), TestController.class.getMethod(methodName));
+        return interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
+    }
+
+    private boolean classLevelPreHandle() throws Exception {
+        HandlerMethod handler = new HandlerMethod(new AdminController(), AdminController.class.getMethod("m"));
+        return interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
     }
 
     private User createUser(Long id) {
@@ -192,6 +222,28 @@ class PermissionInterceptorTest {
         @RequireAuth("role('admin') and perm('order', 'w')")
         public String adminAndWriteOrder() {
             return "admin-order-w";
+        }
+
+        @RequireAuth("role('admin'")
+        public String badExpr() {
+            return "bad";
+        }
+
+        public String noAnnotation() {
+            return "none";
+        }
+
+        @Anonymous
+        public String publicEndpoint() {
+            return "public";
+        }
+    }
+
+    @RequireAuth("role('admin')")
+    static class AdminController {
+
+        public String m() {
+            return "m";
         }
     }
 }

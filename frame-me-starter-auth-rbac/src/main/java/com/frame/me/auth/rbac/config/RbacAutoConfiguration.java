@@ -4,10 +4,12 @@ import com.frame.me.auth.rbac.filter.PermissionFilter;
 import com.frame.me.auth.rbac.interceptor.PermissionInterceptor;
 import com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
+import com.frame.me.auth.rbac.propagation.AuthPermissionTaskDecorator;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,6 +17,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -30,11 +33,15 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class RbacAutoConfiguration {
 
     /**
-     * 默认配置化权限提供者.
+     * 默认配置化权限提供者，即权限数据源插槽（bean 名 {@code authPermissionSource}）.
+     *
+     * <p>业务声明任意 {@link IAuthPermissionProvider} bean 即可使本默认实现退避；
+     * 启用 Redis 后端时，{@code RbacRedisAutoConfiguration} 的 {@code @Primary} 包装器
+     * 按名引用本插槽作为委托数据源。</p>
      */
-    @Bean
+    @Bean(name = "authPermissionSource")
     @ConditionalOnMissingBean(IAuthPermissionProvider.class)
-    public IAuthPermissionProvider authPermissionProvider(RbacProperties properties) {
+    public IAuthPermissionProvider authPermissionSource(RbacProperties properties) {
         return new ConfigAuthPermissionProvider(properties);
     }
 
@@ -67,5 +74,19 @@ public class RbacAutoConfiguration {
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 200);
         log.info("PermissionFilter registered");
         return registration;
+    }
+
+    /**
+     * 权限上下文异步任务装饰器.
+     *
+     * <p>当 {@code me.auth.permission.propagate.async.enabled=true} 时，在默认 {@code @Async}
+     * 线程池上捕获并恢复 {@link com.frame.me.auth.rbac.permission.AuthPermissionHolder}，
+     * 使异步方法内的 {@code role()/perm()} 判断生效。</p>
+     */
+    @Bean
+    @ConditionalOnClass(TaskDecorator.class)
+    @ConditionalOnProperty(prefix = "me.auth.permission.propagate.async", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public AuthPermissionTaskDecorator authPermissionTaskDecorator() {
+        return new AuthPermissionTaskDecorator();
     }
 }

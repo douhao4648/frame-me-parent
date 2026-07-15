@@ -567,36 +567,34 @@ me:
 
 默认使用配置化数据源；业务可声明自定义 `IAuthPermissionProvider` bean 接入数据库或远程服务。
 
-配置示例：
+配置示例（`Map<String, String>`，值为逗号分隔）：
 
 ```yaml
 me:
   auth:
     permission:
       enabled: true
-      roles:
-        admin:
-          - resource: user
-            action: "*"
-        operator:
-          - resource: order
-            action: read
-      users:
-        "1":   # 用户 ID
-          - admin
+      rules:                          # Filter 层：Ant 路径 -> SpEL 表达式（key 必须用方括号记法，见下方告警）
+        "[/api/admin/**]": "role('admin')"
+        "[/api/order/**]": "role('admin') and perm('order', 'r')"
+      roles:                          # 角色 -> 权限，逗号分隔 resource:action（action 可省略，默认 *）
+        admin: "user:*,order,order:r"
+        operator: "order:r"
+      users:                          # 用户 ID(字符串) -> 角色，逗号分隔
+        "1": "admin"
 ```
 
-#### 方法级注解
+#### 方法级注解 `@RequireAuth`
 
-标注在 Controller 类或方法上：
+在 Controller 类或方法上标注 `@RequireAuth("SpEL")`，表达式求值为 `true` 放行。可用函数：
 
-| 注解 | 说明 |
+| 表达式 | 说明 |
 |---|---|
-| `@RequireRole("admin")` | 需要指定角色 |
-| `@RequireAnyRole({"admin", "operator"})` | 拥有任意一个角色即可 |
-| `@RequirePermission(resource = "user", action = "read")` | 需要指定资源/操作权限 |
-| `@RequireAnyPermission({@RequirePermission(...), ...})` | 满足任意一个权限即可 |
-| `@RequireAllPermissions({@RequirePermission(...), ...})` | 需要同时满足所有权限 |
+| `role('admin')` | 拥有指定角色 |
+| `perm('user')` | 拥有 `user` 资源的**任意**操作权限 |
+| `perm('user', 'w')` | 拥有 `user` 资源的指定操作（`w`）权限 |
+
+可用 `and` / `or` 组合；类与方法同时标注时方法优先，方法未标注则回退到类级。
 
 示例：
 
@@ -605,16 +603,22 @@ me:
 @RequestMapping("/api/order")
 public class OrderController {
 
-    @RequireRole("admin")
+    @RequireAuth("role('admin')")
     @DeleteMapping("/{id}")
     public IResult<Boolean> delete(@PathVariable Long id) {
         // 仅 admin 可访问
     }
 
-    @RequirePermission(resource = "order", action = "read")
+    @RequireAuth("perm('order', 'r')")
     @GetMapping("/{id}")
     public IResult<OrderVO> get(@PathVariable Long id) {
-        // 拥有 order:read 权限可访问
+        // 拥有 order:r 权限可访问
+    }
+
+    @RequireAuth("role('admin') or perm('order')")
+    @PostMapping
+    public IResult<Long> create(@RequestBody OrderDTO dto) {
+        // admin 或拥有 order 任意权限可访问
     }
 }
 ```
@@ -628,33 +632,50 @@ me:
   auth:
     permission:
       rules:
-        - path: /api/admin/**
-          methods: [GET, POST]
-          roles: [admin]
-        - path: /api/order/**
-          permissions:
-            - resource: order
-              action: read
+        "[/api/admin/**]": "role('admin')"
+        "[/api/order/**]": "role('admin') and perm('order', 'r')"
 ```
+
+> **⚠️ 规则 key 必须用方括号记法。** Spring Boot 对 `Map` 的 key 做 relaxed binding 时，会剥离除字母数字、`-`、`.` 之外的字符——直接写 `/api/admin/**` 会被转成 `apiadmin`，规则匹配不上而**静默失效（fail-open，全部放行）**。务必写成 `"[/api/admin/**]"`。`RbacProperties` 启动时会校验：若有规则 key 不以 `/` 开头，会打 WARN 提示。
+
+#### 响应语义
+
+统一走 `Result`（HTTP 状态码恒为 200，业务码在 body 的 `code` 字段）：
+
+- 未登录访问受保护接口：**401**（未认证）。
+- 已登录但无权限：**403**（无权限）。
+- 未标注 `@RequireAuth`、未命中路径规则的接口不干预（登录校验交由 `AuthFilter`）。
 
 #### 运行时判断
 
-在 Service / Mapper 中可通过 `AuthContext` 判断：
+在 Filter / Interceptor 之外的代码（如 Service）中，可直接读取当前请求的权限上下文：
 
 ```java
-if (AuthPermissionUtils.hasRole("admin")) {
+if (AuthPermissionHolder.getRoles().contains("admin")) {
     // ...
 }
-if (AuthPermissionUtils.hasPermission("order", "read")) {
-    // ...
-}
-if (AuthPermissionUtils.hasDataPermission("order", "read", orderId)) {
-    // 数据权限判断（需业务扩展）
-}
+boolean canWrite = AuthPermissionHolder.getPermissions().stream()
+        .anyMatch(p -> p.matches("order", "w"));
 ```
+
+> 注意：`AuthPermissionHolder` 由 Filter/Interceptor 在命中权限校验时按需加载，未命中权限规则的普通接口调用前不会主动加载。
 
 #### 与 `@Anonymous` 的关系
 
-- 标注了 `@Anonymous` 的类或方法自动跳过权限拦截器，但**仍受 Filter 层路径规则约束**。
+- 标注了 `@Anonymous` 的类或方法自动跳过 `@RequireAuth` 拦截；但若命中 Filter 层路径规则，仍受规则约束。
 - 未标注 `@Anonymous` 的接口，未登录时由 `AuthFilter` 返回 401；已登录但无权限时由权限层返回 403。
-- 关闭 `me.auth.enforce-login` 后，未登录请求会放行到权限层，因无法获取用户角色/权限，有注解的方法会返回 403。
+- 关闭 `me.auth.enforce-login` 后，未登录请求会放行到权限层；标注 `@RequireAuth` 的方法因取不到用户而返回 401。
+
+#### 异步上下文传播
+
+`@Async` 方法内的 `role()/perm()` 判断依赖 `AuthPermissionHolder` 跨线程传播。装配 `AuthPermissionTaskDecorator`（默认开启，`me.auth.permission.propagate.async.enabled`）后，默认异步线程池会在任务提交时捕获权限上下文、在异步线程恢复并在执行后清理。base 的 `AsyncAutoConfiguration` 会把多个 `TaskDecorator`（含 `AuthContextTaskDecorator`、本装饰器）按序组合成链。
+
+#### 可选 Redis 权限后端
+
+`frame-me-starter-auth-rbac` 内置可选的 Redis 权限后端：**显式引入 `frame-me-starter-multi-redis` 即激活**(`RbacRedisAutoConfiguration` 以 `@ConditionalOnClass(RedisUtils.class)` 门控，multi-redis 在 auth-rbac 中为 optional 依赖，不引入则 classpath 零 Redisson)。激活后 `RedisAuthPermissionProvider` 以 `@Primary` 生效，做 read-through 缓存：**L1 本地缓存（Caffeine，短 TTL）→ L2 Redis → 委托数据源**。所有服务共享同一 Redis 时 RBAC 判定天然一致，支持权限新鲜与吊销。
+
+- 委托数据源插槽 `authPermissionSource` 由 `RbacAutoConfiguration` 注册，默认 `ConfigAuthPermissionProvider`；声明同名 `IAuthPermissionProvider` bean 可接入数据库等真实数据源。启用 Redis 后端时业务 provider **必须**命名为 `authPermissionSource`（且不标 `@Primary`)，未命名会导致启动 fail-fast 而非静默忽略。
+- 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）。
+- Redis 读写异常时自动降级为直接回源（记告警日志），不影响权限校验主链路。
+
+配置项 `me.auth.permission.redis.*`：`enabled`（默认 `true`）、`keyPrefix`（默认 `auth:perms:`）、`clientName`（默认 `default`）、`redisTtl`（默认 `30m`）、`localTtl`（默认 `5s`）、`localMaxSize`（默认 `10000`）。

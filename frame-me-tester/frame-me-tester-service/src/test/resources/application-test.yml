@@ -43,9 +43,9 @@ mybatis-flex:
 me:
   auth:
     permission:
-#      rules:
-#        /api/admin/** : "role('admin')"
-#        /api/order/** : "role('admin') and perm('order', 'r')"
+      rules:
+        "[/api/filter-test/**]": "role('admin')"
+        "[/api/filter-deny/**]": "role('superadmin')"
       roles:
         admin: "user:*,order,order:r"
       users:

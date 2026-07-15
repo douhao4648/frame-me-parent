@@ -1,7 +1,7 @@
 package com.frame.me.auth.rbac.filter;
 
-import com.frame.me.auth.rbac.config.RbacProperties;
 import com.frame.me.auth.core.AuthContext;
+import com.frame.me.auth.rbac.config.RbacProperties;
 import com.frame.me.auth.rbac.permission.AuthExpressionRoot;
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
@@ -17,8 +17,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
 
@@ -29,13 +27,13 @@ import java.util.Map;
  * 权限过滤器.
  *
  * <p>按 {@code me.auth.permission.rules} 配置的路径→SpEL 表达式进行粗粒度权限校验。
- * 执行顺序在 AuthFilter 之后，已登录但表达式求值为 false 时返回 403。</p>
+ * 执行顺序在 AuthFilter 之后：命中规则但未登录返回 401，已登录但表达式求值为 false 返回 403。
+ * 未命中规则的路径不干预。</p>
  *
  * @author frame-me
  */
 @Slf4j
 @RequiredArgsConstructor
-@Order(Ordered.HIGHEST_PRECEDENCE + 200)
 public class PermissionFilter implements Filter {
 
     private final RbacProperties properties;
@@ -64,16 +62,17 @@ public class PermissionFilter implements Filter {
 
             User user = AuthContext.getUser();
             if (user == null) {
-                chain.doFilter(request, response);
+                // 命中权限规则但未登录：401 未认证
+                writeError(httpResponse, ResultCode.UNAUTHORIZED);
                 return;
             }
 
-            ensurePermissionsLoaded(user);
+            AuthPermissionHolder.ensureLoaded(user, permissionProvider);
 
             if (AuthExpressionRoot.evaluate(expr)) {
                 chain.doFilter(request, response);
             } else {
-                writeForbidden(httpResponse);
+                writeError(httpResponse, ResultCode.FORBIDDEN);
             }
         } finally {
             AuthPermissionHolder.clear();
@@ -94,15 +93,7 @@ public class PermissionFilter implements Filter {
         return null;
     }
 
-    private void ensurePermissionsLoaded(User user) {
-        if (!AuthPermissionHolder.getRoles().isEmpty() || !AuthPermissionHolder.getPermissions().isEmpty()) {
-            return;
-        }
-        AuthPermissionHolder.setRoles(permissionProvider.getRoles(user));
-        AuthPermissionHolder.setPermissions(permissionProvider.getPermissions(user));
-    }
-
-    private void writeForbidden(HttpServletResponse response) throws IOException {
-        errorResponseWriter.write(response, ResultCode.FORBIDDEN, null);
+    private void writeError(HttpServletResponse response, ResultCode resultCode) throws IOException {
+        errorResponseWriter.write(response, resultCode, null);
     }
 }
