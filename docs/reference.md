@@ -11,6 +11,10 @@
 | `frame-me-adapter-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-api/pom.xml` |
 | `frame-me-adapter-starter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/pom.xml` |
 | `frame-me-starter-auth` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/pom.xml` |
+| `frame-me-starter-auth-rbac` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/pom.xml` |
+| `frame-me-starter-auth-jwt` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/pom.xml` |
+| `frame-me-starter-mybatis-plus` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/pom.xml` |
+| `frame-me-starter-mybatis-flex` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-flex/pom.xml` |
 | `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
 | `frame-me-starter-multi-redis` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/pom.xml` |
 | `frame-me-starter-l1l2-cache` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/pom.xml` |
@@ -83,6 +87,14 @@
 | `AuthFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/filter/AuthFilter.java` |
 | `LoginUserArgumentResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/resolver/LoginUserArgumentResolver.java` |
 | `AuditAuthOperatorSupplier` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/audit/AuditAuthOperatorSupplier.java` |
+| `RbacAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/config/RbacAutoConfiguration.java` |
+| `RbacProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/config/RbacProperties.java` |
+| `@RequireAuth` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/annotation/RequireAuth.java` |
+| `IAuthPermissionProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/IAuthPermissionProvider.java` |
+| `AuthDataPermissions` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/AuthDataPermissions.java` |
+| `PermissionFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/filter/PermissionFilter.java` |
+| `PermissionInterceptor` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/interceptor/PermissionInterceptor.java` |
+| `RedisAuthPermissionProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/redis/RedisAuthPermissionProvider.java` |
 | `JwtAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAutoConfiguration.java` |
 | `JwtAuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAuthProperties.java` |
 | `JwtTokenService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtTokenService.java` |
@@ -134,9 +146,13 @@
 | `CacheConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/CacheConstant.java` |
 | `Application` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/Application.java` |
 | `HealthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/HealthController.java` |
-| `DemoController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/DemoController.java` |
-| `DemoEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/entity/DemoEntity.java` |
-| `DemoMapper` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/mapper/DemoMapper.java` |
+| `FlexDemoController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/FlexDemoController.java` |
+| `FlexDemoEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/entity/FlexDemoEntity.java` |
+| `FlexDemoMapper` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/mapper/FlexDemoMapper.java` |
+| `DemoAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/auth/DemoAuthUserDetailsService.java` |
+| `DemoController`（MyBatis-Plus 版，整体注释保留） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/DemoController.java` |
+| `DemoEntity`（整体注释保留） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/entity/DemoEntity.java` |
+| `DemoMapper`（整体注释保留） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/mapper/DemoMapper.java` |
 | `ApplicationTests` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/ApplicationTests.java` |
 | `AbstractIntegrationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java` |
 | `DemoMapperIntegrationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java` |
@@ -160,6 +176,7 @@
 | `frame-me-starter-l1l2-cache` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-op-audit` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-auth` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-auth-rbac` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-auth-jwt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-msg-notify` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-msg-notify/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
@@ -300,9 +317,24 @@
    - 若后续需要真正的健康检查接口，需重写该方法。
 
 6. **`frame-me-tester` 已拆分为 `frame-me-tester-api` + `frame-me-tester-service`**
-   - API 契约放在 `frame-me-tester-api`，使用 Spring HTTP Interface 声明。
-   - 实现与可运行入口放在 `frame-me-tester-service`。
+   - API 契约放在 `frame-me-tester-api`，使用 Spring HTTP Interface 声明（`IDemoApi` 与 `IFlexDemoApi` 双套契约）。
+   - 实现与可运行入口放在 `frame-me-tester-service`，当前以 **MyBatis-Flex** 为数据访问演示（`FlexDemo*` 系列类）。
+   - MyBatis-Plus 版演示类（`DemoController` / `DemoEntity` / `DemoMapper` / `DemoServiceImpl` 等）整体注释保留；`frame-me-starter-mybatis-plus`、`frame-me-starter-dynamic-ds`、`frame-me-adapter-starter` 依赖在 POM 中注释保留，可按需恢复。
 
 7. **Spring Cloud / Spring Cloud Alibaba BOM 已声明但未使用**
    - 父 POM 中已导入 `spring-cloud-dependencies` 与 `spring-cloud-alibaba-dependencies`。
    - 尚未在任何模块中引入具体 starter，为后续微服务化预留。
+
+## `agent/` 目录
+
+`frame-me-parent/agent/` 存放面向 AI 助手的工程化资产，是本仓库 `me-*` 技能/命令的源头：
+
+| 路径 | 内容 |
+|---|---|
+| `agent/rules/me-db.md` | 数据库查询与表生成代码规则（`t_`/`sp_`/`mp_`/`dep_`/`ep_` 前缀对应库，实体名去第一个前缀） |
+| `agent/commands/me-init.md` | `/me-init` 命令：为单个子工程初始化 `CLAUDE.md` + `docs/` 知识库 |
+| `agent/commands/me-init-all.md` | `/me-init-all` 命令：总工程 + 所有子工程递归初始化知识库 |
+| `agent/commands/me-new.md` | `/me-new` 命令：根据数据库表生成增删改查接口代码 |
+| `agent/skills/me-init/`、`agent/skills/me-init-all/` | 对应技能的 `SKILL.md` 定义 |
+
+修改这些文件后，需同步到 Claude Code 的技能/命令安装位置才生效。

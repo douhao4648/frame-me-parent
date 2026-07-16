@@ -1,5 +1,7 @@
 package com.frame.me.auth.rbac.redis;
 
+import com.alibaba.fastjson2.JSON;
+import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.Permission;
 import com.frame.me.auth.rbac.redis.config.RbacRedisProperties;
@@ -54,6 +56,7 @@ class RedisAuthPermissionProviderTest {
      */
     static class CountingSource implements IAuthPermissionProvider {
         int roleCalls = 0;
+        int dataPermCalls = 0;
 
         @Override
         public Collection<String> getRoles(User user) {
@@ -64,6 +67,12 @@ class RedisAuthPermissionProviderTest {
         @Override
         public Collection<Permission> getPermissions(User user) {
             return List.of(new Permission("order", "r"));
+        }
+
+        @Override
+        public Collection<DataPermission> getDataPermissions(User user) {
+            dataPermCalls++;
+            return List.of(new DataPermission("order", "*", "CUSTOM", Set.of(5L, 7L)));
         }
     }
 
@@ -99,13 +108,14 @@ class RedisAuthPermissionProviderTest {
         RbacRedisProperties props = new RbacRedisProperties();
         RedisAuthPermissionProvider provider = new RedisAuthPermissionProvider(source, props, store);
 
-        // 预置 L2 快照
+        // 预置 L2 快照（旧格式 JSON 反序列化场景：dataPermissions 为空列表）
         store.map.put(props.getKeyPrefix() + "2",
-                new UserPermissionSnapshot(Set.of("saler"), List.of(new Permission("order", "w"))));
+                new UserPermissionSnapshot(Set.of("saler"), List.of(new Permission("order", "w")), List.of()));
 
         assertEquals(Set.of("saler"), provider.getRoles(user(2)));
         assertEquals(0, source.roleCalls, "L2 命中不应回源");
         assertEquals(0, store.setCount, "L2 命中不应回填");
+        assertTrue(provider.getDataPermissions(user(2)).isEmpty(), "L2 旧格式快照数据权限应为空");
     }
 
     @Test
@@ -132,5 +142,42 @@ class RedisAuthPermissionProviderTest {
                 new RedisAuthPermissionProvider(new CountingSource(), new RbacRedisProperties(), new InMemoryStore());
         assertTrue(provider.getRoles(null).isEmpty());
         assertTrue(provider.getPermissions(new User()).isEmpty());
+        assertTrue(provider.getDataPermissions(null).isEmpty());
+        assertTrue(provider.getDataPermissions(new User()).isEmpty());
+    }
+
+    @Test
+    void readThrough_includesDataPermissions() {
+        CountingSource source = new CountingSource();
+        InMemoryStore store = new InMemoryStore();
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(source, new RbacRedisProperties(), store);
+
+        User user = user(4);
+        // 首次读取数据权限：回源并回填
+        Collection<DataPermission> dataPermissions = provider.getDataPermissions(user);
+        assertEquals(1, dataPermissions.size());
+        DataPermission dp = dataPermissions.iterator().next();
+        assertEquals("CUSTOM", dp.getDataScope());
+        assertEquals(Set.of(5L, 7L), dp.getDataIds());
+        assertEquals(1, source.dataPermCalls, "首次读取应回源");
+        assertEquals(1, store.setCount, "回源后应回填 L2（含数据权限）");
+
+        // 后续读取命中 L1，不再回源
+        provider.getDataPermissions(user);
+        assertEquals(1, source.dataPermCalls, "L1 命中不应重复回源");
+    }
+
+    @Test
+    void oldSnapshotJson_missingDataPermissionsField_deserializesToEmptyList() {
+        // 模拟升级前写入 Redis 的旧格式 JSON（无 dataPermissions 字段）
+        String oldJson = "{\"roles\":[\"admin\"],\"permissions\":[{\"resource\":\"order\",\"action\":\"r\"}]}";
+
+        UserPermissionSnapshot snapshot = JSON.parseObject(oldJson, UserPermissionSnapshot.class);
+
+        assertEquals(Set.of("admin"), snapshot.getRoles());
+        assertEquals(1, snapshot.getPermissions().size());
+        assertTrue(snapshot.getDataPermissions().isEmpty(),
+                "旧格式 JSON 缺少 dataPermissions 字段时应保留字段初始空列表，不得为 null");
     }
 }

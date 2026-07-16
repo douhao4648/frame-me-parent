@@ -2,6 +2,7 @@ package com.frame.me.auth.rbac.permission;
 
 import com.frame.me.auth.rbac.config.RbacProperties;
 import com.frame.me.base.user.User;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,10 +39,32 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
     private volatile Map<String, List<Permission>> parsedRolePermissions;
 
     /**
+     * 预解析后的角色 → 数据权限列表缓存，启动期由 {@link #init()} eager 解析.
+     */
+    private Map<String, List<DataPermission>> parsedRoleDataScopes = Collections.emptyMap();
+
+    /**
+     * 合法的数据范围取值（大写）.
+     */
+    private static final Set<String> VALID_SCOPES = Set.of(IDataScopes.ALL, IDataScopes.DEPT, IDataScopes.ORG,
+            IDataScopes.SELF, IDataScopes.CUSTOM);
+
+    /**
      * 已告警"未配置角色"的用户 ID（按 userId 去重，避免每个请求刷一条 WARN），有界防内存增长.
      */
     private static final int MAX_WARNED_USERS = 1000;
     private final Set<String> warnedNoRoleUsers = ConcurrentHashMap.newKeySet();
+
+    /**
+     * 启动期 eager 解析 {@code me.auth.permission.data-scopes}.
+     *
+     * <p>格式或 scope 非法时抛 {@link IllegalStateException} 直接 fail-fast——非法条目若只 WARN
+     * 跳过，该资源数据权限缺失意味着不加任何行级限制（fail-open 方向，越权可见）。</p>
+     */
+    @PostConstruct
+    public void init() {
+        parsedRoleDataScopes = parseAllDataScopes(properties.getDataScopes());
+    }
 
     @Override
     public Collection<String> getRoles(User user) {
@@ -79,6 +102,20 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
 
         return roleCodes.stream()
                 .map(rolePermissions::get)
+                .filter(list -> list != null && !list.isEmpty())
+                .flatMap(List::stream)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    @Override
+    public Collection<DataPermission> getDataPermissions(User user) {
+        Set<String> roleCodes = new LinkedHashSet<>(getRoles(user));
+        if (roleCodes.isEmpty() || parsedRoleDataScopes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return roleCodes.stream()
+                .map(parsedRoleDataScopes::get)
                 .filter(list -> list != null && !list.isEmpty())
                 .flatMap(List::stream)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -127,5 +164,54 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
             action = "*";
         }
         return new Permission(resource, action);
+    }
+
+    private Map<String, List<DataPermission>> parseAllDataScopes(Map<String, String> dataScopes) {
+        if (dataScopes == null || dataScopes.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return dataScopes.entrySet().stream()
+                .filter(e -> e.getValue() != null && !e.getValue().isBlank())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> Arrays.stream(e.getValue().split(","))
+                                .map(String::trim)
+                                .filter(seg -> !seg.isEmpty())
+                                .map(seg -> parseDataPermission(e.getKey(), seg))
+                                .collect(Collectors.toCollection(ArrayList::new))));
+    }
+
+    /**
+     * 解析 {@code resource:SCOPE} 或 {@code resource:action:SCOPE} 配置段，非法段直接 fail-fast.
+     */
+    private DataPermission parseDataPermission(String role, String segment) {
+        String[] parts = segment.split(":");
+        String resource;
+        String action;
+        String scope;
+        if (parts.length == 2) {
+            resource = parts[0];
+            action = "*";
+            scope = parts[1];
+        } else if (parts.length == 3) {
+            resource = parts[0];
+            action = parts[1].isEmpty() ? "*" : parts[1];
+            scope = parts[2];
+        } else {
+            throw invalidDataScope(role, segment, "格式非法，应为 resource:SCOPE 或 resource:action:SCOPE");
+        }
+        if (resource.isBlank()) {
+            throw invalidDataScope(role, segment, "resource 不能为空");
+        }
+        String upperScope = scope.toUpperCase();
+        if (!VALID_SCOPES.contains(upperScope)) {
+            throw invalidDataScope(role, segment, "SCOPE [" + scope + "] 非法，取值 ALL/DEPT/ORG/SELF/CUSTOM");
+        }
+        return new DataPermission(resource, action, upperScope, new LinkedHashSet<>());
+    }
+
+    private IllegalStateException invalidDataScope(String role, String segment, String reason) {
+        return new IllegalStateException(
+                "me.auth.permission.data-scopes[" + role + "] 配置段 [" + segment + "] " + reason);
     }
 }

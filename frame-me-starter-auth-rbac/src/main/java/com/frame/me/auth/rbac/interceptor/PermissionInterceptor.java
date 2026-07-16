@@ -16,8 +16,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.HandlerMapping;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 权限拦截器.
@@ -64,7 +67,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
         AuthPermissionHolder.ensureLoaded(user, permissionProvider);
 
-        if (AuthExpressionRoot.evaluate(annotation.value())) {
+        if (AuthExpressionRoot.evaluate(annotation.value(), spelVariables(request))) {
             return true;
         }
 
@@ -102,5 +105,40 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
     private void writeError(HttpServletResponse response, ResultCode resultCode) throws Exception {
         errorResponseWriter.write(response, resultCode, null);
+    }
+
+    /**
+     * 提取 SpEL 变量：查询参数（{@code @RequestParam}，含 POST 表单）与 URI 路径变量
+     * （{@code @PathVariable}，如 {@code /api/order/{id}} 的 {@code id}），
+     * 供 SpEL 以 {@code #变量名} 引用，例如 {@code @RequireAuth("dataCheck('order', #id)")}.
+     *
+     * <p>单值参数给 {@code String}，多值参数给 {@code String[]}。同名时<b>路径变量优先</b>：
+     * 校验值必须与 {@code @PathVariable} 实际绑定值一致，否则 {@code /api/order/5?id=6}
+     * 会出现"校验 6、执行 5"的越权窗口。</p>
+     */
+    private Map<String, Object> spelVariables(HttpServletRequest request) {
+        Map<String, Object> variables = null;
+        // 查询参数（GET query / POST form）。getParameterMap 正常不返回 null,判空兼容 mock 场景
+        Map<String, String[]> parameterMap = request.getParameterMap();
+        if (parameterMap != null && !parameterMap.isEmpty()) {
+            variables = new HashMap<>();
+            for (Map.Entry<String, String[]> entry : parameterMap.entrySet()) {
+                String[] values = entry.getValue();
+                if (values != null && values.length > 0) {
+                    variables.put(entry.getKey(), values.length == 1 ? values[0] : values);
+                }
+            }
+        }
+        // 路径变量后放,覆盖同名查询参数(见 javadoc)
+        Object attribute = request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
+        if (attribute instanceof Map<?, ?> uriVariables && !uriVariables.isEmpty()) {
+            if (variables == null) {
+                variables = new HashMap<>();
+            }
+            for (Map.Entry<?, ?> entry : uriVariables.entrySet()) {
+                variables.put((String) entry.getKey(), entry.getValue());
+            }
+        }
+        return variables;
     }
 }

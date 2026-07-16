@@ -309,6 +309,7 @@ me:
 - **自动装配**：通过 `frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuthAutoConfiguration`。
 - **可配置项**：
   - `me.auth.enabled` — 是否启用认证模块，默认 `true`。
+  - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。
 - **设计约定**：
   - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得认证上下文能力。
   - 默认的 `HeaderAuthUserResolver` 仅用于开发/测试，生产环境应由真实认证实现替换。
@@ -316,8 +317,8 @@ me:
 
 ## `frame-me-starter-auth-rbac`
 
-- **定位**：框架无关的轻量 RBAC 授权模块，依赖 `frame-me-starter-auth`。提供 `@RequireAuth`(SpEL) 注解、方法拦截器、路径 Filter 与权限数据源 SPI；另内置可选的 Redis 权限后端（read-through 缓存，支持跨服务共享与吊销）。
-- **依赖**：`frame-me-starter-auth`、`caffeine`（零传递叶子 jar，供 Redis 后端 L1 缓存）、`lombok`；`frame-me-starter-multi-redis` 为 **optional** 依赖——消费方显式引入即激活 Redis 权限后端，不引入则核心零 Redisson。
+- **定位**：框架无关的轻量 RBAC 授权模块，依赖 `frame-me-starter-auth`。提供 `@RequireAuth`(SpEL) 注解、方法拦截器、路径 Filter 与权限数据源 SPI；内置**数据权限**能力（SpEL 单条校验 + Service 静态 Helper 两种显式方式）；另内置可选的 Redis 权限后端（read-through 缓存，支持跨服务共享与吊销）。
+- **依赖**：`frame-me-starter-auth`、`caffeine`（零传递叶子 jar，供 Redis 后端 L1 缓存）、`lombok`；`frame-me-starter-multi-redis` 为 **optional** 依赖——消费方显式引入 multi-redis 即激活 Redis 权限后端。
 - **关键类**：
   - `com.frame.me.auth.rbac.config.RbacAutoConfiguration` — 自动装配入口，注册权限数据源插槽 `authPermissionSource`（默认配置版实现，业务声明任意 `IAuthPermissionProvider` bean 即退避）。
   - `com.frame.me.auth.rbac.config.RbacProperties` — `me.auth.permission.*` 配置属性绑定。
@@ -325,6 +326,9 @@ me:
   - `com.frame.me.auth.rbac.permission.AuthExpressionRoot` — SpEL root，提供 `role()` / `perm()` 函数（表达式按字符串缓存）。
   - `com.frame.me.auth.rbac.permission.AuthPermissionHolder` — 请求级角色/权限 ThreadLocal 缓存（独立 `loaded` 标志）。
   - `com.frame.me.auth.rbac.permission.Permission` / `DataPermission` — 权限值对象。
+  - `com.frame.me.auth.rbac.permission.IDataScopes` — 数据范围常量接口（`ALL`/`DEPT`/`ORG`/`SELF`/`CUSTOM`）。
+  - `com.frame.me.auth.rbac.permission.DataPermissionResolver` — 数据权限合并语义（任一 `ALL` 放行；否则 scope/dataIds 并集），SpEL/Helper 两层统一委托。
+  - `com.frame.me.auth.rbac.permission.AuthDataPermissions` — Service 层静态 Helper（`isAll`/`scopes`/`dataIds`/`check`）。
   - `com.frame.me.auth.rbac.permission.IAuthPermissionProvider` — 权限数据源 SPI。
   - `com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider` — 默认配置化权限提供者。
   - `com.frame.me.auth.rbac.filter.PermissionFilter` — 路径规则权限过滤器。
@@ -335,13 +339,14 @@ me:
   - `com.frame.me.auth.rbac.redis.RedisAuthPermissionProvider` — `@Primary` 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 read-through，提供 `evict(userId)` 失效。
   - `com.frame.me.auth.rbac.redis.UserPermissionSnapshot` — Redis 缓存的用户权限快照。
   - `com.frame.me.auth.rbac.redis.store.PermissionCacheStore` / `RedisPermissionCacheStore` — 二级缓存存储 SPI 与 Redis 实现。
-- **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacRedisAutoConfiguration`（先于）与 `RbacAutoConfiguration`。
+- **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacAutoConfiguration`、`RbacRedisAutoConfiguration`。
 - **可配置项**：
   - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。**总开关，为 `false` 时 Redis 后端一并退避。**
   - `me.auth.permission.rules` — Filter 层「Ant 路径 → SpEL 表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 会剥离 `/`、`*` 导致规则静默失效（详见 `docs/conventions.md`）。
   - `me.auth.permission.roles` — 角色到权限映射（逗号分隔 `resource:action`，action 可省略默认 `*`）。
   - `me.auth.permission.users` — 用户 ID 到角色映射（逗号分隔）。
   - `me.auth.permission.propagate.async.enabled` — 是否传播权限上下文到 `@Async` 线程，默认 `true`。
+  - `me.auth.permission.data-scopes` — 角色到数据范围映射（逗号分隔 `resource:SCOPE` 或 `resource:action:SCOPE`,action 省略默认 `*`;SCOPE 为 `ALL`/`DEPT`/`ORG`/`SELF`/`CUSTOM`）。格式或 SCOPE 非法时启动 fail-fast。动态 `dataIds` 仅自定义 provider 可提供。
   - `me.auth.permission.redis.enabled` — 是否启用 Redis 缓存层，默认 `true`（需 classpath 存在 multi-redis）。
   - `me.auth.permission.redis.keyPrefix` — 缓存 key 前缀，默认 `auth:perms:`。
   - `me.auth.permission.redis.clientName` — Redis 实例名（对应 `me.redis.clients`），默认 `default`。
@@ -355,6 +360,8 @@ me:
   - **bean 命名约束**：`RedisAuthPermissionProvider` 无条件 `@Primary`。业务自定义 provider 若作为数据源，必须命名为 `authPermissionSource` 且**不要**标 `@Primary`——否则会出现两个 `@Primary` 导致按类型注入处 `NoUniqueBeanDefinitionException`；启用 Redis 后端时业务 provider 若未命名为 `authPermissionSource`，默认插槽按类型退避后包装器按名注入失败，**启动 fail-fast**（不会静默忽略）。
   - 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）；Redis 异常自动降级回源。
   - **吊销最终一致**：`evict` 只清当前实例的 L1，其他实例的 L1 在 `localTtl`（默认 5s）内仍提供旧权限，即吊销最长延迟 = `localTtl`。需要即时生效的场景应调低 `localTtl` 或直接清 Redis。
+  - **数据权限**：两种显式使用方式（`@RequireAuth("dataCheck('order', #id)")` 单条校验、`AuthDataPermissions` 静态 Helper）共享同一套合并语义（`DataPermissionResolver`）,SpEL 函数以 `data` 前缀标识数据权限域,实现委托 Helper 同名方法（`isAll`/`check`)。`dataIds` 语义统一为**资源行主键集合**，不是部门 ID 集合。历史曾有的「SQL 自动拦截」方式（MP/Flex 适配）已移除——两个 ORM 能力不对等、fail-open 边界多；列表过滤统一用 Helper 显式拼条件，注意事项见 `docs/conventions.md` 数据权限小节。
+  - **Redis 快照升级注意**：`UserPermissionSnapshot` 新增 `dataPermissions` 字段后，升级前写入的旧 JSON 反序列化得空列表——升级后数据权限为空直至 TTL 过期或 `evict`，需要立即生效时重启后 `evict` 受影响用户。
   - **测试注意**：本模块 test classpath 带 redisson 系（multi-redis 在自身 classpath 上），未来在本模块内写全量 `@SpringBootTest` 可能触发 Redisson 装配连接 Redis，应优先用 `ApplicationContextRunner` 切片测试。
   - 所有服务共享同一 Redis 时 RBAC 判定天然一致，适合多服务统一权限语义。
 
@@ -530,7 +537,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - 业务推送：注入 `SsePushService` 调用 `broadcast` / `pushToReceiver`。
   - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 SSE 客户端自动收到。
 - **设计约定**：
-  - **不纳入 `frame-me-booter`**，由业务 `xx-service` 按需引入。
+  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
 
@@ -807,7 +814,7 @@ public class AlertService {
   - 业务 `xx-service` 通过引入 `frame-me-booter` 一键启动通用能力。
   - `frame-me-booter` 无自己的自动装配类，依赖的 `frame-me-starter-base` 等模块会通过传递依赖自动注册。
   - `frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合，因为不同项目通常会重写适配层或按需引入文档能力。
-  - `frame-me-starter-auth-jwt`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 同样按需引入，不纳入聚合。
+  - `frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 同样按需引入，不纳入聚合。
 
 ```xml
 <!-- 业务 xx-service：引入通用能力 -->
@@ -843,15 +850,19 @@ public class AlertService {
 - **定位**：示例业务契约模块，演示业务 `xx-api` 应如何组织。
 - **依赖**：`frame-me-api`。
 - **关键类**：
-  - `com.frame.me.tester.api.IDemoApi` — 演示数据 API 契约，使用 Spring HTTP Interface（`@HttpExchange`、`@GetExchange`、`@PostExchange` 等）。
+  - `com.frame.me.tester.api.IDemoApi` — 演示数据 API 契约（MyBatis-Plus 版），使用 Spring HTTP Interface（`@HttpExchange`、`@GetExchange`、`@PostExchange` 等）；服务端实现当前已注释（见 `frame-me-tester-service`）。
+  - `com.frame.me.tester.api.IFlexDemoApi` — 演示数据 API 契约（MyBatis-Flex 版，当前服务端实际实现）。
   - `com.frame.me.tester.api.IHealthApi` — 健康检查 API 契约。
   - `com.frame.me.tester.api.IDataSourceApi` — 数据源切换与连接池信息查询契约。
   - `com.frame.me.tester.api.IRedisApi` — Redis 操作与 Redisson 分布式锁 API 契约。
   - `com.frame.me.tester.api.dto.DemoDTO` — 演示数据传输对象，含校验分组。
+  - `com.frame.me.tester.api.dto.FlexDemoDTO` — 演示数据传输对象（Flex 版）。
   - `com.frame.me.tester.api.query.DemoQuery` — 演示分页查询参数。
+  - `com.frame.me.tester.api.query.FlexDemoQuery` — 演示分页查询参数（Flex 版）。
   - `com.frame.me.tester.api.query.DemoComplexQuery` — 演示复杂查询参数（含 `@TimeRange`）。
   - `com.frame.me.tester.api.query.DemoOldQuery` — 演示老规范分页查询参数（使用 `PageParam`）。
   - `com.frame.me.tester.api.vo.DemoVO` — 演示返回视图对象。
+  - `com.frame.me.tester.api.vo.FlexDemoVO` — 演示返回视图对象（Flex 版）。
   - `com.frame.me.tester.api.vo.DemoComplexVO` — 演示复杂查询返回视图对象。
   - `com.frame.me.tester.event.UserCreatedPayload` — 用户创建事件负载。
   - `com.frame.me.tester.event.UserCreatedEvent` — 用户创建事件（继承 `MeApplicationEvent`）。
@@ -864,24 +875,28 @@ public class AlertService {
 ## `frame-me-tester-service`
 
 - **定位**：示例业务实现层与可运行 Spring Boot 入口。
-- **依赖**：`frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter`、`spring-boot-starter-test`（test scope）。
+- **依赖**：`frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`redisson`、`spring-boot-starter-test`（test scope）；`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus`、`druid-spring-boot-4-starter` 在 POM 中注释保留，可按需恢复。
 - **关键类/文件**：
   - `com.frame.me.tester.Application` — `@SpringBootApplication` 启动类。
   - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi`，故意触发 NPE 以验证异常处理。
-  - `com.frame.me.tester.controller.DemoController` — 实现 `IDemoApi`，演示 MyBatis-Plus CRUD、分页、校验分组。
+  - `com.frame.me.tester.controller.FlexDemoController` — 实现 `IFlexDemoApi`，演示 MyBatis-Flex CRUD、分页、校验分组。
   - `com.frame.me.tester.controller.DataSourceController` — 实现 `IDataSourceApi`，演示多数据源切换与连接池信息查询。
   - `com.frame.me.tester.controller.RedisController` — 实现 `IRedisApi`，演示 Redis 操作与 Redisson 分布式锁。
-  - `com.frame.me.tester.service.IDemoService` / `com.frame.me.tester.service.impl.DemoServiceImpl` — 演示 Service 层。
-  - `com.frame.me.tester.service.convert.DemoConvert` — MapStruct 转换器（`@Mapper(componentModel = "spring")`）。
-  - `com.frame.me.tester.entity.DemoEntity` — 演示实体，继承 `BaseVersionEntity`，对应表 `demo_user`。
-  - `com.frame.me.tester.mapper.DemoMapper` — 演示 Mapper，继承 MyBatis-Plus `BaseMapper<DemoEntity>`。
+  - `com.frame.me.tester.auth.DemoAuthUserDetailsService` — `IAuthUserDetailsService` 演示实现，接入 JWT 登录（`PasswordUtils` BCrypt 校验）。
+  - `com.frame.me.tester.service.IFlexDemoService` / `com.frame.me.tester.service.impl.FlexDemoServiceImpl` — 演示 Service 层（Flex 版）。
+  - `com.frame.me.tester.service.convert.FlexDemoConvert` — MapStruct 转换器（`@Mapper(componentModel = "spring")`）。
+  - `com.frame.me.tester.entity.FlexDemoEntity` — 演示实体，继承 MyBatis-Flex `BaseVersionEntity`。
+  - `com.frame.me.tester.mapper.FlexDemoMapper` — 演示 Mapper，继承 MyBatis-Flex `BaseMapper<FlexDemoEntity>`。
+  - `com.frame.me.tester.infrastructure.config.DataSourceWarmer` — 数据源预热配置。
+  - MyBatis-Plus 版演示类 `DemoController` / `DemoEntity` / `DemoMapper` / `IDemoService` / `DemoServiceImpl` / `DemoConvert` **整体注释保留**，作为切回 MyBatis-Plus 时的参考。
   - `com.frame.me.tester.cache.DemoServiceCacheTest` — 演示 JetCache 两级缓存集成测试。
   - `com.frame.me.tester.encrypt.JasyptEncryptTest` — 演示 Jasypt 配置加密解密测试。
   - `com.frame.me.tester.event.UserCreatedEventFlowTest` — 演示事件桥接端到端测试。
   - `com.frame.me.tester.redis.RedissonLockTest` — 演示 Redisson 分布式锁集成测试。
   - `com.frame.me.tester.ApplicationTests` — 上下文加载测试。
   - `com.frame.me.tester.AbstractIntegrationTest` — Testcontainers + MySQL 集成测试基类。
-  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 端口 `9090`（管理端口 `9091`），应用名 `frame-me-tester`，单/多数据源、MyBatis-Plus、OpenAPI、P6Spy 配置。
+  - 测试目录按能力划分：`async` / `auth` / `cache` / `encrypt` / `event` / `flex` / `mybatis` / `redis`。
+  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 端口 `9090`（管理端口 `9091`），应用名 `frame-me-tester`；MyBatis-Flex 双数据源（`mybatis-flex.datasource.master` = `frame_me_test`，`second` = `frame_me_test_2`）；`me.auth.jwt`（接口路径 `/base/auth`）+ `me.auth.whitelist`；`me.sse.path=/base/sse`；`me.redis.clients.second`；JetCache（kryo5 序列化）；OpenAPI 分组（`tester-api` 匹配 `/api/**`、`base-api` 匹配 `/base/**`）；P6Spy 配置。
 - **构建插件**：包含 `spring-boot-maven-plugin`，用于打包可运行 Jar。
 - **扩展提示**：作为集成验证入口，新模块加入后应在此添加对应的集成测试或示例 Controller。
 
@@ -904,6 +919,8 @@ public class AlertService {
 | `frame-me-starter-dynamic-ds` | `frame-me-starter-base` |
 | `frame-me-starter-doc-openapi` | `spring-boot-autoconfigure`（框架依赖） |
 | `frame-me-starter-auth` | `frame-me-starter-base` |
+| `frame-me-starter-auth-rbac` | `frame-me-starter-auth`、`caffeine`（`frame-me-starter-multi-redis` optional） |
+| `frame-me-starter-auth-jwt` | `frame-me-starter-auth`、`jjwt`、`spring-security-crypto`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
@@ -911,4 +928,4 @@ public class AlertService {
 | `frame-me-starter-msg-notify` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
 | `frame-me-tester-api` | `frame-me-api` |
-| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-adapter-starter` |
+| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |

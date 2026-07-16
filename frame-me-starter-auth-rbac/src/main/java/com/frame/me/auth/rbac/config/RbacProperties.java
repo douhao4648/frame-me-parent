@@ -65,6 +65,24 @@ public class RbacProperties {
     private Map<String, String> users = new HashMap<>();
 
     /**
+     * 角色到数据范围的映射.
+     *
+     * <p>key 为角色标识，value 为逗号分隔的 {@code resource:SCOPE} 或 {@code resource:action:SCOPE},
+     * SCOPE 取值为 {@code ALL}/{@code DEPT}/{@code ORG}/{@code SELF}/{@code CUSTOM}
+     * （见 {@link com.frame.me.auth.rbac.permission.IDataScopes}）。
+     * 格式或 SCOPE 非法时启动 fail-fast（{@code IllegalStateException}）——非法条目若静默跳过，
+     * 该资源数据权限缺失意味着不加行级限制（fail-open 方向）。
+     * 配置方式只能表达 scope 级别，动态 {@code dataIds} 需自定义
+     * {@code IAuthPermissionProvider#getDataPermissions} 提供。
+     * 示例：
+     * <pre>{@code
+     * admin: "order:ALL"
+     * user: "order:SELF,order:read:CUSTOM"
+     * }</pre>
+     */
+    private Map<String, String> dataScopes = new HashMap<>();
+
+    /**
      * 启动时校验规则 key：若不以 {@code /} 开头，多半是 YAML 中未用方括号记法，
      * 导致路径里的 {@code /}、{@code *} 被 relaxed binding 剥离，规则会静默失效（fail-open）。
      */

@@ -5,6 +5,7 @@ import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.rbac.annotation.RequireAuth;
 import com.frame.me.auth.rbac.config.RbacProperties;
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
+import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.Permission;
 import com.frame.me.base.result.ResultCode;
@@ -16,9 +17,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.HandlerMapping;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -114,6 +118,15 @@ class PermissionInterceptorTest {
     }
 
     @Test
+    void testTrueLiteralActsAsLoadSwitch() throws Exception {
+        // "true" 字面量:登录即放行(无角色/权限也可),同时触发权限加载供 Helper 使用
+        AuthContext.setUser(createUser(1L));
+
+        assertTrue(preHandle("authenticatedOnly"));
+        assertTrue(AuthPermissionHolder.isLoaded(), "恒真表达式应触发权限加载");
+    }
+
+    @Test
     void testNoAnnotationPassesWithoutLoadingPermissions() throws Exception {
         AuthContext.setUser(createUser(1L));
 
@@ -181,9 +194,50 @@ class PermissionInterceptorTest {
         assertFalse(preHandle("adminAndWriteOrder"));
     }
 
+    @Test
+    void testQueryParamDataPermPass() throws Exception {
+        // 查询参数 ?id=5 注入 SpEL 变量,dataCheck 命中 CUSTOM ids 放行
+        AuthContext.setUser(createUser(1L));
+        when(permissionProvider.getDataPermissions(any())).thenReturn(
+                List.of(new DataPermission("order", "*", "CUSTOM", Set.of(5L, 7L))));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterMap()).thenReturn(Map.of("id", new String[]{"5"}));
+
+        assertTrue(preHandle("orderDetail", request));
+    }
+
+    @Test
+    void testQueryParamDataPermForbidden() throws Exception {
+        AuthContext.setUser(createUser(1L));
+        when(permissionProvider.getDataPermissions(any())).thenReturn(
+                List.of(new DataPermission("order", "*", "CUSTOM", Set.of(5L, 7L))));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterMap()).thenReturn(Map.of("id", new String[]{"6"}));
+
+        assertFalse(preHandle("orderDetail", request));
+        verify(errorResponseWriter).write(any(HttpServletResponse.class), eq(ResultCode.FORBIDDEN), isNull());
+    }
+
+    @Test
+    void testUriVariableWinsOverQueryParam() throws Exception {
+        // 同名时路径变量优先:校验值必须与 @PathVariable 绑定值一致(防 /api/order/5?id=6 越权窗口)
+        AuthContext.setUser(createUser(1L));
+        when(permissionProvider.getDataPermissions(any())).thenReturn(
+                List.of(new DataPermission("order", "*", "CUSTOM", Set.of(5L, 7L))));
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getParameterMap()).thenReturn(Map.of("id", new String[]{"6"}));
+        when(request.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE)).thenReturn(Map.of("id", "5"));
+
+        assertTrue(preHandle("orderDetail", request));
+    }
+
     private boolean preHandle(String methodName) throws Exception {
+        return preHandle(methodName, mock(HttpServletRequest.class));
+    }
+
+    private boolean preHandle(String methodName, HttpServletRequest request) throws Exception {
         HandlerMethod handler = new HandlerMethod(new TestController(), TestController.class.getMethod(methodName));
-        return interceptor.preHandle(mock(HttpServletRequest.class), mock(HttpServletResponse.class), handler);
+        return interceptor.preHandle(request, mock(HttpServletResponse.class), handler);
     }
 
     private boolean classLevelPreHandle() throws Exception {
@@ -227,6 +281,16 @@ class PermissionInterceptorTest {
         @RequireAuth("role('admin'")
         public String badExpr() {
             return "bad";
+        }
+
+        @RequireAuth("dataCheck('order', #id)")
+        public String orderDetail() {
+            return "detail";
+        }
+
+        @RequireAuth("true")
+        public String authenticatedOnly() {
+            return "ok";
         }
 
         public String noAnnotation() {

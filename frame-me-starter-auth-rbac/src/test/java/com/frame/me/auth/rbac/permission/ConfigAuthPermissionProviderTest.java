@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -86,6 +87,43 @@ class ConfigAuthPermissionProviderTest {
         Collection<Permission> permissions = provider.getPermissions(user);
 
         assertEquals(2, permissions.size());
+    }
+
+    @Test
+    void testGetDataPermissionsByRoles() {
+        properties.getUsers().put("1", "admin,user");
+        properties.getDataScopes().put("admin", "order:ALL");
+        properties.getDataScopes().put("user", "order:SELF,dept:read:DEPT");
+        provider.init();
+
+        Collection<DataPermission> dataPermissions = provider.getDataPermissions(createUser(1L));
+
+        assertEquals(3, dataPermissions.size());
+        assertTrue(dataPermissions.stream().anyMatch(dp -> dp.matches("order", "*") && "ALL".equals(dp.getDataScope())));
+        assertTrue(dataPermissions.stream().anyMatch(dp -> dp.matches("order", "*") && "SELF".equals(dp.getDataScope())));
+        assertTrue(dataPermissions.stream().anyMatch(dp -> dp.matches("dept", "read") && "DEPT".equals(dp.getDataScope())));
+    }
+
+    @Test
+    void testInvalidDataScopeFailsFastAtInit() {
+        properties.getDataScopes().put("admin", "order:WRONG");
+        IllegalStateException scopeEx = assertThrows(IllegalStateException.class, provider::init);
+        assertTrue(scopeEx.getMessage().contains("data-scopes[admin]"), scopeEx.getMessage());
+        assertTrue(scopeEx.getMessage().contains("order:WRONG"), scopeEx.getMessage());
+
+        properties.getDataScopes().put("admin", "badsegment");
+        assertThrows(IllegalStateException.class, provider::init, "段数非法应 fail-fast");
+
+        properties.getDataScopes().put("admin", ":DEPT");
+        assertThrows(IllegalStateException.class, provider::init, "resource 为空应 fail-fast");
+    }
+
+    @Test
+    void testNoDataScopesReturnsEmpty() {
+        properties.getUsers().put("1", "admin");
+        provider.init();
+
+        assertTrue(provider.getDataPermissions(createUser(1L)).isEmpty());
     }
 
     private User createUser(Long id) {

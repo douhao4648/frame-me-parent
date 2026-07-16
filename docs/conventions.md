@@ -561,7 +561,7 @@ me:
 
 - **角色（Role）**：字符串标识，如 `admin`、`operator`。
 - **权限（Permission）**：由 `resource`（资源）和 `action`（操作）组成，如 `user:read`、`order:create`；支持 `*` 通配。
-- **数据权限（Data Permission）**：预留 `resource` + `action` + `dataScope` + `dataIds` 模型，业务可通过 `IAuthPermissionProvider#getDataPermissions` 自行扩展。
+- **数据权限（Data Permission）**：由 `resource` + `action` + `dataScope` + `dataIds` 组成。`dataScope` 取值 `ALL`（全部数据）/`DEPT`（本部门）/`ORG`（本机构）/`SELF`（本人）/`CUSTOM`（指定数据行）;`dataIds` 为 `CUSTOM` 范围的**资源行主键集合**。三种使用方式见下方「数据权限」小节。
 
 #### 权限数据源
 
@@ -593,8 +593,12 @@ me:
 | `role('admin')` | 拥有指定角色 |
 | `perm('user')` | 拥有 `user` 资源的**任意**操作权限 |
 | `perm('user', 'w')` | 拥有 `user` 资源的指定操作（`w`）权限 |
+| `dataIsAll('order')` / `dataIsAll('order', 'r')` | 拥有 `order` 资源的 `ALL` 数据范围（可带操作） |
+| `dataCheck('order', #id)` / `dataCheck('order', 'r', #id)` | 可访问 `order` 资源的某条数据（命中 `ALL` 范围或 `dataIds` 并集；可带操作） |
 
-可用 `and` / `or` 组合；类与方法同时标注时方法优先，方法未标注则回退到类级。
+表达式内可用 `#变量名` 引用 **URI 路径变量**（如 `@RequireAuth("dataCheck('order', #id)")` 搭配 `@GetMapping("/{id}")`）与**查询参数**（`@RequestParam`，含 POST 表单；单值给 `String`、多值给 `String[]`)，拦截器会自动注入；**同名时路径变量优先**（校验值必须与 `@PathVariable` 实际绑定值一致，防 `/api/order/5?id=6` 校验与执行不一致的越权窗口）。变量值为字符串，`dataId` 参数支持数字字符串自动转换。`@RequestBody` 的 DTO 在拦截器阶段尚未解析（body 流只能读一次），不在变量来源内——这类接口改用 `AuthDataPermissions.check` 在方法体内校验。
+
+可用 `and` / `or` 组合；类与方法同时标注时方法优先，方法未标注则回退到类级。`@RequireAuth("true")` 恒真字面量是「纯加载开关」：登录即放行并触发权限加载（未登录仍 401)，适用于无功能权限要求、但方法体内要用 `AuthDataPermissions` 的接口。
 
 示例：
 
@@ -659,6 +663,64 @@ boolean canWrite = AuthPermissionHolder.getPermissions().stream()
 ```
 
 > 注意：`AuthPermissionHolder` 由 Filter/Interceptor 在命中权限校验时按需加载，未命中权限规则的普通接口调用前不会主动加载。
+
+#### 数据权限
+
+在功能权限（能不能调这个接口）之外，数据权限控制「能看到哪些行」。两种使用方式共享同一套合并语义（`DataPermissionResolver`：同一资源任一 `ALL` → 全部放行；否则 scope 取并集、`dataIds` 取并集）。
+
+> 历史：曾提供「SQL 自动拦截」方式（按表规则改写 SQL),因 MyBatis-Plus 与 MyBatis-Flex 能力不对等（官方拦截器 vs 自写改写器）、fail-open 边界多，已移除；列表过滤统一用方式二显式拼条件。
+
+**方式一：SpEL 单条校验** —— 详情/编辑/删除等单条操作接口：
+
+```java
+@RequireAuth("dataCheck('order', #id)")
+@GetMapping("/api/order/{id}")
+public IResult<OrderVO> get(@PathVariable Long id) { ... }
+```
+
+**方式二：Service 层静态 Helper** —— 业务自行拼查询条件：
+
+```java
+if (AuthDataPermissions.isAll("order")) {
+    // 不加条件
+} else if (AuthDataPermissions.scopes("order").contains(IDataScopes.SELF)) {
+    query.eq(Order::getCreatedBy, AuthContext.getUserId());
+} else {
+    query.in(Order::getId, AuthDataPermissions.dataIds("order")); // CUSTOM
+}
+boolean visible = AuthDataPermissions.check("order", orderId); // 单条判定
+```
+
+**单条编辑/删除的归属校验（`SELF` 场景）** —— 先查行，再 `checkOwner` 比对行归属字段：
+
+```java
+@RequireAuth("role('saler')") // 加载点
+@PutMapping("/api/order/{id}")
+public IResult<Void> update(@PathVariable Long id, @RequestBody OrderUpdateDTO dto) {
+    Order order = orderService.getById(id);
+    if (order == null) {
+        return IResult.error(ResultCode.NOT_FOUND);
+    }
+    // ALL 放行;SELF 且 order.createdBy == 当前用户放行;否则拒绝
+    if (!AuthDataPermissions.checkOwner("order", order.getCreatedBy())) {
+        throw new BizException(ResultCode.FORBIDDEN);
+    }
+    ...
+}
+```
+
+行归属在行数据里而不在权限快照里，单条 `SELF` 判定必须查一次行——编辑/删除接口本来就要查，无额外成本，数据量大也不需枚举 `dataIds`。
+
+**自定义数据权限数据源**：配置版只能提供 scope；`CUSTOM` 的动态 `dataIds`（如按客户分配）需自定义 provider 实现 `IAuthPermissionProvider#getDataPermissions(User)` 返回 `DataPermission(resource, action, "CUSTOM", ids)`。bean 命名与 `@Primary` 约束同功能权限（启用 Redis 后端时必须命名 `authPermissionSource`）。数据权限与角色/权限一起经 `AuthPermissionHolder` 请求级缓存、`RedisAuthPermissionProvider` 快照缓存与 `@Async` 传播，自定义 provider 每请求最多被调用一次。
+
+**上下文生命周期**：方式一/二经 `AuthPermissionHolder` 读取数据权限——Helper **纯读、自身不触发加载**，加载只发生在三个边界加载点（`PermissionFilter` 命中 rules、`PermissionInterceptor` 见 `@RequireAuth`、`@Async` 经 `AuthPermissionTaskDecorator` 传播）；请求未经过任一加载点时，Helper 按「无数据权限」处理（fail-closed 空结果，不报错）。加载后的清理由请求边界组件负责（`PermissionFilter` finally、`PermissionInterceptor.afterCompletion`;`@Async` 由 `AuthPermissionTaskDecorator`)，业务无需也不应手动清理。唯一例外：非 web 线程（如 `@Scheduled`）手动 `AuthContext.setUser(...)` 模拟身份执行时，用完须自行 `AuthContext.clear()`（ThreadLocal"谁 set 谁 clear"惯例）。
+
+**注意**:
+
+- `check` 单条校验只对 `ALL`/`CUSTOM` 有意义；`DEPT`/`ORG`/`SELF` 范围对单条判定恒 false（行与部门/用户的从属关系无法从单条 ID 推出）。`SELF`/`DEPT`/`ORG` 的单条归属校验分别用 `checkOwner`/`checkDept`/`checkOrg`（先查行再比对，见上）；列表过滤用方式二按 scope 拼条件。
+- `CUSTOM` + `dataIds` 适合「人工分配的小集合」（如分配给销售的几十个客户）;「我的数据」这类大集合按归属判定，用 `SELF`（列表 Helper 拼 `created_by` 条件、单条 `checkOwner`)，不要把全量行主键塞进 `dataIds`。
+- Redis 后端快照升级：旧缓存 JSON 无 `dataPermissions` 字段，反序列化为空列表，升级后数据权限为空直至 TTL 过期或 `evict`。
+- **Helper 不自动加载是刻意决策**（非遗漏）：静态 Helper 拿不到 `IAuthPermissionProvider`（加载走 DI 边界），「谁加载谁清理」由 `PermissionFilter` finally 无条件 `clear()` 兜底。首用懒加载在 web 线程技术上可行，但需引入静态 provider 全局槽、非 web 线程依旧无解、权限 I/O 从边界固定一次变为 Service 深处不确定位置一次——故维持「显式加载点」契约：**用 Helper 的接口要么标 `@RequireAuth`（无功能限制时用 `"true"` 字面量），要么路径命中 rules**。
 
 #### 与 `@Anonymous` 的关系
 

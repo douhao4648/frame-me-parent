@@ -10,7 +10,7 @@ import java.util.Set;
 /**
  * 认证权限线程本地持有器.
  *
- * <p>缓存当前请求解析出的角色和权限，避免同一请求多次调用 {@link IAuthPermissionProvider}。
+ * <p>缓存当前请求解析出的角色、权限和数据权限，避免同一请求多次调用 {@link IAuthPermissionProvider}。
  * 通过独立的 {@code loaded} 标志判断是否已加载，使"合法的空角色/空权限用户"不会被重复加载。</p>
  *
  * @author frame-me
@@ -19,6 +19,7 @@ public class AuthPermissionHolder {
 
     private static final ThreadLocal<Set<String>> ROLES = new ThreadLocal<>();
     private static final ThreadLocal<Set<Permission>> PERMISSIONS = new ThreadLocal<>();
+    private static final ThreadLocal<Set<DataPermission>> DATA_PERMISSIONS = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> LOADED = new ThreadLocal<>();
 
     private AuthPermissionHolder() {
@@ -63,6 +64,25 @@ public class AuthPermissionHolder {
     }
 
     /**
+     * 设置当前线程的数据权限集合.
+     *
+     * @param dataPermissions 数据权限集合
+     */
+    public static void setDataPermissions(Collection<DataPermission> dataPermissions) {
+        DATA_PERMISSIONS.set(dataPermissions == null ? Collections.emptySet() : new HashSet<>(dataPermissions));
+    }
+
+    /**
+     * 获取当前线程的数据权限集合.
+     *
+     * @return 数据权限集合
+     */
+    public static Set<DataPermission> getDataPermissions() {
+        Set<DataPermission> dataPermissions = DATA_PERMISSIONS.get();
+        return dataPermissions == null ? Collections.emptySet() : dataPermissions;
+    }
+
+    /**
      * 判断当前线程是否已完成权限加载（即使结果为空）.
      *
      * @return 是否已加载
@@ -93,6 +113,7 @@ public class AuthPermissionHolder {
         }
         setRoles(provider.getRoles(user));
         setPermissions(provider.getPermissions(user));
+        setDataPermissions(provider.getDataPermissions(user));
         LOADED.set(Boolean.TRUE);
     }
 
@@ -102,6 +123,7 @@ public class AuthPermissionHolder {
     public static void clear() {
         ROLES.remove();
         PERMISSIONS.remove();
+        DATA_PERMISSIONS.remove();
         LOADED.remove();
     }
 }

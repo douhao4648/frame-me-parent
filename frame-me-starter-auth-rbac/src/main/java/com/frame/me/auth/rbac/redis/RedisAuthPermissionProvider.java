@@ -1,5 +1,6 @@
 package com.frame.me.auth.rbac.redis;
 
+import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.Permission;
 import com.frame.me.auth.rbac.redis.config.RbacRedisProperties;
@@ -61,6 +62,11 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
         return load(user).getPermissions();
     }
 
+    @Override
+    public Collection<DataPermission> getDataPermissions(User user) {
+        return load(user).getDataPermissions();
+    }
+
     /**
      * 失效指定用户的权限缓存（L1 + L2），权限变更时调用.
      *
@@ -99,6 +105,7 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
         UserPermissionSnapshot snapshot = new UserPermissionSnapshot();
         snapshot.setRoles(new HashSet<>(source.getRoles(user)));
         snapshot.setPermissions(new ArrayList<>(source.getPermissions(user)));
+        snapshot.setDataPermissions(new ArrayList<>(source.getDataPermissions(user)));
         return snapshot;
     }
 

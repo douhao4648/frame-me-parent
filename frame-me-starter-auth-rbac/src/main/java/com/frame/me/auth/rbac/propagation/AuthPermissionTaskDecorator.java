@@ -1,6 +1,7 @@
 package com.frame.me.auth.rbac.propagation;
 
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
+import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.Permission;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.task.TaskDecorator;
@@ -28,10 +29,12 @@ public class AuthPermissionTaskDecorator implements TaskDecorator {
         }
         Set<String> roles = AuthPermissionHolder.getRoles();
         Set<Permission> permissions = AuthPermissionHolder.getPermissions();
+        Set<DataPermission> dataPermissions = AuthPermissionHolder.getDataPermissions();
         return () -> {
             try {
                 AuthPermissionHolder.setRoles(roles);
                 AuthPermissionHolder.setPermissions(permissions);
+                AuthPermissionHolder.setDataPermissions(dataPermissions);
                 AuthPermissionHolder.markLoaded();
                 log.debug("权限上下文已传播到异步线程: roles={}", roles);
                 runnable.run();

@@ -1,6 +1,7 @@
 package com.frame.me.auth.rbac.propagation;
 
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
+import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.Permission;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -50,5 +51,21 @@ class AuthPermissionTaskDecoratorTest {
         Runnable original = () -> {
         };
         assertSame(original, decorator.decorate(original), "未加载权限时应原样返回，不做包装");
+    }
+
+    @Test
+    void propagatesDataPermissions() {
+        AuthPermissionHolder.setDataPermissions(
+                java.util.List.of(new DataPermission("order", "*", "SELF", java.util.Set.of(5L))));
+        AuthPermissionHolder.markLoaded();
+
+        AtomicReference<Set<DataPermission>> seen = new AtomicReference<>();
+        Runnable decorated = decorator.decorate(() -> seen.set(AuthPermissionHolder.getDataPermissions()));
+
+        AuthPermissionHolder.clear();
+        decorated.run();
+
+        assertEquals(1, seen.get().size(), "异步线程应恢复到传播的数据权限");
+        assertFalse(AuthPermissionHolder.isLoaded(), "执行后应清理上下文");
     }
 }
