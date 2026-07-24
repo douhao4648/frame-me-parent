@@ -1,5 +1,6 @@
 package com.frame.me.auth.jwt.web;
 
+import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author frame-me
  */
 @WebMvcTest(JwtAuthController.class)
-@Import(JwtAuthProperties.class)
+@Import({JwtAuthProperties.class, AuthProperties.class})
 @TestPropertySource(properties = "me.auth.jwt.cookie-domain=.example.com")
 class JwtAuthControllerCookieTest {
 

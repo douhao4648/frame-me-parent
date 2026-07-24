@@ -43,9 +43,29 @@ public class AuthProperties {
     private List<String> whitelist = new ArrayList<>();
 
     /**
+     * 管理员接口开关配置.
+     */
+    private Admin admin = new Admin();
+
+    /**
      * 服务间调用时认证信息传播配置.
      */
     private Propagate propagate = new Propagate();
+
+    /**
+     * 管理员接口开关配置.
+     */
+    @Data
+    public static class Admin {
+
+        /**
+         * 是否启用管理员强制登出接口，默认 {@code false}.
+         *
+         * <p>该接口默认不做权限校验，启用后业务方必须通过 sa-token 路径规则、RBAC 规则或自定义拦截器
+         * 自行保护，避免任意已登录/匿名用户可踢掉他人。</p>
+         */
+        private Boolean logoutEnabled = false;
+    }
 
     /**
      * 认证信息传播配置.

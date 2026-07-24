@@ -1,5 +1,6 @@
 package com.frame.me.auth.jwt.config;
 
+import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.jwt.core.JwtAuthUserResolver;
 import com.frame.me.auth.jwt.core.JwtTokenService;
 import com.frame.me.auth.jwt.core.RedisRefreshTokenStore;
@@ -60,7 +61,8 @@ public class JwtAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtAuthController jwtAuthController(IAuthService authService, JwtAuthProperties properties) {
-        return new JwtAuthController(authService, properties);
+    public JwtAuthController jwtAuthController(IAuthService authService, JwtAuthProperties properties,
+                                               AuthProperties authProperties) {
+        return new JwtAuthController(authService, properties, authProperties);
     }
 }

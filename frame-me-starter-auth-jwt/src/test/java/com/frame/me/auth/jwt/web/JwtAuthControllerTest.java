@@ -1,5 +1,6 @@
 package com.frame.me.auth.jwt.web;
 
+import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ class JwtAuthControllerTest {
 
     @MockitoBean
     private IAuthService authService;
+
+    @MockitoBean
+    private AuthProperties authProperties;
 
     @Test
     void testLoginSuccess() throws Exception {
@@ -79,12 +83,23 @@ class JwtAuthControllerTest {
 
     @Test
     void testAdminLogoutByUserId() throws Exception {
+        AuthProperties.Admin admin = new AuthProperties.Admin();
+        admin.setLogoutEnabled(true);
+        when(authProperties.getAdmin()).thenReturn(admin);
+
         mockMvc.perform(post("/api/auth/admin/logout/123"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value(true));
 
         verify(authService).logoutByUserId(123L);
+    }
+
+    @Test
+    void testAdminLogoutByUserId_disabledReturnsNotFound() throws Exception {
+        // 默认 me.auth.admin.logout.enabled=false，未启用时返回 404
+        mockMvc.perform(post("/api/auth/admin/logout/123"))
+                .andExpect(status().isNotFound());
     }
 
     @SpringBootApplication

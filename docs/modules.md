@@ -398,7 +398,7 @@ me:
   - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入。
   - 业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
   - Access Token 为无状态 JWT；Refresh Token 存 Redis，支持登出失效。
-  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；默认无权限校验，业务侧应通过 `me.auth.permission.rules`（引入 RBAC 时）或自定义拦截器自行保护。
+  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；**默认关闭**，需通过 `me.auth.admin.logout.enabled=true` 开启，开启后必须自行配置访问控制（`me.auth.permission.rules` 或自定义拦截器）。
 
 ## `frame-me-starter-auth-sa-token`
 
@@ -434,7 +434,7 @@ me:
   - 未登录 / Token 失效返回 401，无角色 / 无权限 / 被封禁返回 403：Filter 层 401 仍由 `AuthFilter` + `IFilterErrorResponseWriter` 输出；注解与路径规则层异常由 `SaTokenExceptionAdvice` 映射。
   - **无数据权限**：不提供行级数据范围能力，需要数据权限的项目应选择 `frame-me-starter-auth-rbac`。
   - 与 JWT 的语义映射：`sa-token.timeout` ≈ refresh token 绝对期，`sa-token.active-timeout` ≈ access token 闲置窗口，`/refresh` ≈ `renewTimeout` 续期（原 token 不变）；`TokenVO.refreshToken` 恒 `null`。
-  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，调用 `StpUtil.logout(loginId)` 踢出用户所有会话（Redis 后端下全节点即时生效）；默认无权限校验，业务侧应通过 `me.auth.sa-token.rules` 或引入 `frame-me-starter-auth-rbac` 后配置 `me.auth.permission.rules` 自行保护。
+  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，调用 `StpUtil.logout(loginId)` 踢出用户所有会话（Redis 后端下全节点即时生效）；**默认关闭**，需通过 `me.auth.admin.logout.enabled=true` 开启，开启后必须自行配置访问控制（`me.auth.sa-token.rules` 或引入 `frame-me-starter-auth-rbac` 后配置 `me.auth.permission.rules`）。
   - **原生 Cookie 支持**：`sa-token.is-read-cookie` 默认 `true`——`StpUtil.login()` 原生写 Cookie、`logout()` 原生清、`renewTimeout()` 原生刷；Cookie 名取 `sa-token.token-name`，属性全部来自 `sa-token.cookie.*`（domain/path/secure/http-only/same-site），Max-Age 由 `is-lasting-cookie` + `timeout` 派生。Token 同时永远经 JSON body 返回，前端 header / Cookie 双通道二选一；Resolver 的 Cookie 兜底读取与原生行为对齐。
 
 ## `frame-me-starter-cloud`

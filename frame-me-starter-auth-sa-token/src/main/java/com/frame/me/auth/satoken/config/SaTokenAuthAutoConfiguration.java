@@ -68,12 +68,13 @@ public class SaTokenAuthAutoConfiguration {
     }
 
     /**
-     * 默认认证接口（登录/登出/刷新/当前用户）.
+     * 默认认证接口（登录/登出/刷新/当前用户/管理员强制登出）.
      */
     @Bean
     @ConditionalOnMissingBean
-    public SaTokenAuthController saTokenAuthController(IAuthService authService) {
-        return new SaTokenAuthController(authService);
+    public SaTokenAuthController saTokenAuthController(IAuthService authService,
+                                                       com.frame.me.auth.config.AuthProperties authProperties) {
+        return new SaTokenAuthController(authService, authProperties);
     }
 
     /**

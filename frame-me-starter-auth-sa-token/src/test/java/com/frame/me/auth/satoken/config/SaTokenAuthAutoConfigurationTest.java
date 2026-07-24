@@ -3,6 +3,7 @@ package com.frame.me.auth.satoken.config;
 import cn.dev33.satoken.config.SaTokenConfig;
 import cn.dev33.satoken.dao.SaTokenDao;
 import cn.dev33.satoken.stp.StpInterface;
+import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice;
 import com.frame.me.auth.satoken.core.RedisSaTokenDao;
 import com.frame.me.auth.satoken.core.SaTokenAuthService;
@@ -123,6 +124,11 @@ class SaTokenAuthAutoConfigurationTest {
                     return false;
                 }
             };
+        }
+
+        @Bean
+        AuthProperties authProperties() {
+            return new AuthProperties();
         }
     }
 

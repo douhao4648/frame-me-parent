@@ -3,6 +3,7 @@ package com.frame.me.auth.satoken.web;
 import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.annotation.LoginUser;
+import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.satoken.core.SaTokenAuthUserResolver;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Sa-Token 认证控制器.
@@ -51,6 +54,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SaTokenAuthController {
 
     private final IAuthService authService;
+    private final AuthProperties authProperties;
 
     /**
      * 用户登录.
@@ -105,11 +109,15 @@ public class SaTokenAuthController {
      * <p>默认不做权限校验，业务方应通过路径规则自行保护（如
      * {@code "[/api/auth/admin/**]": "role:admin"}）。</p>
      */
-    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 强制踢出该用户的所有 Sa-Token 会话；默认无权限校验，需业务方自行配置路径规则")
+    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 强制踢出该用户的所有 Sa-Token 会话；默认关闭，需通过 me.auth.admin.logout.enabled=true 开启，开启后必须自行配置路径规则保护")
     @PostMapping("/admin/logout/{userId}")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)
             @PathVariable Long userId) {
+        AuthProperties.Admin admin = authProperties.getAdmin();
+        if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");
+        }
         authService.logoutByUserId(userId);
         return Result.success(true);
     }
