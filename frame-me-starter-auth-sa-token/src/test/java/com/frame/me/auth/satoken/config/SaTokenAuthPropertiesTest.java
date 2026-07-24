@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * {@link SaTokenAuthProperties} 配置绑定测试.
@@ -67,10 +68,10 @@ class SaTokenAuthPropertiesTest {
 
     /**
      * 反例：未用方括号记法的规则 key 会被 relaxed binding 剥离 {@code /} 与 {@code *}，
-     * 启动时由 {@link SaTokenAuthProperties#validateRuleKeys()} 打 WARN（此处验证绑定行为本身）.
+     * 启动时由 {@link SaTokenAuthProperties#validateRuleKeys()} 抛异常 fail-fast.
      */
     @Test
-    void bind_ruleKeyWithoutBrackets_getsStripped() {
+    void bind_ruleKeyWithoutBrackets_getsStripped_andFailsFast() {
         Map<String, Object> source = new HashMap<>();
         source.put("me.auth.sa-token.rules./api/admin/**", "role:admin");
 
@@ -80,5 +81,8 @@ class SaTokenAuthPropertiesTest {
 
         assertThat(properties.getRules()).doesNotContainKey("/api/admin/**");
         assertThat(properties.getRules().keySet()).allSatisfy(key -> assertThat(key).doesNotStartWith("/"));
+        assertThatThrownBy(properties::validateRuleKeys)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("不是以 '/' 开头的有效路径");
     }
 }

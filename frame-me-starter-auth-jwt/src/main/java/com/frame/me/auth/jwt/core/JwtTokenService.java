@@ -52,6 +52,10 @@ public class JwtTokenService implements IAuthService {
     @Override
     public void logout(String credential) {
         Long userId = parseAccessToken(credential);
+        if (userId == null) {
+            // Access Token 过期或无效时，尝试按 Refresh Token 清除
+            userId = parseRefreshToken(credential);
+        }
         if (userId != null) {
             refreshTokenStore.delete(userId);
             log.debug("用户登出，清除 Refresh Token: userId={}", userId);
@@ -174,6 +178,31 @@ public class JwtTokenService implements IAuthService {
         } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException
                  | SignatureException | IllegalArgumentException e) {
             log.debug("Access Token 解析失败: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 从凭证中提取 Refresh Token 并解析为用户 ID.
+     */
+    private Long parseRefreshToken(String credential) {
+        String token = extractToken(credential);
+        if (token == null) {
+            return null;
+        }
+        try {
+            Jws<Claims> jws = Jwts.parser()
+                    .verifyWith(getSecretKey())
+                    .build()
+                    .parseSignedClaims(token);
+            Claims claims = jws.getPayload();
+            if (!TOKEN_TYPE_REFRESH.equals(claims.get(CLAIM_TOKEN_TYPE))) {
+                return null;
+            }
+            return Long.valueOf(claims.get(CLAIM_USER_ID).toString());
+        } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException
+                 | SignatureException | IllegalArgumentException e) {
+            log.debug("Refresh Token 解析失败: {}", e.getMessage());
             return null;
         }
     }

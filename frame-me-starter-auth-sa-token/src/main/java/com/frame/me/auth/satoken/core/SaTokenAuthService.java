@@ -1,6 +1,7 @@
 package com.frame.me.auth.satoken.core;
 
 import cn.dev33.satoken.SaManager;
+import cn.dev33.satoken.exception.NotLoginException;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import com.alibaba.fastjson2.JSON;
@@ -82,8 +83,12 @@ public class SaTokenAuthService implements IAuthService {
         try {
             StpUtil.logout(userId);
             log.debug("管理员强制登出用户: userId={}", userId);
+        } catch (NotLoginException e) {
+            // 用户未登录或 loginId 不存在，无需强制登出
+            log.debug("用户未登录或不存在，跳过强制登出: userId={}", userId);
         } catch (Exception e) {
-            log.debug("Sa-Token 强制登出异常（忽略）: {}", e.getMessage());
+            log.warn("Sa-Token 强制登出失败: userId={}", userId, e);
+            throw new BusinessException(ResultCode.ERROR, "强制登出失败");
         }
     }
 

@@ -110,4 +110,17 @@ class JwtTokenServiceTest {
         assertTrue(tokenService.validate(accessToken));
         assertThrows(BusinessException.class, () -> tokenService.refresh(refreshToken));
     }
+
+    @Test
+    void testLogout_withRefreshTokenAlsoClearsStore() {
+        String tokenPair = tokenService.login("admin", "123456");
+        String accessToken = tokenPair.split(";")[0];
+        String refreshToken = tokenPair.split(";")[1];
+
+        // 直接用 Refresh Token 调用 logout 也能清除 Refresh Token
+        tokenService.logout(refreshToken);
+
+        assertTrue(tokenService.validate(accessToken));
+        assertThrows(BusinessException.class, () -> tokenService.refresh(refreshToken));
+    }
 }

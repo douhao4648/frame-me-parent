@@ -398,7 +398,7 @@ me:
   - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入。
   - 业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
   - Access Token 为无状态 JWT；Refresh Token 存 Redis，支持登出失效。
-  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；默认无权限校验，业务侧应通过 `me.auth.permission.rules` 自行保护。
+  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；默认无权限校验，业务侧应通过 `me.auth.permission.rules`（引入 RBAC 时）或自定义拦截器自行保护。
 
 ## `frame-me-starter-auth-sa-token`
 
@@ -420,7 +420,7 @@ me:
 - **可配置项**：sa-token 原生参数（`token-name` / `timeout` / `active-timeout` / `is-concurrent` / `is-share` / `cookie.*` 等）走官方 `sa-token.*` 配置路径（秒数 long 形式，见 sa-token 官方文档），由官方 starter 的 `SaBeanRegister` 绑定；本模块 `me.auth.sa-token.*` 仅承载框架自有配置（默认值以 `SaTokenAuthProperties` 源码为准）：
   - `me.auth.sa-token.enabled` — 是否启用 Sa-Token 认证，默认 `true`；为 `false` 时 Redis 会话后端配置一并退避。
   - `me.auth.sa-token.path` — 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/续期/当前用户接口均迁移到该路径下。
-  - `me.auth.sa-token.rules` — Interceptor 层「Ant 路径 → 简化鉴权表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 剥离 `/`、`*` 导致规则静默失效（fail-open）；启动时对不以 `/` 开头的 key 打 WARN。
+  - `me.auth.sa-token.rules` — Interceptor 层「Ant 路径 → 简化鉴权表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 剥离 `/`、`*` 导致规则匹配不上；启动时校验到不以 `/` 开头的 key 会直接抛异常，阻止应用启动（fail-fast）。
   - `me.auth.sa-token.roles` — 角色到权限码映射（逗号分隔 `resource:action` 或 `resource`，原样透传）。
   - `me.auth.sa-token.users` — 用户 ID（字符串）到角色映射（逗号分隔）。
   - `me.auth.sa-token.redis.enabled` — 是否启用 Redis 会话存储，默认 `true`（需 classpath 存在 `frame-me-starter-multi-redis`）。

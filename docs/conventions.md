@@ -441,7 +441,7 @@ public class DemoController {
 | 接口 | 方法 | 说明 |
 |---|---|---|
 | `/api/auth/login` | POST | 账号密码登录，返回 Access Token + Refresh Token |
-| `/api/auth/logout` | POST | 使当前 Access Token 对应的 Refresh Token 失效 |
+| `/api/auth/logout` | POST | 使当前 Access/Refresh Token 对应的 Refresh Token 失效；也支持直接传入 Refresh Token 进行清除 |
 | `/api/auth/refresh` | POST | 使用 Refresh Token 换取新的 Token 对 |
 | `/api/auth/user` | GET | 获取当前登录用户信息 |
 
@@ -544,7 +544,7 @@ me:
 鉴权用法（sa-token 原生能力）：
 
 - **方法级注解**：`@SaCheckLogin` / `@SaCheckRole("admin")` / `@SaCheckPermission("order:read")`，由自动装配注册的 `SaInterceptor` 使其生效。
-- **路径级规则**：`me.auth.sa-token.rules`，value 为简化表达式（非 SpEL）：`login`、`role:xxx`、`perm:resource`、`perm:resource:action`。**⚠️ YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`——Spring Boot 对 `Map` key 做 relaxed binding 时会剥离 `/`、`*`，规则将静默失效（fail-open）；启动时对不以 `/` 开头的 key 打 WARN。
+- **路径级规则**：`me.auth.sa-token.rules`，value 为简化表达式（非 SpEL）：`login`、`role:xxx`、`perm:resource`、`perm:resource:action`。**⚠️ YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`——Spring Boot 对 `Map` key 做 relaxed binding 时会剥离 `/`、`*`，导致规则匹配不上；启动时校验到不以 `/` 开头的 key 会直接抛异常，阻止应用启动（fail-fast）。
 - **权限数据源**：默认配置版（`me.auth.sa-token.users` / `roles`）；业务声明任意 `StpInterface` Bean 即接管（接数据库时应自行缓存——sa-token 每次鉴权都会回调该接口）。
 
 401 / 403 语义：
