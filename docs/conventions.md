@@ -443,11 +443,13 @@ public class DemoController {
 | `/api/auth/login` | POST | 账号密码登录，返回 Access Token + Refresh Token |
 | `/api/auth/logout` | POST | 使当前 Access Token 对应的 Refresh Token 失效 |
 | `/api/auth/refresh` | POST | 使用 Refresh Token 换取新的 Token 对 |
-| `/api/auth/me` | GET | 获取当前登录用户信息 |
+| `/api/auth/user` | GET | 获取当前登录用户信息 |
 
-业务只需实现 `IAuthUserDetailsService`：
+业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`（密码工具 `com.frame.me.auth.util.PasswordUtils` 同在抽象层 `frame-me-starter-auth`）：
 
 ```java
+import com.frame.me.auth.spi.IAuthUserDetailsService;
+
 @Service
 public class UserDetailsServiceImpl implements IAuthUserDetailsService {
 
@@ -461,12 +463,13 @@ public class UserDetailsServiceImpl implements IAuthUserDetailsService {
         // 按用户 ID 查询用户
     }
 
-    @Override
-    public boolean matches(String rawPassword, String encodedPassword) {
-        return PasswordUtils.matches(rawPassword, encodedPassword);
-    }
+    // matches 为 default 方法（PasswordUtils BCrypt 校验），换算法时才需覆盖
 }
 ```
+
+「查用户 → 空则 401 → 校验密码 → 失败 401」的认证步骤由抽象层
+`com.frame.me.auth.core.AuthUserAuthenticator.authenticate(...)` 承载，
+各认证实现的 `login` 直接调用，不再各自复制。
 
 ### 配置示例
 
@@ -481,6 +484,86 @@ me:
 
 - `secret` **必须配置**，长度不少于 32 字符。
 - Refresh Token 默认存储在 Redis，需配置 `spring.data.redis.*`。
+
+### Sa-Token 认证实现 `frame-me-starter-auth-sa-token`
+
+类路径：`frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken`
+
+基于 sa-token（`cn.dev33:sa-token-spring-boot4-starter`，1.45.0）的会话治理型认证实现，面向需要踢人 / 封禁 / 在线会话 / 多端互斥的后台场景。**不纳入 `frame-me-booter`**，业务 `xx-service` 显式引入：
+
+```xml
+<dependency>
+    <groupId>com.frame.me</groupId>
+    <artifactId>frame-me-starter-auth-sa-token</artifactId>
+</dependency>
+```
+
+引入后自动接管 `IAuthService` / `IAuthUserResolver`，并提供默认接口（与 JWT 模块同形状；基础路径 `me.auth.sa-token.path`，默认 `/api/auth`）：
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| `/api/auth/login` | POST | 账号密码登录，创建 sa-token 会话并返回 token |
+| `/api/auth/logout` | POST | 注销当前 token 对应的会话 |
+| `/api/auth/refresh` | POST | 对当前 token 续绝对有效期并重置闲置冻结窗口，返回原 token |
+| `/api/auth/user` | GET | 获取当前登录用户信息 |
+
+- Token 优先从原生 `sa-token.token-name` 指定的请求头读取（默认 `satoken`），header 缺失时按同名 Cookie 兜底读取（与 sa-token 原生 is-read-cookie 行为对齐）。
+- `TokenVO.refreshToken` 恒为 `null`：sa-token 会话模型无 Refresh Token 概念。
+- **原生 Cookie 支持**：`sa-token.is-read-cookie` 默认 `true`——登录自动写 Cookie、登出自动清、续期自动刷；Cookie 名取 `sa-token.token-name`，属性（domain/path/secure/http-only/same-site）全部来自 `sa-token.cookie.*`，Max-Age 由 `is-lasting-cookie` + `timeout` 派生；Token 同时永远经 JSON body 返回，前端双通道二选一。设 `sa-token.is-read-cookie=false` 可整体关闭 Cookie 通道。
+- 业务接入只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，与 JWT 实现共用同一份业务实现。
+
+配置示例（常用项；全量配置与默认值见 `docs/modules.md` 的 sa-token 小节）：
+
+```yaml
+# sa-token 原生参数走官方 sa-token.* 配置路径（秒数 long 形式，详见 sa-token 官方文档）
+sa-token:
+  token-name: satoken        # token 请求头名（兼 Cookie 名与存储 key 前缀），默认 satoken
+  timeout: 604800            # token 绝对有效期（秒），默认 2592000（30 天）；≈ JWT refresh-token-expires
+  active-timeout: 7200       # 闲置冻结窗口（秒），默认 -1 不限制；≈ JWT access-token-expires
+  is-concurrent: true        # 同账号多地共存，默认 true；false 时新登录挤掉旧登录
+  # is-read-cookie: true     # 原生 Cookie 读写开关，默认 true：登录写 Cookie、登出清、续期刷
+  # cookie:                  # 原生 Cookie 属性（可选）
+  #   domain: .example.com
+  #   http-only: true
+  #   same-site: Lax
+
+# 本模块仅承载框架自有配置
+me:
+  auth:
+    sa-token:
+      path: /api/auth          # 认证接口基础路径，默认 /api/auth
+      rules:                     # 路径级鉴权规则（⚠️ key 必须用方括号记法，见下）
+        "[/api/admin/**]": "role:admin"
+        "[/api/order/**]": "perm:order:read"
+      roles:                     # 角色 -> 权限码（配置版权限数据源）
+        admin: "user:add,order:read"
+      users:                     # 用户 ID(字符串) -> 角色
+        "1": "admin"
+```
+
+鉴权用法（sa-token 原生能力）：
+
+- **方法级注解**：`@SaCheckLogin` / `@SaCheckRole("admin")` / `@SaCheckPermission("order:read")`，由自动装配注册的 `SaInterceptor` 使其生效。
+- **路径级规则**：`me.auth.sa-token.rules`，value 为简化表达式（非 SpEL）：`login`、`role:xxx`、`perm:resource`、`perm:resource:action`。**⚠️ YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`——Spring Boot 对 `Map` key 做 relaxed binding 时会剥离 `/`、`*`，规则将静默失效（fail-open）；启动时对不以 `/` 开头的 key 打 WARN。
+- **权限数据源**：默认配置版（`me.auth.sa-token.users` / `roles`）；业务声明任意 `StpInterface` Bean 即接管（接数据库时应自行缓存——sa-token 每次鉴权都会回调该接口）。
+
+401 / 403 语义：
+
+- Filter 层（`AuthFilter`）未登录仍返回 401，与 JWT 模式一致。
+- 注解与路径规则层抛出的 sa-token 异常由 `SaTokenExceptionAdvice` 映射：`NotLoginException` → 401；`NotRoleException` / `NotPermissionException` / `DisableServiceException` → 403（统一 `Result`，HTTP 200、业务码在 body）。
+
+**选型：jwt + rbac vs sa-token**
+
+| 维度 | `frame-me-starter-auth-jwt` + `frame-me-starter-auth-rbac` | `frame-me-starter-auth-sa-token` |
+|---|---|---|
+| Token 模型 | 无状态 JWT（access）+ Redis 持久化 refresh | 不透明 token + 服务端会话（内存 / Redis） |
+| 单请求开销 | 本地验签，零 I/O | 每请求查会话存储（Redis 模式下有网络 I/O） |
+| 会话治理 | 无（仅 refresh token 吊销） | 踢人、封禁、在线会话、多端互斥（`is-concurrent=false`）、闲置冻结（`active-timeout`） |
+| 权限模型 | RBAC + 数据权限（行级数据范围） | 角色 + 权限码（sa-token 原生），**无数据权限** |
+| 鉴权写法 | `@RequireAuth`(SpEL) + Filter rules | `@SaCheck*` 注解 + Interceptor rules |
+| 适用场景 | 无状态 API、需要数据权限的业务系统 | 需要会话治理的后台 / 管理系统 |
+
+需要数据权限的项目选 jwt + rbac；需要踢人 / 封禁 / 在线会话治理的项目选 sa-token。
 
 ### 关闭强制登录
 

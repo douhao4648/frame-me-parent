@@ -1,10 +1,10 @@
-package com.frame.me.auth.jwt.web.dto;
+package com.frame.me.auth.web.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * 登录请求 DTO.
+ * 登录请求 DTO（JWT / Sa-Token 等认证实现共用）.
  *
  * @author frame-me
  */

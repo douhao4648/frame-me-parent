@@ -1,6 +1,8 @@
 package com.frame.me.auth.jwt.core;
 
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -43,13 +45,7 @@ public class JwtTokenService implements IAuthService {
 
     @Override
     public String login(String account, String password) {
-        User user = userDetailsService.loadUserByAccount(account);
-        if (user == null) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
-        }
-        if (!userDetailsService.matches(password, user.getPassword())) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
-        }
+        User user = AuthUserAuthenticator.authenticate(userDetailsService, account, password);
         return buildTokenPair(user);
     }
 
@@ -60,6 +56,20 @@ public class JwtTokenService implements IAuthService {
             refreshTokenStore.delete(userId);
             log.debug("用户登出，清除 Refresh Token: userId={}", userId);
         }
+    }
+
+    /**
+     * 按用户 ID 强制登出：清除该用户的 Refresh Token.
+     *
+     * <p>已颁发的 Access Token 在自然过期前仍然有效（JWT 无状态限制）。</p>
+     */
+    @Override
+    public void logoutByUserId(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        refreshTokenStore.delete(userId);
+        log.debug("管理员强制登出用户，清除 Refresh Token: userId={}", userId);
     }
 
     @Override

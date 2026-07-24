@@ -33,6 +33,10 @@
         </dependency>
         <!--        <dependency>-->
         <!--            <groupId>com.frame.me</groupId>-->
+        <!--            <artifactId>frame-me-starter-auth-sa-token</artifactId>-->
+        <!--        </dependency>-->
+        <!--        <dependency>-->
+        <!--            <groupId>com.frame.me</groupId>-->
         <!--            <artifactId>frame-me-starter-mybatis-plus</artifactId>-->
         <!--        </dependency>-->
         <dependency>

@@ -1,16 +1,17 @@
 package com.frame.me.auth.jwt.web;
 
-import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.api.result.IResult;
+import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.annotation.LoginUser;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
-import com.frame.me.auth.jwt.web.dto.LoginDTO;
-import com.frame.me.auth.jwt.web.vo.TokenVO;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.auth.web.dto.LoginDTO;
+import com.frame.me.auth.web.vo.TokenVO;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -30,9 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * JWT 认证控制器.
  *
+ * <p><b>管理员强制登出接口（{@code /admin/logout/{userId}}）默认不做权限校验</b>，
+ * 由业务方通过 {@code me.auth.permission.rules} 自行配置访问控制，
+ * 避免 starter 强制依赖 RBAC 模块。</p>
+ *
  * @author frame-me
  */
-@Tag(name = "JWT 认证", description = "登录、登出、刷新 Token、获取当前用户")
+@Tag(name = "JWT 认证", description = "登录、登出、刷新 Token、获取当前用户、管理员强制登出")
 @Validated
 @RestController
 @RequestMapping("${me.auth.jwt.path:/api/auth}")
@@ -95,6 +101,21 @@ public class JwtAuthController {
             return Result.error(ResultCode.UNAUTHORIZED, "未登录");
         }
         return Result.success(user);
+    }
+
+    /**
+     * 管理员强制登出指定用户（清除 Refresh Token）.
+     *
+     * <p>默认不做权限校验，业务方应通过路径规则自行保护（如
+     * {@code "[/api/auth/admin/**]": "role('admin')"}）。</p>
+     */
+    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 清除该用户的 Refresh Token；已颁发的 Access Token 仍会在自然过期前有效；默认无权限校验，需业务方自行配置路径规则")
+    @PostMapping("/admin/logout/{userId}")
+    public IResult<Boolean> logoutByUserId(
+            @Parameter(description = "用户 ID", required = true)
+            @PathVariable Long userId) {
+        authService.logoutByUserId(userId);
+        return Result.success(true);
     }
 
     private String extractToken(HttpServletRequest request) {

@@ -1,4 +1,4 @@
-package com.frame.me.auth.jwt.util;
+package com.frame.me.auth.util;
 
 import org.junit.jupiter.api.Test;
 

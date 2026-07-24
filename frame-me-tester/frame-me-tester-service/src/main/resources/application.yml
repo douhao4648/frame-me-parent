@@ -137,6 +137,14 @@ decorator:
     p6spy:
       enable-logging: true
 
+# sa-token 原生参数（官方 sa-token.* 配置路径，秒数 long 形式）；jwt 模式下被忽略
+sa-token:
+  token-name: satoken
+  timeout: 604800        # 7 天（秒），token 绝对有效期
+  active-timeout: 7200   # 2 小时（秒），闲置冻结窗口；-1 表示不限制
+  # cookie:              # 原生 Cookie 属性（可选）：登录自动写 Cookie、登出清、续期刷（is-read-cookie 默认 true）
+  #   domain: .example.com
+
 me:
   auth:
     enabled: true
@@ -155,6 +163,13 @@ me:
       - /v3/api-docs/**
       - /v3/api-docs
       - /actuator/health
+    sa-token:
+      enabled: true
+      path: /base/auth
+      users:
+        "1": admin
+      roles:
+        admin: "order:read"
   # 依赖通过 Maven profile "swagger" 引入：mvn ... -Pswagger
   swagger:
     title: Frame Me Tester API

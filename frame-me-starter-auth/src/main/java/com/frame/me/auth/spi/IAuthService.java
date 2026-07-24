@@ -29,6 +29,18 @@ public interface IAuthService {
     void logout(String credential);
 
     /**
+     * 根据用户 ID 强制登出（踢出）该用户的所有会话.
+     *
+     * <p>默认空实现；具体认证模块按需覆盖。例如 Sa-Token 可注销 loginId 的全部 session，
+     * JWT 可删除该用户的 Refresh Token 使其无法续期。</p>
+     *
+     * @param userId 用户 ID
+     */
+    default void logoutByUserId(Long userId) {
+        // 默认空实现，避免破坏现有实现
+    }
+
+    /**
      * 刷新凭证.
      *
      * @param credential 原凭证

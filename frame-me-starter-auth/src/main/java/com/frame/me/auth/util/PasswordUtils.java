@@ -1,4 +1,4 @@
-package com.frame.me.auth.jwt.util;
+package com.frame.me.auth.util;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;

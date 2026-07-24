@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -74,6 +75,16 @@ class JwtAuthControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value(true))
                 .andExpect(header().doesNotExist("Set-Cookie"));
+    }
+
+    @Test
+    void testAdminLogoutByUserId() throws Exception {
+        mockMvc.perform(post("/api/auth/admin/logout/123"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").value(true));
+
+        verify(authService).logoutByUserId(123L);
     }
 
     @SpringBootApplication

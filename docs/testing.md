@@ -10,6 +10,7 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/Abstra
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/async/AsyncCustomPrefixTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/async/AsyncIntegrationTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/JwtAuthEndToEndTest.java
+frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/PermissionIntegrationTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java
 frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java
@@ -24,7 +25,8 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/
 
 - `AsyncCustomPrefixTest`：验证自定义 `@Async` 线程池前缀。
 - `AsyncIntegrationTest`：验证默认 `@Async` 线程池与异常通知行为。
-- `JwtAuthEndToEndTest`：验证 JWT 登录/刷新/当前用户/登出端到端流程。
+- `JwtAuthEndToEndTest`：验证 JWT 登录/刷新/当前用户/登出端到端流程（JWT 双 token 语义，切换为 sa-token 依赖后需排除编译）。
+- `PermissionIntegrationTest`：覆盖 `@RequireAuth` 注解权限与 Filter 层路径规则（依赖 auth-rbac，切换为 sa-token 依赖后需排除编译）。
 - `DemoServiceCacheTest`：演示 JetCache 两级缓存集成测试。
 - `JasyptEncryptTest`：演示 Jasypt 配置加密解密测试。
 - `UserCreatedEventFlowTest`：演示事件桥接端到端测试。
@@ -71,6 +73,16 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn clean compile -DskipTests
 ```
+
+## 认证实现切换（jwt / sa-token）
+
+`frame-me-tester-service` 默认直接声明 `frame-me-starter-auth-jwt` + `frame-me-starter-auth-rbac` 依赖，使用 JWT + RBAC 认证。切换到 sa-token 会话治理型认证时，按 `pom.xml` 中依赖注释的指引操作：
+
+1. 注释掉 `frame-me-starter-auth-jwt` 与 `frame-me-starter-auth-rbac` 依赖；
+2. 取消 `frame-me-starter-auth-sa-token` 依赖的注释；
+3. 排除两个不兼容测试的编译：`PermissionIntegrationTest`（依赖 auth-rbac 的 `@RequireAuth`，sa-token 模式下无法编译）与 `JwtAuthEndToEndTest`（断言 JWT 双 token 行为，sa-token 会话模型 `refreshToken` 恒为 `null`，必然失败）。
+
+sa-token 模式的运行配置已预置在 `application.yml`：框架自有配置在 `me.auth.sa-token.*` 块，sa-token 原生参数（`token-name` / `timeout` / `active-timeout` 等）在根级 `sa-token.*` 块（jwt 模式下均被忽略）。
 
 ## 启动应用
 
@@ -153,6 +165,7 @@ public class HealthController {
 |---|---|---|
 | `AbstractIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java` | 测试基类，负责启动 MySQL 容器并注入数据源配置 |
 | `JwtAuthEndToEndTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/JwtAuthEndToEndTest.java` | 覆盖 JWT 登录/刷新/当前用户/登出 |
+| `PermissionIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/PermissionIntegrationTest.java` | 覆盖 `@RequireAuth` 注解权限与 Filter 路径规则 |
 | `DemoMapperIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java` | 覆盖插入/自动填充、查询、乐观锁、逻辑删除、分页 |
 | `FlexMultiDataSourceTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/flex/FlexMultiDataSourceTest.java` | 演示 MyBatis-Flex + dynamic-ds 多数据源切换 |
 | `MybatisPlusCrudAndFillTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java` | 覆盖 CRUD 与自动填充 |

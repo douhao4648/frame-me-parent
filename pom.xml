@@ -44,6 +44,7 @@
         <redisson.version>4.6.1</redisson.version>
         <jasypt.version>1.9.3</jasypt.version>
         <jjwt.version>0.13.0</jjwt.version>
+        <sa-token.version>1.45.0</sa-token.version>
     </properties>
 
     <modules>
@@ -55,6 +56,7 @@
         <module>frame-me-starter-auth</module>
         <module>frame-me-starter-auth-rbac</module>
         <module>frame-me-starter-auth-jwt</module>
+        <module>frame-me-starter-auth-sa-token</module>
         <module>frame-me-starter-cloud</module>
         <module>frame-me-starter-doc-openapi</module>
         <module>frame-me-starter-dynamic-ds</module>
@@ -129,6 +131,16 @@
                 <groupId>com.frame.me</groupId>
                 <artifactId>frame-me-starter-auth-jwt</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.frame.me</groupId>
+                <artifactId>frame-me-starter-auth-sa-token</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cn.dev33</groupId>
+                <artifactId>sa-token-spring-boot4-starter</artifactId>
+                <version>${sa-token.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>

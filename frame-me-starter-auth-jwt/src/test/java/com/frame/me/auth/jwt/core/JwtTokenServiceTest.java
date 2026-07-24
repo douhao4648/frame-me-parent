@@ -1,8 +1,9 @@
 package com.frame.me.auth.jwt.core;
 
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
-import com.frame.me.auth.jwt.util.PasswordUtils;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.auth.spi.IAuthUserDetailsService;
+import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.user.User;
 import org.junit.jupiter.api.BeforeEach;

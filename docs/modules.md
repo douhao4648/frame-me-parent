@@ -292,15 +292,19 @@ me:
 
 ## `frame-me-starter-auth`
 
-- **定位**：认证抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点，默认带一个基于请求头的极简兜底实现；后续可通过新增 `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-security` 等模块完全接管具体实现。RBAC 授权能力已独立到 `frame-me-starter-auth-rbac`。
-- **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现。
+- **定位**：认证抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点，默认带一个基于请求头的极简兜底实现；具体认证实现由独立 starter 接管，当前已有 `frame-me-starter-auth-jwt` 与 `frame-me-starter-auth-sa-token` 两种可选实现（`frame-me-starter-auth-security` 等仍可后续扩展）。RBAC 授权能力已独立到 `frame-me-starter-auth-rbac`。
+- **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现；`spring-security-crypto` 为 optional 依赖（`PasswordUtils` 的 BCrypt 实现），由真正做账号密码认证的实现 starter 显式声明。
 - **关键类**：
   - `com.frame.me.auth.config.AuthAutoConfiguration` — 自动装配入口。
   - `com.frame.me.auth.config.AuthProperties` — `me.auth.*` 配置属性绑定。
   - `com.frame.me.auth.core.AuthContext` — ThreadLocal 当前用户上下文。
+  - `com.frame.me.auth.core.AuthUserAuthenticator` — 账号密码认证器（查用户 → 401 → 校验密码 → 401），供 JWT / Sa-Token 等认证实现的 `login` 共用。
   - `com.frame.me.auth.core.HeaderAuthUserResolver` — 默认请求头兜底用户解析器。
-  - `com.frame.me.auth.spi.IAuthService` — 登录/登出/刷新/校验认证服务接口。
+  - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。
   - `com.frame.me.auth.spi.IAuthUserResolver` — 请求解析当前用户接口。
+  - `com.frame.me.auth.spi.IAuthUserDetailsService` — 用户详情服务 SPI（按账号/ID 查询用户、校验密码），供 JWT / Sa-Token 等认证实现共用；`matches` 为 default 方法（BCrypt），业务换算法时覆盖。
+  - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — 登录请求与 Token 响应，JWT / Sa-Token 实现共用。
+  - `com.frame.me.auth.util.PasswordUtils` — BCrypt 密码加解密工具。
   - `com.frame.me.auth.annotation.LoginUser` — 注入当前用户参数注解。
   - `com.frame.me.auth.annotation.Anonymous` — 匿名访问白名单注解。
   - `com.frame.me.auth.filter.AuthFilter` — 认证过滤器，解析并写入当前用户。
@@ -374,11 +378,11 @@ me:
   - `com.frame.me.auth.jwt.config.JwtAuthProperties` — `me.auth.jwt.*` 配置属性绑定。
   - `com.frame.me.auth.jwt.core.JwtTokenService` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。
   - `com.frame.me.auth.jwt.core.JwtAuthUserResolver` — `IAuthUserResolver` 实现，从 `Authorization: Bearer ...` 解析当前用户。
-  - `com.frame.me.auth.jwt.core.IAuthUserDetailsService` — 业务需实现的接口：按账号/ID 查询用户、校验密码。
+  - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户、校验密码（与 Sa-Token 实现共用）。
   - `com.frame.me.auth.jwt.core.RefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。
-  - `com.frame.me.auth.jwt.web.JwtAuthController` — 默认认证接口：登录/登出/刷新/当前用户；基础路径默认 `/api/auth`，可通过 `me.auth.jwt.path` 修改。
-  - `com.frame.me.auth.jwt.web.dto.LoginDTO` / `com.frame.me.auth.jwt.web.vo.TokenVO` — 登录请求与 Token 响应。
-  - `com.frame.me.auth.jwt.util.PasswordUtils` — BCrypt 密码加解密工具。
+  - `com.frame.me.auth.jwt.web.JwtAuthController` — 默认认证接口：登录/登出/刷新/当前用户/管理员强制登出；基础路径默认 `/api/auth`，可通过 `me.auth.jwt.path` 修改。
+  - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — **位于抽象层**：登录请求与 Token 响应（与 Sa-Token 实现共用）。
+  - `com.frame.me.auth.util.PasswordUtils` — **位于抽象层**：BCrypt 密码加解密工具。
 - **自动装配**：通过 `frame-me-starter-auth-jwt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `JwtAutoConfiguration`。
 - **可配置项**：
   - `me.auth.jwt.enabled` — 是否启用，默认 `true`。
@@ -392,8 +396,46 @@ me:
   - `me.auth.jwt.path` — JWT 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/刷新/当前用户接口均迁移到该路径下。
 - **设计约定**：
   - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入。
-  - 业务只需实现 `IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
+  - 业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
   - Access Token 为无状态 JWT；Refresh Token 存 Redis，支持登出失效。
+  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；默认无权限校验，业务侧应通过 `me.auth.permission.rules` 自行保护。
+
+## `frame-me-starter-auth-sa-token`
+
+- **定位**：基于 sa-token（`cn.dev33:sa-token-spring-boot4-starter`，1.45.0）的会话治理型认证 starter，接管 `frame-me-starter-auth` 的 `IAuthService` / `IAuthUserResolver`。面向需要踢人 / 封禁 / 在线会话 / 多端互斥的后台场景，是 `frame-me-starter-auth-jwt`（+ rbac）之外的可选认证实现。
+- **依赖**：`frame-me-starter-auth`、`sa-token-spring-boot4-starter`、`fastjson2`、`spring-security-crypto`、`lombok`；`frame-me-starter-multi-redis` 为 optional 依赖——消费方显式引入即激活 Redis 会话后端。
+- **关键类**：
+  - `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration` — 自动装配入口（`@AutoConfigureBefore(AuthAutoConfiguration.class)`）：接管 `IAuthService` / `IAuthUserResolver`，注册配置版 `StpInterface`、默认 Controller、异常 Advice 与 `SaInterceptor`（路径规则 + `@SaCheck*` 注解鉴权）。sa-token 原生 `SaTokenConfig` 由官方 starter 的 `SaBeanRegister` 绑定 `sa-token.*` 配置路径提供，本模块不声明。
+  - `com.frame.me.auth.satoken.config.SaTokenAuthProperties` — `me.auth.sa-token.*` 配置属性绑定；启动时校验 rules key 是否以 `/` 开头，防 relaxed binding 导致的规则静默失效。
+  - `com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration` — Redis 会话后端装配入口（类级 `@ConditionalOnClass(RedisUtils.class)`，与总开关 `me.auth.sa-token.enabled` 及 `me.auth.sa-token.redis.enabled` 联动）。
+  - `com.frame.me.auth.satoken.config.SaTokenNoRedisWarnAutoConfiguration` — multi-redis 缺席告警（`@ConditionalOnMissingClass`，提示会话退回内存存储）。
+  - `com.frame.me.auth.satoken.core.SaTokenAuthService` — `IAuthService` 实现：`login` / `logout` / `refresh` 走 sa-token 标准上下文 API（`StpUtil.login/logout/renewTimeout`，原生写 / 清 / 刷 Cookie），面向请求线程调用；`validate` / `getUser` 用 `getLoginIdByToken` 纯 DAO 查询，上下文无关。用户快照以 JSON 写入 Account-Session，读取缓存优先、回源 `IAuthUserDetailsService#loadUserById`。
+  - `com.frame.me.auth.satoken.core.SaTokenAuthUserResolver` — `IAuthUserResolver` 实现：显式从原生 `sa-token.token-name` 指定的请求头读 token（头名取 `SaManager.getConfig().getTokenName()`），header 缺失时按同名 Cookie 兜底读取（与 sa-token 原生 is-read-cookie 行为对齐）。刻意不用 `StpUtil.getTokenValue()`——框架 `AuthFilter`（order = HIGHEST_PRECEDENCE + 100）先于官方 `SaTokenContextFilter`（order = -104）执行，此时 sa-token 上下文尚未初始化。
+  - `com.frame.me.auth.satoken.core.SaTokenRuleEvaluator` — 路径规则简化表达式求值器（非 SpEL）：`login` / `role:xxx` / `perm:resource` / `perm:resource:action`；非法表达式在装配期预解析直接启动失败。
+  - `com.frame.me.auth.satoken.core.RedisSaTokenDao` — 基于 `RedisUtils` 的 `SaTokenDao` 实现（`SaTokenDaoByObjectFollowString`），timeout 分支语义逐条对齐官方 `SaTokenDaoForRedisTemplate`；所有 key 按 sa-token 传入值原样读写（sa-token 生成的 key 自带 tokenName 前缀，不再叠加命名空间），`clientName` 路由多实例。
+  - `com.frame.me.auth.satoken.permission.ConfigStpInterface` — 配置版权限数据源（sa-token 原生 RBAC）：从 `me.auth.sa-token.users` / `roles` 读取角色与权限码（原样透传），构造期一次性预解析 CSV，运行期仅 map 查找；业务声明任意 `StpInterface` Bean 即接管（本实现退避）。
+  - `com.frame.me.auth.satoken.web.SaTokenAuthController` — 默认认证接口：登录 / 登出 / 续期 / 当前用户 / 管理员强制登出，基础路径默认 `/api/auth`（`me.auth.sa-token.path` 可改）；登录请求与 Token 响应复用抽象层 `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO`（sa-token 会话模型无 Refresh Token 概念，`refreshToken` 恒为 `null`）。
+  - `com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice` — sa-token 异常到 401/403 语义的映射（`@Order(HIGHEST_PRECEDENCE)`，先于 `GlobalExceptionHandler` 的通用处理器）。
+- **自动装配**：通过 `frame-me-starter-auth-sa-token/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `SaTokenAuthAutoConfiguration`、`SaTokenRedisDaoAutoConfiguration`、`SaTokenNoRedisWarnAutoConfiguration`。
+- **可配置项**：sa-token 原生参数（`token-name` / `timeout` / `active-timeout` / `is-concurrent` / `is-share` / `cookie.*` 等）走官方 `sa-token.*` 配置路径（秒数 long 形式，见 sa-token 官方文档），由官方 starter 的 `SaBeanRegister` 绑定；本模块 `me.auth.sa-token.*` 仅承载框架自有配置（默认值以 `SaTokenAuthProperties` 源码为准）：
+  - `me.auth.sa-token.enabled` — 是否启用 Sa-Token 认证，默认 `true`；为 `false` 时 Redis 会话后端配置一并退避。
+  - `me.auth.sa-token.path` — 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/续期/当前用户接口均迁移到该路径下。
+  - `me.auth.sa-token.rules` — Interceptor 层「Ant 路径 → 简化鉴权表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 剥离 `/`、`*` 导致规则静默失效（fail-open）；启动时对不以 `/` 开头的 key 打 WARN。
+  - `me.auth.sa-token.roles` — 角色到权限码映射（逗号分隔 `resource:action` 或 `resource`，原样透传）。
+  - `me.auth.sa-token.users` — 用户 ID（字符串）到角色映射（逗号分隔）。
+  - `me.auth.sa-token.redis.enabled` — 是否启用 Redis 会话存储，默认 `true`（需 classpath 存在 `frame-me-starter-multi-redis`）。
+  - `me.auth.sa-token.redis.client-name` — Redis 实例名（对应 `me.redis.clients` 的 key），默认 `default`。
+- **设计约定**：
+  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入。
+  - 业务接入只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，与 JWT 实现共用同一份业务实现。
+  - 当前只做不透明 token 的会话模式（Redis / 内存），代码不假设 token 格式；`StpLogicJwtForSimple`（jwt-simple）留口——未来接入只需替换 `StpUtil.setStpLogic(...)`，`SaTokenAuthService` 无需改动。
+  - multi-redis 缺席时退回 sa-token 内存 DAO（单实例可用），启动时 WARN 提示；多实例部署必须引入 `frame-me-starter-multi-redis` 以共享会话。
+  - 权限数据源默认配置版；业务声明 `StpInterface` Bean 接管时，接数据库的实现应自行做缓存——sa-token 每次鉴权都会回调该接口。
+  - 未登录 / Token 失效返回 401，无角色 / 无权限 / 被封禁返回 403：Filter 层 401 仍由 `AuthFilter` + `IFilterErrorResponseWriter` 输出；注解与路径规则层异常由 `SaTokenExceptionAdvice` 映射。
+  - **无数据权限**：不提供行级数据范围能力，需要数据权限的项目应选择 `frame-me-starter-auth-rbac`。
+  - 与 JWT 的语义映射：`sa-token.timeout` ≈ refresh token 绝对期，`sa-token.active-timeout` ≈ access token 闲置窗口，`/refresh` ≈ `renewTimeout` 续期（原 token 不变）；`TokenVO.refreshToken` 恒 `null`。
+  - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，调用 `StpUtil.logout(loginId)` 踢出用户所有会话（Redis 后端下全节点即时生效）；默认无权限校验，业务侧应通过 `me.auth.sa-token.rules` 或引入 `frame-me-starter-auth-rbac` 后配置 `me.auth.permission.rules` 自行保护。
+  - **原生 Cookie 支持**：`sa-token.is-read-cookie` 默认 `true`——`StpUtil.login()` 原生写 Cookie、`logout()` 原生清、`renewTimeout()` 原生刷；Cookie 名取 `sa-token.token-name`，属性全部来自 `sa-token.cookie.*`（domain/path/secure/http-only/same-site），Max-Age 由 `is-lasting-cookie` + `timeout` 派生。Token 同时永远经 JSON body 返回，前端 header / Cookie 双通道二选一；Resolver 的 Cookie 兜底读取与原生行为对齐。
 
 ## `frame-me-starter-cloud`
 
@@ -814,7 +856,7 @@ public class AlertService {
   - 业务 `xx-service` 通过引入 `frame-me-booter` 一键启动通用能力。
   - `frame-me-booter` 无自己的自动装配类，依赖的 `frame-me-starter-base` 等模块会通过传递依赖自动注册。
   - `frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合，因为不同项目通常会重写适配层或按需引入文档能力。
-  - `frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 同样按需引入，不纳入聚合。
+  - `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 同样按需引入，不纳入聚合。
 
 ```xml
 <!-- 业务 xx-service：引入通用能力 -->
@@ -921,6 +963,7 @@ public class AlertService {
 | `frame-me-starter-auth` | `frame-me-starter-base` |
 | `frame-me-starter-auth-rbac` | `frame-me-starter-auth`、`caffeine`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-auth-jwt` | `frame-me-starter-auth`、`jjwt`、`spring-security-crypto`（`frame-me-starter-multi-redis` optional） |
+| `frame-me-starter-auth-sa-token` | `frame-me-starter-auth`、`sa-token-spring-boot4-starter`、`fastjson2`、`spring-security-crypto`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-cloud` | `frame-me-starter-base` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |

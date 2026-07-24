@@ -49,6 +49,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-base` | Spring Web 基础设施：`ResultCode`、异常体系、全局异常处理、`IResult<T>` 实现、Filter 层错误响应 SPI、事件桥接、HTTP Interface 客户端、池化 `RestClient`，以及统一的 `@Async` / `@Scheduled` 线程池。 |
 | `frame-me-starter-auth` | 认证授权抽象层：`AuthContext`、`@LoginUser` / `@Anonymous`、`IAuthService` / `IAuthUserResolver` SPI、`AuthFilter`。 |
 | `frame-me-starter-auth-jwt` | JWT 认证实现 starter，接管 auth 抽象层，提供登录/登出/刷新/当前用户接口。 |
+| `frame-me-starter-auth-sa-token` | 基于 sa-token 的会话治理型认证 starter，接管 auth 抽象层，提供踢人/封禁/在线会话/多端互斥能力；按需显式引入，不纳入 booter。 |
 | `frame-me-starter-cloud` | 微服务云组件占位模块。 |
 | `frame-me-starter-mybatis-plus` | MyBatis-Plus 数据访问 starter（实体基类、分页插件、公共字段填充、雪花 ID）。 |
 | `frame-me-starter-mybatis-flex` | MyBatis-Flex 数据访问 starter（与 mybatis-plus 二选一）。 |
@@ -61,7 +62,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-msg-notify` | 消息通知 starter：统一邮件/Webhook/短信多通道通知能力，支持 `INotifySender` 接口、全局默认接收者与多客户端配置。 |
 | `frame-me-starter-sse-mvc` | SSE 推送 starter（按需引入）：服务端事件推送，支持按事件类型广播与按接收者定向推送。 |
 | `frame-me-starter-ws-mvc` | WebSocket 推送 starter（按需引入）：Servlet 原生 WebSocket 全双工，支持广播与定向推送。 |
-| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/multi-redis/l1l2-cache/sensi-encrypt/sse-mvc/op-audit/msg-notify；不含 adapter、doc-openapi、ws-mvc、auth-jwt、mybatis-plus/flex、dynamic-ds）。 |
+| `frame-me-booter` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/multi-redis/l1l2-cache/sensi-encrypt/sse-mvc/op-audit/msg-notify；不含 adapter、doc-openapi、ws-mvc、auth-jwt、auth-sa-token、mybatis-plus/flex、dynamic-ds）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定
@@ -87,6 +88,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
   - `frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 二选一，显式引入。
   - `frame-me-starter-dynamic-ds` 按需显式引入。
   - `frame-me-starter-auth-jwt` 按需显式引入以替换 auth 抽象层的默认兜底实现。
+  - `frame-me-starter-auth-sa-token` 同样按需显式引入（与 auth-jwt 二选一的认证实现），不纳入 `frame-me-booter`。
   - `frame-me-adapter` 通常需要按项目自定义，因此保持独立，由业务 `xx-service` 按需引入 `frame-me-adapter-starter` 或自行实现。`frame-me-starter-doc-openapi` 同样按需引入。
 
 ## License

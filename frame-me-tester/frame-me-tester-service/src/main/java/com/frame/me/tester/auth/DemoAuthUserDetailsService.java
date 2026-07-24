@@ -1,7 +1,7 @@
 package com.frame.me.tester.auth;
 
-import com.frame.me.auth.jwt.core.IAuthUserDetailsService;
-import com.frame.me.auth.jwt.util.PasswordUtils;
+import com.frame.me.auth.spi.IAuthUserDetailsService;
+import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.user.User;
 import org.springframework.stereotype.Service;
 
@@ -44,10 +44,5 @@ public class DemoAuthUserDetailsService implements IAuthUserDetailsService {
         user.setPassword(DEMO_ENCODED_PASSWORD);
         user.setNickname("管理员");
         return user;
-    }
-
-    @Override
-    public boolean matches(String rawPassword, String encodedPassword) {
-        return PasswordUtils.matches(rawPassword, encodedPassword);
     }
 }

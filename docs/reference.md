@@ -13,6 +13,7 @@
 | `frame-me-starter-auth` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/pom.xml` |
 | `frame-me-starter-auth-rbac` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/pom.xml` |
 | `frame-me-starter-auth-jwt` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/pom.xml` |
+| `frame-me-starter-auth-sa-token` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/pom.xml` |
 | `frame-me-starter-mybatis-plus` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/pom.xml` |
 | `frame-me-starter-mybatis-flex` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-flex/pom.xml` |
 | `frame-me-starter-dynamic-ds` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/pom.xml` |
@@ -87,25 +88,48 @@
 | `AuthFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/filter/AuthFilter.java` |
 | `LoginUserArgumentResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/resolver/LoginUserArgumentResolver.java` |
 | `AuditAuthOperatorSupplier` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/audit/AuditAuthOperatorSupplier.java` |
+| `AuthPropagationInterceptor` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/propagation/AuthPropagationInterceptor.java` |
+| `AuthPropagationHolder` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/propagation/AuthPropagationHolder.java` |
+| `AuthContextTaskDecorator` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/propagation/AuthContextTaskDecorator.java` |
 | `RbacAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/config/RbacAutoConfiguration.java` |
 | `RbacProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/config/RbacProperties.java` |
 | `@RequireAuth` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/annotation/RequireAuth.java` |
+| `AuthExpressionRoot` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/AuthExpressionRoot.java` |
+| `AuthPermissionHolder` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/AuthPermissionHolder.java` |
 | `IAuthPermissionProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/IAuthPermissionProvider.java` |
+| `ConfigAuthPermissionProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/ConfigAuthPermissionProvider.java` |
+| `DataPermissionResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/DataPermissionResolver.java` |
 | `AuthDataPermissions` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/AuthDataPermissions.java` |
+| `IDataScopes` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/permission/IDataScopes.java` |
 | `PermissionFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/filter/PermissionFilter.java` |
 | `PermissionInterceptor` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/interceptor/PermissionInterceptor.java` |
+| `AuthPermissionTaskDecorator` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/propagation/AuthPermissionTaskDecorator.java` |
+| `RbacRedisAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/redis/config/RbacRedisAutoConfiguration.java` |
+| `RbacRedisProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/redis/config/RbacRedisProperties.java` |
 | `RedisAuthPermissionProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/redis/RedisAuthPermissionProvider.java` |
 | `JwtAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAutoConfiguration.java` |
 | `JwtAuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAuthProperties.java` |
 | `JwtTokenService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtTokenService.java` |
 | `JwtAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtAuthUserResolver.java` |
-| `IAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/IAuthUserDetailsService.java` |
+| `IAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthUserDetailsService.java` |
 | `RefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/RefreshTokenStore.java` |
 | `RedisRefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/RedisRefreshTokenStore.java` |
 | `JwtAuthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/JwtAuthController.java` |
-| `LoginDTO` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/dto/LoginDTO.java` |
-| `TokenVO` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/vo/TokenVO.java` |
-| `PasswordUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/util/PasswordUtils.java` |
+| `LoginDTO`（共用） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/web/dto/LoginDTO.java` |
+| `TokenVO`（共用） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/web/vo/TokenVO.java` |
+| `AuthUserAuthenticator` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/AuthUserAuthenticator.java` |
+| `PasswordUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/util/PasswordUtils.java` |
+| `SaTokenAuthAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenAuthAutoConfiguration.java` |
+| `SaTokenRedisDaoAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenRedisDaoAutoConfiguration.java` |
+| `SaTokenNoRedisWarnAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenNoRedisWarnAutoConfiguration.java` |
+| `SaTokenAuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenAuthProperties.java` |
+| `SaTokenAuthService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/core/SaTokenAuthService.java` |
+| `SaTokenAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/core/SaTokenAuthUserResolver.java` |
+| `SaTokenRuleEvaluator` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/core/SaTokenRuleEvaluator.java` |
+| `RedisSaTokenDao` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/core/RedisSaTokenDao.java` |
+| `ConfigStpInterface` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/permission/ConfigStpInterface.java` |
+| `SaTokenAuthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/web/SaTokenAuthController.java` |
+| `SaTokenExceptionAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/advice/SaTokenExceptionAdvice.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
 | `AuditLog` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/annotation/AuditLog.java` |
 | `AuditLogAspect` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/aspect/AuditLogAspect.java` |
@@ -170,6 +194,8 @@
 | 模块 | 文件路径 |
 |---|---|
 | `frame-me-starter-base` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-mybatis-plus` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-mybatis-flex` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-flex/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-adapter-starter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-dynamic-ds` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-multi-redis` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
@@ -178,6 +204,7 @@
 | `frame-me-starter-auth` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-auth-rbac` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-auth-jwt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
+| `frame-me-starter-auth-sa-token` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-msg-notify` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-msg-notify/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` |
 | `frame-me-starter-sensi-encrypt`（`EnvironmentPostProcessor`） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-sensi-encrypt/src/main/resources/META-INF/spring.factories` |
@@ -248,13 +275,44 @@
 | `AuditAutoConfiguration` | 审计自动装配入口 |
 | `AuditProperties` | `me.audit` 配置属性绑定 |
 | `AuthContext` | ThreadLocal 当前用户上下文 |
+| `AuthUserAuthenticator` | 账号密码认证器（查用户 → 401 → 校验密码 → 401），供 JWT/Sa-Token 共用 |
+| `LoginDTO` | 登录请求 DTO（抽象层，JWT 与 Sa-Token 实现共用） |
+| `TokenVO` | Token 响应 VO（抽象层，JWT 与 Sa-Token 实现共用） |
+| `PasswordUtils` | BCrypt 密码加解密工具（抽象层） |
 | `AuthFilter` | 认证过滤器，解析并写入当前用户 |
+| `AuthPropagationInterceptor` | HTTP Interface 出站请求拦截器，传播认证头到下游服务 |
+| `AuthPropagationHolder` | 传播上下文 ThreadLocal 持有器，供 `@Async` 跨线程恢复 |
+| `AuthContextTaskDecorator` | `@Async` 线程池 TaskDecorator，捕获/恢复 `AuthContext` 与传播头 |
+| `RbacAutoConfiguration` | RBAC 授权自动装配入口，注册权限数据源插槽 |
+| `RbacProperties` | `me.auth.permission.*` 配置属性绑定 |
+| `@RequireAuth` | 方法级权限校验注解（SpEL 表达式） |
+| `AuthExpressionRoot` | SpEL root，提供 `role()` / `perm()` / `dataCheck()` 等函数 |
+| `AuthPermissionHolder` | 请求级角色/权限 ThreadLocal 缓存 |
+| `IAuthPermissionProvider` | 权限数据源 SPI |
+| `ConfigAuthPermissionProvider` | 默认配置化权限提供者 |
+| `DataPermissionResolver` | 数据权限合并语义（ALL 放行，否则 scope/dataIds 并集） |
+| `AuthDataPermissions` | Service 层数据权限静态 Helper（`isAll` / `check` / `checkOwner` 等） |
+| `IDataScopes` | 数据范围常量接口（`ALL`/`DEPT`/`ORG`/`SELF`/`CUSTOM`） |
+| `PermissionFilter` | 路径规则权限过滤器 |
+| `PermissionInterceptor` | `@RequireAuth` 注解权限拦截器 |
+| `AuthPermissionTaskDecorator` | `@Async` 权限上下文传播 TaskDecorator |
+| `RedisAuthPermissionProvider` | `@Primary` Redis 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 |
 | `HeaderAuthUserResolver` | 默认请求头兜底用户解析器 |
-| `JwtTokenService` | JWT 认证服务实现：登录/登出/刷新/解析 |
+| `JwtTokenService` | JWT 认证服务实现：登录/登出/按用户 ID 强制登出/刷新/解析 |
 | `JwtAuthUserResolver` | 从 `Authorization: Bearer ...` 解析当前用户 |
-| `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码 |
+| `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码（抽象层 `com.frame.me.auth.spi`，JWT 与 Sa-Token 实现共用） |
 | `RedisRefreshTokenStore` | 基于 Redis 的 Refresh Token 存储 |
-| `JwtAuthController` | 默认 JWT 认证接口：登录/登出/刷新/当前用户 |
+| `JwtAuthController` | 默认 JWT 认证接口：登录/登出/刷新/当前用户/管理员强制登出 |
+| `SaTokenAuthAutoConfiguration` | sa-token 认证自动装配入口，接管 `IAuthService` / `IAuthUserResolver` |
+| `SaTokenAuthProperties` | 框架自有配置（`me.auth.sa-token.*`）绑定；sa-token 原生参数走官方 `sa-token.*` |
+| `SaTokenRedisDaoAutoConfiguration` | sa-token Redis 会话后端装配入口（multi-redis 在场时激活） |
+| `SaTokenAuthService` | sa-token 认证服务实现：登录建会话、快照缓存、按用户 ID 强制登出、续期 |
+| `SaTokenAuthUserResolver` | 从原生 `sa-token.token-name` 请求头（同名 Cookie 兜底）解析当前用户 |
+| `SaTokenRuleEvaluator` | 路径规则简化表达式求值器（`login`/`role:`/`perm:`） |
+| `RedisSaTokenDao` | 基于 `RedisUtils` 的 sa-token 会话存储 |
+| `ConfigStpInterface` | 配置版 sa-token 权限数据源（`users`/`roles`） |
+| `SaTokenAuthController` | 默认 sa-token 认证接口：登录/登出/续期/当前用户/管理员强制登出 |
+| `SaTokenExceptionAdvice` | sa-token 异常到 401/403 语义的映射 |
 | `MsgNotifySender` | `INotifySender` 实现，支持全局默认 / 指定通道 / 指定命名客户端发送 |
 | `NotifyAutoConfiguration` | 消息通知自动装配入口 |
 | `NotifyProperties` | `me.notify` 配置属性绑定 |
@@ -309,8 +367,9 @@
    - 当前仅包含占位常量接口。
    - 适合作为未来 Nacos、Gateway 等微服务云组件能力的载体。
 
-4. **`frame-me-starter-auth` 已实现认证授权抽象层，`frame-me-starter-auth-jwt` 提供 JWT 实现**
-   - 后续可继续扩展 `frame-me-starter-auth-sa-token`、`frame-me-starter-auth-security` 等替代实现。
+4. **`frame-me-starter-auth` 已实现认证授权抽象层，已有 JWT 与 Sa-Token 两种认证实现**
+   - `frame-me-starter-auth-jwt`（JWT + refresh token）与 `frame-me-starter-auth-sa-token`（sa-token 会话治理）二选一接入。
+   - 后续可继续扩展 `frame-me-starter-auth-security` 等替代实现。
 
 5. **`HealthController` 故意触发 NPE**
    - 实现 `IHealthApi`，用于验证异常处理链路是否正常工作。

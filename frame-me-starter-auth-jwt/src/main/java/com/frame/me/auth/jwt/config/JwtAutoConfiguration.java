@@ -1,12 +1,12 @@
 package com.frame.me.auth.jwt.config;
 
-import com.frame.me.auth.jwt.core.IAuthUserDetailsService;
 import com.frame.me.auth.jwt.core.JwtAuthUserResolver;
 import com.frame.me.auth.jwt.core.JwtTokenService;
 import com.frame.me.auth.jwt.core.RedisRefreshTokenStore;
 import com.frame.me.auth.jwt.core.RefreshTokenStore;
 import com.frame.me.auth.jwt.web.JwtAuthController;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -35,8 +35,15 @@ public class JwtAutoConfiguration {
         return new RedisRefreshTokenStore(properties);
     }
 
+    /**
+     * JWT 认证服务，接管 {@link IAuthService}.
+     *
+     * <p>SuppressWarnings：{@code IAuthUserDetailsService} 由业务工程实现，本模块内
+     * 无 Bean，IDEA 的自动注入检查属误报（运行时由业务模块提供实现）。</p>
+     */
     @Bean
     @ConditionalOnMissingBean(IAuthService.class)
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public IAuthService jwtAuthService(JwtAuthProperties properties,
                                        IAuthUserDetailsService userDetailsService,
                                        RefreshTokenStore refreshTokenStore) {
