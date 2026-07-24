@@ -1,3 +1,4 @@
 com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration
 com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration
 com.frame.me.auth.satoken.config.SaTokenNoRedisWarnAutoConfiguration
+com.frame.me.auth.satoken.config.SaTokenJwtAutoConfiguration

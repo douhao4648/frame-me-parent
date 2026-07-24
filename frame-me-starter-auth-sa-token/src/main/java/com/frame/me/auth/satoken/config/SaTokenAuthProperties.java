@@ -91,6 +91,11 @@ public class SaTokenAuthProperties {
     private Authorization authorization = new Authorization();
 
     /**
+     * JWT Token 模式配置.
+     */
+    private Jwt jwt = new Jwt();
+
+    /**
      * Redis 会话后端配置.
      */
     private Redis redis = new Redis();
@@ -105,6 +110,25 @@ public class SaTokenAuthProperties {
          * 是否启用 sa-token 鉴权（路径规则 + {@code @SaCheck*} 注解），默认 {@code true}.
          */
         private boolean enabled = true;
+    }
+
+    /**
+     * JWT Token 模式配置.
+     */
+    @Data
+    public static class Jwt {
+
+        /**
+         * 是否启用 JWT Token 模式，默认 {@code false}.
+         *
+         * <p>开启后登录颁发的 Token 会变为 JWT 格式，便于网关独立验签；
+         * 仍使用 {@code StpLogicJwtForSimple}（Simple 模式），会话数据继续存 Redis，
+         * 保留踢人 / 在线会话 / 强制登出等治理能力。</p>
+         *
+         * <p>启用后需在业务工程显式引入 {@code sa-token-jwt} 依赖，并配置
+         * {@code sa-token.jwt-secret-key}。</p>
+         */
+        private boolean enabled = false;
     }
 
     /**

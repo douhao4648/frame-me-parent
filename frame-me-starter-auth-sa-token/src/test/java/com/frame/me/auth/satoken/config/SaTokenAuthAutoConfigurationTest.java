@@ -2,6 +2,7 @@ package com.frame.me.auth.satoken.config;
 
 import cn.dev33.satoken.config.SaTokenConfig;
 import cn.dev33.satoken.dao.SaTokenDao;
+import cn.dev33.satoken.jwt.StpLogicJwtForSimple;
 import cn.dev33.satoken.stp.StpInterface;
 import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice;
@@ -35,7 +36,9 @@ class SaTokenAuthAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(
-                    SaTokenAuthAutoConfiguration.class, SaTokenRedisDaoAutoConfiguration.class))
+                    SaTokenAuthAutoConfiguration.class,
+                    SaTokenRedisDaoAutoConfiguration.class,
+                    SaTokenJwtAutoConfiguration.class))
             .withUserConfiguration(StubUserDetailsConfig.class);
 
     /**
@@ -72,6 +75,21 @@ class SaTokenAuthAutoConfigurationTest {
                     assertThat(context).doesNotHaveBean(StpInterface.class);
                     assertThat(context).doesNotHaveBean(SaTokenConfig.class);
                     assertThat(context).doesNotHaveBean(SaTokenDao.class);
+                });
+    }
+
+    /**
+     * JWT Token 模式开启：StpLogic 被替换为 StpLogicJwtForSimple，但认证 Bean 仍保留.
+     */
+    @Test
+    void jwtEnabled_stpLogicIsJwt() {
+        runner.withPropertyValues("me.auth.sa-token.jwt.enabled=true")
+                .run(context -> {
+                    assertThat(context.getBean(cn.dev33.satoken.stp.StpLogic.class))
+                            .isInstanceOf(StpLogicJwtForSimple.class);
+                    assertThat(context).hasSingleBean(IAuthService.class);
+                    assertThat(context).hasSingleBean(IAuthUserResolver.class);
+                    assertThat(context).hasSingleBean(SaTokenAuthController.class);
                 });
     }
 

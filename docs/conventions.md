@@ -534,6 +534,8 @@ me:
       path: /api/auth          # 认证接口基础路径，默认 /api/auth
       authorization:
         enabled: true          # 是否启用 sa-token 原生鉴权（路径规则 + @SaCheck* 注解），默认 true
+      jwt:
+        enabled: false         # 是否启用 JWT Token 模式，默认 false；开启后需显式引入 sa-token-jwt 并配置 sa-token.jwt-secret-key
       rules:                     # 路径级鉴权规则（⚠️ key 必须用方括号记法，见下）
         "[/api/admin/**]": "role:admin"
         "[/api/order/**]": "perm:order:read"
