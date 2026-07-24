@@ -83,9 +83,29 @@ public class SaTokenAuthProperties {
     private Map<String, String> users = new HashMap<>();
 
     /**
+     * 是否启用 sa-token 鉴权能力（路径规则 + {@code @SaCheck*} 注解），默认启用.
+     *
+     * <p>关闭后仍保留登录 / 登出 / 续期 / 强制登出 / 在线会话 / 踢人等认证与会话治理能力，
+     * 仅不再注册 {@link cn.dev33.satoken.interceptor.SaInterceptor}。</p>
+     */
+    private Authorization authorization = new Authorization();
+
+    /**
      * Redis 会话后端配置.
      */
     private Redis redis = new Redis();
+
+    /**
+     * sa-token 鉴权能力开关.
+     */
+    @Data
+    public static class Authorization {
+
+        /**
+         * 是否启用 sa-token 鉴权（路径规则 + {@code @SaCheck*} 注解），默认 {@code true}.
+         */
+        private boolean enabled = true;
+    }
 
     /**
      * Redis 会话后端配置项.

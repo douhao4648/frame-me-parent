@@ -76,6 +76,20 @@ class SaTokenAuthAutoConfigurationTest {
     }
 
     /**
+     * 鉴权能力关闭：SaInterceptor 配置 Bean 不注册，但认证相关 Bean 仍保留.
+     */
+    @Test
+    void authorizationDisabled_interceptorNotRegistered_butAuthBeansPresent() {
+        runner.withPropertyValues("me.auth.sa-token.authorization.enabled=false")
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean("saTokenInterceptorConfigurer");
+                    assertThat(context).hasSingleBean(IAuthService.class);
+                    assertThat(context).hasSingleBean(IAuthUserResolver.class);
+                    assertThat(context).hasSingleBean(SaTokenAuthController.class);
+                });
+    }
+
+    /**
      * redis 开关单独关闭：Redis DAO 退避（sa-token 运行时回退内存 DAO），其余 bean 不受影响.
      */
     @Test

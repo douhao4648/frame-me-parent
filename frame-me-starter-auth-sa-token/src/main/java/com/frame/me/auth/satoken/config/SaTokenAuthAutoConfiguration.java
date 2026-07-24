@@ -103,9 +103,11 @@ public class SaTokenAuthAutoConfiguration {
      * {@code me.auth.sa-token.rules} 逐条执行路径规则校验.
      *
      * <p>规则表达式在装配期预解析（非法表达式直接启动失败，而非运行期才暴露）。
-     * 规则为空时仍注册拦截器，保证注解鉴权可用。</p>
+     * 规则为空时仍注册拦截器，保证注解鉴权可用；可通过
+     * {@code me.auth.sa-token.authorization.enabled=false} 整体关闭 sa-token 鉴权能力。</p>
      */
     @Bean
+    @ConditionalOnProperty(prefix = "me.auth.sa-token.authorization", name = "enabled", havingValue = "true", matchIfMissing = true)
     public WebMvcConfigurer saTokenInterceptorConfigurer(SaTokenAuthProperties properties) {
         Map<String, SaTokenRuleEvaluator.Rule> parsedRules = new LinkedHashMap<>();
         properties.getRules().forEach((pattern, expression) ->

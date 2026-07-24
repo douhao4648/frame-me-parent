@@ -532,6 +532,8 @@ me:
   auth:
     sa-token:
       path: /api/auth          # 认证接口基础路径，默认 /api/auth
+      authorization:
+        enabled: true          # 是否启用 sa-token 原生鉴权（路径规则 + @SaCheck* 注解），默认 true
       rules:                     # 路径级鉴权规则（⚠️ key 必须用方括号记法，见下）
         "[/api/admin/**]": "role:admin"
         "[/api/order/**]": "perm:order:read"

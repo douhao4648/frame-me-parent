@@ -421,6 +421,7 @@ me:
   - `me.auth.sa-token.enabled` — 是否启用 Sa-Token 认证，默认 `true`；为 `false` 时 Redis 会话后端配置一并退避。
   - `me.auth.sa-token.path` — 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/续期/当前用户接口均迁移到该路径下。
   - `me.auth.sa-token.rules` — Interceptor 层「Ant 路径 → 简化鉴权表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 剥离 `/`、`*` 导致规则匹配不上；启动时校验到不以 `/` 开头的 key 会直接抛异常，阻止应用启动（fail-fast）。
+  - `me.auth.sa-token.authorization.enabled` — 是否启用 sa-token 原生鉴权能力（路径规则 + `@SaCheck*` 注解），默认 `true`；关闭后仍保留登录/登出/续期/强制登出/踢人/在线会话等认证与会话治理能力，可把鉴权交给 RBAC 等其它模块。
   - `me.auth.sa-token.roles` — 角色到权限码映射（逗号分隔 `resource:action` 或 `resource`，原样透传）。
   - `me.auth.sa-token.users` — 用户 ID（字符串）到角色映射（逗号分隔）。
   - `me.auth.sa-token.redis.enabled` — 是否启用 Redis 会话存储，默认 `true`（需 classpath 存在 `frame-me-starter-multi-redis`）。
