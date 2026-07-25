@@ -41,7 +41,7 @@ public class JwtTokenService implements IAuthService {
 
     private final JwtAuthProperties properties;
     private final IAuthUserDetailsService userDetailsService;
-    private final RefreshTokenStore refreshTokenStore;
+    private final IRefreshTokenStore refreshTokenStore;
 
     @Override
     public String login(String account, String password) {

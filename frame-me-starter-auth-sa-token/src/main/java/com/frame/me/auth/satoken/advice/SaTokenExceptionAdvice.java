@@ -37,7 +37,7 @@ public class SaTokenExceptionAdvice {
     @ExceptionHandler(NotLoginException.class)
     public IResult<Void> handleNotLoginException(NotLoginException e) {
         log.warn("Sa-Token 未登录: {}", e.getMessage());
-        return Result.error(ResultCode.UNAUTHORIZED, e.getMessage());
+        return Result.error(ResultCode.UNAUTHORIZED);
     }
 
     /**
@@ -46,7 +46,7 @@ public class SaTokenExceptionAdvice {
     @ExceptionHandler(NotPermissionException.class)
     public IResult<Void> handleNotPermissionException(NotPermissionException e) {
         log.warn("Sa-Token 无权限: {}", e.getMessage());
-        return Result.error(ResultCode.FORBIDDEN, e.getMessage());
+        return Result.error(ResultCode.FORBIDDEN);
     }
 
     /**
@@ -55,7 +55,7 @@ public class SaTokenExceptionAdvice {
     @ExceptionHandler(NotRoleException.class)
     public IResult<Void> handleNotRoleException(NotRoleException e) {
         log.warn("Sa-Token 无角色: {}", e.getMessage());
-        return Result.error(ResultCode.FORBIDDEN, e.getMessage());
+        return Result.error(ResultCode.FORBIDDEN);
     }
 
     /**
@@ -64,6 +64,6 @@ public class SaTokenExceptionAdvice {
     @ExceptionHandler(DisableServiceException.class)
     public IResult<Void> handleDisableServiceException(DisableServiceException e) {
         log.warn("Sa-Token 服务封禁: {}", e.getMessage());
-        return Result.error(ResultCode.FORBIDDEN, e.getMessage());
+        return Result.error(ResultCode.FORBIDDEN);
     }
 }

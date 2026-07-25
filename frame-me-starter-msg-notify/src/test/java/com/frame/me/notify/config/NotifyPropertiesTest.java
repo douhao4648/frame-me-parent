@@ -3,6 +3,7 @@ package com.frame.me.notify.config;
 import com.frame.me.notify.util.NotifyClientFactory;
 import com.frame.me.notify.util.NotifyUtils;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,9 +36,13 @@ import static org.assertj.core.api.Assertions.assertThat;
         "me.notify.sms.app-key=app-key",
         "me.notify.sms.app-secret=app-secret",
         "me.notify.sms.sign-name=FrameMe",
-        "me.notify.sms.clients.marketing.url=https://sms.example.com/marketing"
+        "me.notify.sms.clients.marketing.url=https://sms.example.com/marketing",
+        "me.notify.include-error-detail=true"
 })
 class NotifyPropertiesTest {
+
+    @Autowired
+    private NotifyProperties notifyProperties;
 
     @Test
     void shouldBindDefaultClientAndRegisterClients() {
@@ -57,6 +62,17 @@ class NotifyPropertiesTest {
         assertThat(NotifyUtils.defaultClient())
                 .isPresent()
                 .hasValueSatisfying(client -> assertThat(client.getChannelType()).isEqualTo("email"));
+    }
+
+    @Test
+    void shouldBindIncludeErrorDetail() {
+        assertThat(notifyProperties.isIncludeErrorDetail()).isTrue();
+    }
+
+    @Test
+    void shouldDefaultIncludeErrorDetailToFalse() {
+        NotifyProperties defaults = new NotifyProperties();
+        assertThat(defaults.isIncludeErrorDetail()).isFalse();
     }
 
     @Configuration

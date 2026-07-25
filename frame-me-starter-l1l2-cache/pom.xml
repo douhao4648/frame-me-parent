@@ -26,7 +26,6 @@
         <dependency>
             <groupId>com.esotericsoftware.kryo</groupId>
             <artifactId>kryo5</artifactId>
-            <version>5.6.2</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -1,15 +1,16 @@
 package com.frame.me.event;
 
-import org.springframework.context.ApplicationEvent;
+import lombok.Getter;
 
 import java.io.Serial;
+import java.io.Serializable;
 
 /**
  * 可桥接的本地事件基类.
  *
  * <p>继承此类的事件可通过事件桥接发布器同时发布到：
  * <ul>
- *   <li>本地 Spring {@link ApplicationEvent} 管道（同进程内消费）；</li>
+ *   <li>本地 Spring 事件管道（同进程内消费）；</li>
  *   <li>跨服务传输通道（Redis / MQ 等）。</li>
  * </ul>
  *
@@ -17,10 +18,16 @@ import java.io.Serial;
  *
  * @author frame-me
  */
-public abstract class MeApplicationEvent extends ApplicationEvent {
+public abstract class MeApplicationEvent implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
+
+    /**
+     * 事件源.
+     */
+    @Getter
+    private final Object source;
 
     /**
      * 创建事件.
@@ -28,7 +35,7 @@ public abstract class MeApplicationEvent extends ApplicationEvent {
      * @param source 事件源
      */
     public MeApplicationEvent(Object source) {
-        super(source);
+        this.source = source;
     }
 
     /**
@@ -73,6 +80,6 @@ public abstract class MeApplicationEvent extends ApplicationEvent {
      * @return 负载对象
      */
     public Object getPayload() {
-        return getSource();
+        return source;
     }
 }

@@ -8,7 +8,7 @@ package com.frame.me.event;
  * @param <T> 负载类型
  * @author frame-me
  */
-public interface EventType<T> {
+public interface IEventType<T> {
 
     /**
      * 事件类型标识.
@@ -25,7 +25,7 @@ public interface EventType<T> {
     Class<T> payloadClass();
 
     /**
-     * 将负载转换为本地 ApplicationEvent.
+     * 将负载转换为本地 {@link MeApplicationEvent}.
      *
      * @param payload 反序列化后的负载对象
      * @param source  原始来源标识

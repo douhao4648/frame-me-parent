@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * 事件桥接发布器.
  *
- * <p>统一入口：先发布本地 {@link ApplicationEvent}，再按事件类型选择 transport 广播到跨服务通道。
+ * <p>统一入口：先发布本地事件，再按事件类型选择 transport 广播到跨服务通道。
  * 订阅了同一通道的其他服务实例会收到消息并还原为本地事件。</p>
  *
  * @author frame-me
@@ -23,7 +23,7 @@ public class EventBridgePublisher {
 
     private final ApplicationEventPublisher localPublisher;
     private final EventBridgeProperties properties;
-    private final Map<String, EventTransport> transports;
+    private final Map<String, IEventTransport> transports;
 
     /**
      * 发布事件.
@@ -42,9 +42,9 @@ public class EventBridgePublisher {
 
         String type = event.getEventType();
         String transportName = properties.resolveTransport(type);
-        EventTransport transport = transports.get(transportName);
+        IEventTransport transport = transports.get(transportName);
         if (transport == null) {
-            log.warn("No EventTransport bean named '{}' found for event type: {}", transportName, type);
+            log.warn("No IEventTransport bean named '{}' found for event type: {}", transportName, type);
             return;
         }
 

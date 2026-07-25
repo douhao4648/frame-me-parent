@@ -7,7 +7,7 @@ import java.time.Duration;
  *
  * @author frame-me
  */
-public interface RefreshTokenStore {
+public interface IRefreshTokenStore {
 
     /**
      * 保存 Refresh Token.

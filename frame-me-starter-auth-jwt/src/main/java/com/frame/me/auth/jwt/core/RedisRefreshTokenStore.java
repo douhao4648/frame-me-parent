@@ -12,7 +12,7 @@ import java.time.Duration;
  * @author frame-me
  */
 @RequiredArgsConstructor
-public class RedisRefreshTokenStore implements RefreshTokenStore {
+public class RedisRefreshTokenStore implements IRefreshTokenStore {
 
     private final JwtAuthProperties properties;
 

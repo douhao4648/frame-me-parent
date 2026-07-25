@@ -5,7 +5,7 @@ import com.frame.me.auth.rbac.config.RbacProperties;
 import com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration;
-import com.frame.me.auth.rbac.redis.store.PermissionCacheStore;
+import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -75,7 +75,7 @@ class RbacRedisAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).doesNotHaveBean(IAuthPermissionProvider.class);
                     assertThat(context).doesNotHaveBean("authPermissionSource");
-                    assertThat(context).doesNotHaveBean(PermissionCacheStore.class);
+                    assertThat(context).doesNotHaveBean(IPermissionCacheStore.class);
                 });
     }
 
@@ -89,7 +89,7 @@ class RbacRedisAutoConfigurationTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(IAuthPermissionProvider.class);
                     assertThat(context.getBean(IAuthPermissionProvider.class)).isInstanceOf(ConfigAuthPermissionProvider.class);
-                    assertThat(context).doesNotHaveBean(PermissionCacheStore.class);
+                    assertThat(context).doesNotHaveBean(IPermissionCacheStore.class);
                 });
     }
 

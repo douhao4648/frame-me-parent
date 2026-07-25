@@ -102,6 +102,7 @@ class SmsNotifyClientTest {
 
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getCode()).isEqualTo("SMS_RESPONSE_ERROR");
+        assertThat(result.getMessage()).isEqualTo("SMS server returned error");
     }
 
     @Test
@@ -117,12 +118,32 @@ class SmsNotifyClientTest {
         assertThat(receivedSignature.get()).isNotNull();
     }
 
+    @Test
+    void shouldIncludeErrorDetailWhenConfigured() {
+        statusCode.set(500);
+        SmsNotifyClient client = createClient(baseUrl, null, true);
+
+        NotifyResult result = client.send(NotifyMessage.builder()
+                .title("VERIFY_CODE")
+                .content("123456")
+                .receivers(List.of("13800138000"))
+                .build());
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getCode()).isEqualTo("SMS_RESPONSE_ERROR");
+        assertThat(result.getMessage()).contains("status=500");
+    }
+
     private SmsNotifyClient createClient(String url, String secret) {
+        return createClient(url, secret, false);
+    }
+
+    private SmsNotifyClient createClient(String url, String secret, boolean includeErrorDetail) {
         SmsChannelProperties properties = new SmsChannelProperties();
         properties.setUrl(url);
         properties.setAppSecret(secret);
         properties.setSignName("FrameMe");
         properties.setTimeout(2000);
-        return new SmsNotifyClient("test", properties, RestClient.builder());
+        return new SmsNotifyClient("test", properties, RestClient.builder(), includeErrorDetail);
     }
 }

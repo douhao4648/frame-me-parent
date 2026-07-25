@@ -4,7 +4,7 @@ import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.jwt.core.JwtAuthUserResolver;
 import com.frame.me.auth.jwt.core.JwtTokenService;
 import com.frame.me.auth.jwt.core.RedisRefreshTokenStore;
-import com.frame.me.auth.jwt.core.RefreshTokenStore;
+import com.frame.me.auth.jwt.core.IRefreshTokenStore;
 import com.frame.me.auth.jwt.web.JwtAuthController;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
@@ -31,8 +31,8 @@ import org.springframework.context.annotation.Configuration;
 public class JwtAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean(RefreshTokenStore.class)
-    public RefreshTokenStore refreshTokenStore(JwtAuthProperties properties) {
+    @ConditionalOnMissingBean(IRefreshTokenStore.class)
+    public IRefreshTokenStore refreshTokenStore(JwtAuthProperties properties) {
         return new RedisRefreshTokenStore(properties);
     }
 
@@ -47,7 +47,7 @@ public class JwtAutoConfiguration {
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public IAuthService jwtAuthService(JwtAuthProperties properties,
                                        IAuthUserDetailsService userDetailsService,
-                                       RefreshTokenStore refreshTokenStore) {
+                                       IRefreshTokenStore refreshTokenStore) {
         log.info("JwtTokenService initialized");
         return new JwtTokenService(properties, userDetailsService, refreshTokenStore);
     }

@@ -173,7 +173,7 @@ public class AsyncAutoConfiguration {
                     receivers));
         }
 
-        private static String buildExceptionContent(String className, String methodName, Throwable throwable) {
+        private String buildExceptionContent(String className, String methodName, Throwable throwable) {
             StringWriter writer = new StringWriter();
             writer.write("类：");
             writer.write(className);
@@ -183,8 +183,10 @@ public class AsyncAutoConfiguration {
             writer.write(throwable.getClass().getName());
             writer.write("\n消息：");
             writer.write(String.valueOf(throwable.getMessage()));
-            writer.write("\n堆栈：\n");
-            throwable.printStackTrace(new PrintWriter(writer));
+            if (properties.isExceptionIncludeStacktrace()) {
+                writer.write("\n堆栈：\n");
+                throwable.printStackTrace(new PrintWriter(writer));
+            }
             return writer.toString();
         }
     }

@@ -12,7 +12,7 @@ import java.time.Duration;
  *
  * @author frame-me
  */
-public interface PermissionCacheStore {
+public interface IPermissionCacheStore {
 
     /**
      * 读取权限快照.

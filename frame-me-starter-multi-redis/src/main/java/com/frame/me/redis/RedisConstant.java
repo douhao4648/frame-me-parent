@@ -1,8 +1,10 @@
 package com.frame.me.redis;
 
 /**
- * Redis 模块常量.
+ * Redis 模块常量类.
  */
-public interface RedisConstant {
+public final class RedisConstant {
 
+    private RedisConstant() {
+    }
 }

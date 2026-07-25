@@ -9,7 +9,7 @@ import java.util.Map;
  *
  * @author frame-me
  */
-public class InMemoryRefreshTokenStore implements RefreshTokenStore {
+public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
 
     private final Map<Long, String> store = new HashMap<>();
 

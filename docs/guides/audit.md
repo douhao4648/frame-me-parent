@@ -77,15 +77,15 @@ public class AuditLogPersistenceHandler {
 }
 ```
 
-> 注意：当前基于 Redis Pub/Sub 的传输是广播且非持久化的，审计服务离线会丢消息。若需要强一致审计，可后续实现 MQ transport，`EventTransport` 接口已预留。
+> 注意：当前基于 Redis Pub/Sub 的传输是广播且非持久化的，审计服务离线会丢消息。若需要强一致审计，可后续实现 MQ transport，`IEventTransport` 接口已预留。
 
 ## 操作人上下文
 
-默认操作人为 `anonymous`。接入认证模块后，提供 `AuditLogOperatorSupplier` Bean 覆盖即可：
+默认操作人为 `anonymous`。接入认证模块后，提供 `IAuditLogOperatorSupplier` Bean 覆盖即可：
 
 ```java
 @Bean
-public AuditLogOperatorSupplier auditLogOperatorSupplier() {
+public IAuditLogOperatorSupplier auditLogOperatorSupplier() {
     return () -> SecurityContextHolder.getContext().getAuthentication().getName();
 }
 ```

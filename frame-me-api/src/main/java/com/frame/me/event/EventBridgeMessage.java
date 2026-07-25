@@ -11,7 +11,7 @@ import java.time.Instant;
  * 跨服务事件桥接的通用消息包装.
  *
  * <p>通过传输通道广播时，所有具体事件被序列化为该包装类型。
- * 接收方根据 {@code type} 字段分发到对应的本地 {@link org.springframework.context.ApplicationEvent}。</p>
+ * 接收方根据 {@code type} 字段分发到对应的本地 {@link MeApplicationEvent}。</p>
  *
  * @author frame-me
  */

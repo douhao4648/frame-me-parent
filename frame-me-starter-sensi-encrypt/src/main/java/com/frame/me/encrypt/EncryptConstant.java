@@ -3,32 +3,40 @@ package com.frame.me.encrypt;
 /**
  * 配置加密模块常量.
  */
-public interface EncryptConstant {
+public final class EncryptConstant {
+
+    private EncryptConstant() {
+    }
 
     /** 主密码配置键. */
-    String PASSWORD_KEY = "me.encrypt.password";
+    public static final String PASSWORD_KEY = "me.encrypt.password";
 
     /** 加密算法配置键. */
-    String ALGORITHM_KEY = "me.encrypt.algorithm";
+    public static final String ALGORITHM_KEY = "me.encrypt.algorithm";
 
     /** 密钥迭代次数配置键. */
-    String ITERATIONS_KEY = "me.encrypt.iterations";
+    public static final String ITERATIONS_KEY = "me.encrypt.iterations";
 
     /** 密文前缀配置键. */
-    String PREFIX_KEY = "me.encrypt.prefix";
+    public static final String PREFIX_KEY = "me.encrypt.prefix";
 
     /** 密文后缀配置键. */
-    String SUFFIX_KEY = "me.encrypt.suffix";
+    public static final String SUFFIX_KEY = "me.encrypt.suffix";
 
     /** 默认加密算法（PBE + HMAC-SHA512 + AES-256，需要 IV）. */
-    String DEFAULT_ALGORITHM = "PBEWITHHMACSHA512ANDAES_256";
+    public static final String DEFAULT_ALGORITHM = "PBEWITHHMACSHA512ANDAES_256";
 
-    /** 默认密钥迭代次数. */
-    int DEFAULT_ITERATIONS = 1000;
+    /** 默认密钥迭代次数.
+     *
+     * <p>取值 100,000 为性能与安全的折中：远高于 Jasypt 默认 1000，
+     * 又低于 OWASP 对 PBKDF2-HMAC-SHA512 当前推荐值 210,000，避免启动时大量密文解密明显变慢。
+     * 可通过 {@code me.encrypt.iterations} 覆盖。</p>
+     */
+    public static final int DEFAULT_ITERATIONS = 100_000;
 
     /** 默认密文前缀. */
-    String DEFAULT_PREFIX = "ME(";
+    public static final String DEFAULT_PREFIX = "ME(";
 
     /** 默认密文后缀. */
-    String DEFAULT_SUFFIX = ")";
+    public static final String DEFAULT_SUFFIX = ")";
 }

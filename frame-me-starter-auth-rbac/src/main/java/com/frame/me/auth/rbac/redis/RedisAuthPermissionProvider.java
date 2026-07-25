@@ -4,7 +4,7 @@ import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.Permission;
 import com.frame.me.auth.rbac.redis.config.RbacRedisProperties;
-import com.frame.me.auth.rbac.redis.store.PermissionCacheStore;
+import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.base.user.User;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -17,7 +17,7 @@ import java.util.HashSet;
 /**
  * 基于 Redis 的权限提供者（read-through 缓存）.
  *
- * <p>读取链路：L1 本地缓存（Caffeine，短 TTL）→ L2 Redis（{@link PermissionCacheStore}）→ 委托数据源。
+ * <p>读取链路：L1 本地缓存（Caffeine，短 TTL）→ L2 Redis（{@link IPermissionCacheStore}）→ 委托数据源。
  * 回源后回填 Redis 与本地缓存。当所有服务共享同一 Redis 时，RBAC 判定天然一致，且支持权限新鲜与吊销
  * （权限变更后调用 {@link #evict(Object)} 失效缓存）。</p>
  *
@@ -33,7 +33,7 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
 
     private final RbacRedisProperties properties;
 
-    private final PermissionCacheStore cacheStore;
+    private final IPermissionCacheStore cacheStore;
 
     /**
      * L1 本地缓存，降低 Redis 读压力.
@@ -42,7 +42,7 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
 
     public RedisAuthPermissionProvider(IAuthPermissionProvider source,
                                        RbacRedisProperties properties,
-                                       PermissionCacheStore cacheStore) {
+                                       IPermissionCacheStore cacheStore) {
         this.source = source;
         this.properties = properties;
         this.cacheStore = cacheStore;

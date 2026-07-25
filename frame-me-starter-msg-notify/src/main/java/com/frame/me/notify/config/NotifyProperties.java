@@ -45,4 +45,12 @@ public class NotifyProperties {
      */
     private List<String> globalReceivers = new ArrayList<>();
 
+    /**
+     * 通知发送失败时，结果消息是否包含异常原始信息（如 e.getMessage()），默认 false.
+     *
+     * <p>关闭时返回统一通用文案，避免内部异常信息（如连接地址、类路径等）随 {@link NotifyResult}
+     * 被业务层透传给前端或外部系统；调试时可设为 true。</p>
+     */
+    private boolean includeErrorDetail = false;
+
 }

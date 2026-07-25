@@ -28,7 +28,7 @@ class SaTokenExceptionAdviceTest {
                 NotLoginException.INVALID_TOKEN_MESSAGE, "login", NotLoginException.INVALID_TOKEN);
         IResult<Void> result = advice.handleNotLoginException(exception);
         assertThat(result.getCode()).isEqualTo(ResultCode.UNAUTHORIZED.getCode());
-        assertThat(result.getMsg()).isEqualTo(NotLoginException.INVALID_TOKEN_MESSAGE);
+        assertThat(result.getMsg()).isEqualTo(ResultCode.UNAUTHORIZED.getMsg());
     }
 
     /**
@@ -38,6 +38,7 @@ class SaTokenExceptionAdviceTest {
     void notPermissionException_mapsTo403() {
         IResult<Void> result = advice.handleNotPermissionException(new NotPermissionException("order:read"));
         assertThat(result.getCode()).isEqualTo(ResultCode.FORBIDDEN.getCode());
+        assertThat(result.getMsg()).isEqualTo(ResultCode.FORBIDDEN.getMsg());
     }
 
     /**
@@ -47,6 +48,7 @@ class SaTokenExceptionAdviceTest {
     void notRoleException_mapsTo403() {
         IResult<Void> result = advice.handleNotRoleException(new NotRoleException("admin"));
         assertThat(result.getCode()).isEqualTo(ResultCode.FORBIDDEN.getCode());
+        assertThat(result.getMsg()).isEqualTo(ResultCode.FORBIDDEN.getMsg());
     }
 
     /**
@@ -58,5 +60,6 @@ class SaTokenExceptionAdviceTest {
                 new DisableServiceException("login", 1L, "comment", 1, 2, 3600L);
         IResult<Void> result = advice.handleDisableServiceException(exception);
         assertThat(result.getCode()).isEqualTo(ResultCode.FORBIDDEN.getCode());
+        assertThat(result.getMsg()).isEqualTo(ResultCode.FORBIDDEN.getMsg());
     }
 }

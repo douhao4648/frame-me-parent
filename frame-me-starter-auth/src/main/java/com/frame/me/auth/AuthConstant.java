@@ -1,5 +1,7 @@
 package com.frame.me.auth;
 
-public interface AuthConstant {
+public final class AuthConstant {
 
+    private AuthConstant() {
+    }
 }

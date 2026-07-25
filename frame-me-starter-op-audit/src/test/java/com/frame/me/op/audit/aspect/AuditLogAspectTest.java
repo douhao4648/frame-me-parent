@@ -4,7 +4,7 @@ import com.frame.me.op.audit.annotation.AuditLog;
 import com.frame.me.op.audit.config.AuditProperties;
 import com.frame.me.op.audit.core.AuditLogEvent;
 import com.frame.me.op.audit.core.AuditLogRecord;
-import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
+import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import com.frame.me.base.event.EventBridgeProperties;
 import com.frame.me.base.event.EventBridgePublisher;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 class AuditLogAspectTest {
 
     private EventBridgePublisher publisher;
-    private AuditLogOperatorSupplier operatorSupplier;
+    private IAuditLogOperatorSupplier operatorSupplier;
     private AuditProperties properties;
     private EventBridgeProperties eventBridgeProperties;
     private AuditService service;
@@ -35,7 +35,7 @@ class AuditLogAspectTest {
     @BeforeEach
     void setUp() {
         publisher = mock(EventBridgePublisher.class);
-        operatorSupplier = mock(AuditLogOperatorSupplier.class);
+        operatorSupplier = mock(IAuditLogOperatorSupplier.class);
         properties = new AuditProperties();
         eventBridgeProperties = new EventBridgeProperties();
         eventBridgeProperties.setServiceName("test-service");

@@ -1,6 +1,6 @@
 # 事件桥接（Event Bridge）
 
-本文档说明 `frame-me-parent` 的事件桥接机制：如何在进程内使用 Spring `ApplicationEvent` 解耦，又如何通过可插拔的 transport（Redis / MQ）实现跨服务事件通信。
+本文档说明 `frame-me-parent` 的事件桥接机制：如何在进程内使用 Spring 事件机制解耦，又如何通过可插拔的 transport（Redis / MQ）实现跨服务事件通信。
 
 ## 目录
 
@@ -20,20 +20,22 @@
 1. **进程内解耦**：一个业务动作完成后，需要触发多个本地处理逻辑（如发通知、更新索引、记日志）。
 2. **跨服务通信**：同一事件需要被其他服务实例感知。
 
-Spring `ApplicationEvent` 只能解决第一类；Redis Pub/Sub、MQ 能解决第二类，但会把事件模型和传输细节耦合到业务代码里。事件桥接把两者统一：业务始终面向 `ApplicationEvent` 编程，传输通道可配置、可切换。
+Spring 事件机制只能解决第一类；Redis Pub/Sub、MQ 能解决第二类，但会把事件模型和传输细节耦合到业务代码里。事件桥接把两者统一：业务始终面向 `MeApplicationEvent` 编程，传输通道可配置、可切换。
 
 ## 核心概念
 
 | 类型 | 职责 | 所在模块 |
 |---|---|---|
 | `MeApplicationEvent` | 可桥接的本地事件基类 | `frame-me-api` |
-| `EventType<T>` | 把 `type` 字符串映射到负载类与本地事件构造 | `frame-me-api` |
+| `IEventType<T>` | 把 `type` 字符串映射到负载类与本地事件构造 | `frame-me-api` |
 | `EventBridgeMessage` | 跨服务传输的通用包装：`type + payload + sourceService + targetService + targetId + timestamp` | `frame-me-api` |
-| `EventTransport` | 传输通道抽象（`send` / `subscribe`） | `frame-me-starter-base` |
+| `IEventTransport` | 传输通道抽象（`send` / `subscribe`） | `frame-me-starter-base` |
 | `EventBridgePublisher` | 发布入口：本地发布 + 选择 transport 广播 | `frame-me-starter-base` |
 | `EventBridgeListener` | 订阅通道、按 `type` 分发、还原为本地事件 | `frame-me-starter-base` |
 | `EventBridgeProperties` | `me.event-bridge.*` 配置 | `frame-me-starter-base` |
 | `RedisEventTransport` | Redis Pub/Sub 实现 | `frame-me-starter-multi-redis` |
+
+> 说明：`MeApplicationEvent` 是普通 POJO，不继承 Spring 的 `ApplicationEvent`。`EventBridgePublisher` 通过 `ApplicationEventPublisher.publishEvent(Object)` 发布，Spring 会将其包装为 `PayloadApplicationEvent`；`@EventListener` 方法仍按参数类型正常接收。
 
 ## 模块划分
 
@@ -43,7 +45,7 @@ graph TD
     B --> C[frame-me-starter-base]
     C -->|核心桥接| D[EventBridgePublisher]
     C -->|核心桥接| E[EventBridgeListener]
-    C -->|核心桥接| F[EventTransport 接口]
+    C -->|核心桥接| F[IEventTransport 接口]
     G[frame-me-starter-multi-redis] -->|实现| H[RedisEventTransport]
     I[未来 frame-me-starter-mq] -->|实现| J[MqEventTransport]
 ```
@@ -61,7 +63,7 @@ sequenceDiagram
     participant Biz as 业务代码
     participant Pub as EventBridgePublisher
     participant Local as ApplicationEventPublisher
-    participant Transport as EventTransport
+    participant Transport as IEventTransport
     participant Channel as Redis/MQ
 
     Biz->>Pub: publish(UserCreatedEvent)
@@ -77,7 +79,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Channel as Redis/MQ
-    participant Transport as EventTransport
+    participant Transport as IEventTransport
     participant Listener as EventBridgeListener
     participant Local as ApplicationEventPublisher
     participant Handler as @EventListener
@@ -97,13 +99,13 @@ sequenceDiagram
 sequenceDiagram
     participant Spring as Spring 容器
     participant Listener as EventBridgeListener
-    participant Transport as EventTransport
-    participant Types as 所有 EventType Bean
+    participant Transport as IEventTransport
+    participant Types as 所有 IEventType Bean
 
-    Spring->>Types: 实例化 EventType Bean
+    Spring->>Types: 实例化 IEventType Bean
     Spring->>Listener: afterSingletonsInstantiated()
-    Listener->>Types: getBeansOfType(EventType.class)
-    loop 每个 EventType
+    Listener->>Types: getBeansOfType(IEventType.class)
+    loop 每个 IEventType
         Listener->>Listener: register(type)
         Listener->>Transport: subscribe(type, dispatcher)
     end
@@ -134,7 +136,7 @@ public class UserNotifyEvent extends MeApplicationEvent {
 
     public UserNotifyEvent(Object source, UserNotifyPayload payload,
                            String targetService, String targetId) {
-        super(payload);
+        super(source);
         this.payload = payload;
         this.targetService = targetService;
         this.targetId = targetId;
@@ -143,6 +145,11 @@ public class UserNotifyEvent extends MeApplicationEvent {
     @Override
     public String getEventType() {
         return "user:notify";
+    }
+
+    @Override
+    public Object getPayload() {
+        return payload;
     }
 
     @Override
@@ -207,12 +214,10 @@ public class UserCreatedPayload implements Serializable {
 @Getter
 public class UserCreatedEvent extends MeApplicationEvent {
 
-    private final Object source;
     private final UserCreatedPayload payload;
 
     public UserCreatedEvent(Object source, UserCreatedPayload payload) {
-        super(payload);
-        this.source = source;
+        super(source);
         this.payload = payload;
     }
 
@@ -220,15 +225,20 @@ public class UserCreatedEvent extends MeApplicationEvent {
     public String getEventType() {
         return "user:created";
     }
+
+    @Override
+    public Object getPayload() {
+        return payload;
+    }
 }
 ```
 
 ### 2. 注册事件类型
 
-在 `xx-api` 模块中声明 `EventType`，并通过配置类暴露：
+在 `xx-api` 模块中声明 `IEventType`，并通过配置类暴露：
 
 ```java
-public class UserCreatedEventType implements EventType<UserCreatedPayload> {
+public class UserCreatedEventType implements IEventType<UserCreatedPayload> {
 
     @Override
     public String type() {
@@ -267,7 +277,7 @@ public class UserServiceApplication {
 }
 ```
 
-`EventBridgeListener` 会在启动时自动收集并注册所有 `EventType` Bean。
+`EventBridgeListener` 会在启动时自动收集并注册所有 `IEventType` Bean。
 
 > 为什么不用 `@Component`？因为 `xx-api` 会被不同服务引用，各服务的 Spring 组件扫描根包可能不一致，`@Component` 可能扫不到。显式 `@Import` 可以让消费方明确引入事件契约，避免事件类型遗漏注册。
 
@@ -323,16 +333,16 @@ me:
 | `enabled` | 是否启用事件桥接 |
 | `service-name` | 当前服务名，用于追踪来源与自身消息过滤；未配置时默认取 `spring.application.name`，再未配置时回退为 `unknown` |
 | `topic-prefix` | Redis Topic 前缀 |
-| `default-transport` | 默认 transport 名称，对应 Bean 名或去掉 `EventTransport` 后缀的名称 |
+| `default-transport` | 默认 transport 名称，对应 Bean 名或去掉 `IEventTransport` 后缀的名称 |
 | `transports.{type}` | 按事件类型指定 transport |
 
 ## 扩展 MQ Transport
 
 1. 新建 Maven 模块 `frame-me-starter-mq`，引入对应 MQ starter。
-2. 实现 `EventTransport`：
+2. 实现 `IEventTransport`：
 
 ```java
-public class MqEventTransport implements EventTransport {
+public class MqEventTransport implements IEventTransport {
     @Override
     public void send(String type, EventBridgeMessage message) { ... }
 

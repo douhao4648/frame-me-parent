@@ -1,5 +1,7 @@
 package com.frame.me.api;
 
-public interface ApiConstant {
+public final class ApiConstant {
 
+    private ApiConstant() {
+    }
 }

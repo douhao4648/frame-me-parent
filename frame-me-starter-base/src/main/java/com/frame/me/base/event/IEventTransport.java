@@ -12,7 +12,7 @@ import java.util.function.Consumer;
  *
  * @author frame-me
  */
-public interface EventTransport {
+public interface IEventTransport {
 
     /**
      * 发送消息.

@@ -17,7 +17,7 @@
   - `com.frame.me.api.enums.GenderEnum` — 示例枚举（实现 `IEnum`）。
   - `com.frame.me.api.enums.YesNoEnum` — 是/否枚举（实现 `IEnum`）。
   - `com.frame.me.event.MeApplicationEvent` — 可桥接的本地事件基类。
-  - `com.frame.me.event.EventType<T>` — 事件类型映射接口。
+  - `com.frame.me.event.IEventType<T>` — 事件类型映射接口。
   - `com.frame.me.event.EventBridgeMessage` — 跨服务传输的通用包装。
   - `com.frame.me.event.EventClientPermit` — 允许通过 SSE/WebSocket 推送给客户端的事件标记注解。
 - **使用方**：业务工程的 `xx-api` 模块。
@@ -33,6 +33,7 @@
 - **关键类**：
   - `com.frame.me.base.advice.GlobalExceptionHandler` — 全局异常处理。
   - `com.frame.me.base.config.BaseAutoConfiguration` — 自动装配入口。
+  - `com.frame.me.base.config.ExceptionProperties` — `me.exception.*` 配置属性绑定。
   - `com.frame.me.base.env.EnvironmentHelper` — 获取 Spring active profile、判断当前环境（dev/test/prod/daily/pre）。
     - 提供 `getActiveProfiles()`、`getActiveProfile()`、`isProfileActive(String)`、`isDev()`、`isTest()`、`isProd()`、`isDaily()`、`isPre()` 等方法。
   - `com.frame.me.base.result.ResultCode` — 状态码枚举。
@@ -45,7 +46,7 @@
   - `com.frame.me.base.client.QueryObjectArgumentResolver` — 将 `@QueryMap` 注解的查询对象解析为查询参数。
   - `com.frame.me.base.event.EventBridgePublisher` — 事件桥接发布入口：本地发布 + 选择 transport 广播。
   - `com.frame.me.base.event.EventBridgeListener` — 订阅通道、按 `type` 分发、还原为本地事件。
-  - `com.frame.me.base.event.EventTransport` — 传输通道抽象（`send` / `subscribe`）。
+  - `com.frame.me.base.event.IEventTransport` — 传输通道抽象（`send` / `subscribe`）。
   - `com.frame.me.base.event.EventBridgeProperties` — `me.event-bridge.*` 配置属性绑定。
   - `com.frame.me.base.event.EventBridgeAutoConfiguration` — 事件桥接自动装配入口。
   - `com.frame.me.base.notify.INotifySender` — 通用通知发送接口，业务代码通过它发送通知而无需关心底层通道。
@@ -70,7 +71,7 @@
   - `me.async.exception-handler-enabled` — 是否注册默认异步异常处理器，默认 `true`。
   - `me.async.exception-notify-enabled` — 异步方法异常时是否尝试发送通知，默认 `true`。
   - `me.async.exception-notify-receivers` — 异步异常通知接收者列表，默认空列表；为空时由 `INotifySender` 实现回退到 `me.notify.global-receivers`。
-  - `me.scheduling.enabled` — 是否启用默认 `@Scheduled` 调度线程池，默认 `true`。
+  - `me.async.exception-include-stacktrace` — 异步异常通知内容是否包含完整堆栈，默认 `false`（仅发送异常类名与 message，避免堆栈信息外泄）。
   - `me.scheduling.pool-size` — 调度线程池大小，默认 `4`。
   - `me.scheduling.thread-name-prefix` — 调度线程名前缀，默认 `me-scheduling-`。
   - `me.scheduling.remove-on-cancel-policy` — 取消任务后是否立即从线程池移除，默认 `false`。
@@ -78,7 +79,8 @@
   - `me.scheduling.exception-handler-enabled` — 是否注册默认调度异常处理器，默认 `true`。
   - `me.scheduling.exception-notify-enabled` — 调度任务异常时是否尝试发送通知，默认 `true`。
   - `me.scheduling.exception-notify-receivers` — 调度异常通知接收者列表，默认空列表；为空时由 `INotifySender` 实现回退到 `me.notify.global-receivers`。
-  - `me.restclient.pool.max-total` — HttpClient 5 连接池最大连接总数，默认 `200`。
+  - `me.scheduling.exception-include-stacktrace` — 调度异常通知内容是否包含完整堆栈，默认 `false`（仅发送异常类名与 message，避免堆栈信息外泄）。
+  - `me.exception.include-stacktrace` — 全局异常响应（`Result.err`）是否包含完整堆栈，默认 `true`（保持兼容）；生产环境建议设为 `false`。
   - `me.restclient.pool.max-per-route` — 每个路由的最大连接数，默认 `50`。
   - `me.event-bridge.enabled` — 是否启用事件桥接，默认 `true`。
   - `me.event-bridge.service-name` — 当前服务名，默认取 `spring.application.name`；未配置时回退为 `unknown`。用于事件来源追踪与自身消息过滤。
@@ -190,15 +192,15 @@ me:
 ### `frame-me-adapter-starter`
 
 - **定位**：内部 `IResult<T>` 与外部 `Response<T>` 的适配层，并提供老规范分页工具。
-- **依赖**：`frame-me-adapter-api`、`frame-me-starter-base`、`lombok`。
+- **依赖**：`frame-me-adapter-api`、`frame-me-starter-base`、`lombok`；`frame-me-starter-mybatis-plus` 为 **optional**，仅在需要使用 `PageableUtils` 时由消费方显式引入。
 - **关键类**：
   - `com.frame.me.adapter.advice.Result2ResponseAdvice` — `ResponseBodyAdvice`，将 `IResult<T>` 转为 `Response<T>`。
   - `com.frame.me.adapter.result.Response<T>` — 外部响应结构。
   - `com.frame.me.adapter.result.ResponseJacksonModule` — 将 `IResult` 抽象类型映射为 `Response` 的 Jackson 模块。
-  - `com.frame.me.adapter.mybatis.util.PageableUtils` — 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换。
+  - `com.frame.me.adapter.mybatis.util.PageableUtils` — 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换；**需要消费方显式引入 `frame-me-starter-mybatis-plus` 才可用**。
   - `com.frame.me.adapter.web.ResponseFilterErrorResponseWriter` — 覆盖 `IFilterErrorResponseWriter`，使 Filter 层错误响应输出 `Response` 格式。
   - `com.frame.me.adapter.config.AdapterAutoConfiguration` — 自动装配入口。
-  - `com.frame.me.adapter.AdapterConstant` — 占位常量接口。
+  - `com.frame.me.adapter.AdapterConstant` — 占位常量类。
 - **自动装配**：通过 `frame-me-adapter/frame-me-adapter-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AdapterAutoConfiguration`。
 - **扩展提示**：与外部协议相关的转换（如 OpenFeign 适配、DTO 转换、字段脱敏等）适合放在这里。
 
@@ -254,7 +256,7 @@ spring:
   - `com.frame.me.doc.openapi.config.DocOpenApiAutoConfiguration` — 自动装配入口。
   - `com.frame.me.doc.openapi.config.DocOpenApiProperties` — `me.swagger` 配置属性绑定。
   - `com.frame.me.doc.openapi.config.GroupedOpenApiRegistrar` — 动态注册 API 分组。
-  - `com.frame.me.doc.openapi.DocOpenApiConstant` — 占位常量接口。
+  - `com.frame.me.doc.openapi.DocOpenApiConstant` — 占位常量类。
 - **自动装配**：通过 `frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `DocOpenApiAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 `io.swagger.v3.oas.models.OpenAPI`。
@@ -342,7 +344,7 @@ me:
   - `com.frame.me.auth.rbac.redis.config.RbacRedisProperties` — `me.auth.permission.redis.*` 配置绑定。
   - `com.frame.me.auth.rbac.redis.RedisAuthPermissionProvider` — `@Primary` 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 read-through，提供 `evict(userId)` 失效。
   - `com.frame.me.auth.rbac.redis.UserPermissionSnapshot` — Redis 缓存的用户权限快照。
-  - `com.frame.me.auth.rbac.redis.store.PermissionCacheStore` / `RedisPermissionCacheStore` — 二级缓存存储 SPI 与 Redis 实现。
+  - `com.frame.me.auth.rbac.redis.store.IPermissionCacheStore` / `RedisPermissionCacheStore` — 二级缓存存储 SPI 与 Redis 实现。
 - **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacAutoConfiguration`、`RbacRedisAutoConfiguration`。
 - **可配置项**：
   - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。**总开关，为 `false` 时 Redis 后端一并退避。**
@@ -379,7 +381,7 @@ me:
   - `com.frame.me.auth.jwt.core.JwtTokenService` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。
   - `com.frame.me.auth.jwt.core.JwtAuthUserResolver` — `IAuthUserResolver` 实现，从 `Authorization: Bearer ...` 解析当前用户。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户、校验密码（与 Sa-Token 实现共用）。
-  - `com.frame.me.auth.jwt.core.RefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。
+  - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。
   - `com.frame.me.auth.jwt.web.JwtAuthController` — 默认认证接口：登录/登出/刷新/当前用户/管理员强制登出；基础路径默认 `/api/auth`，可通过 `me.auth.jwt.path` 修改。
   - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — **位于抽象层**：登录请求与 Token 响应（与 Sa-Token 实现共用）。
   - `com.frame.me.auth.util.PasswordUtils` — **位于抽象层**：BCrypt 密码加解密工具。
@@ -444,7 +446,7 @@ me:
 - **定位**：微服务云组件模块（当前为占位）。
 - **依赖**：`frame-me-starter-base`、`lombok`。
 - **关键类**：
-  - `com.frame.me.cloud.CloudConstant` — 占位常量接口。
+  - `com.frame.me.cloud.CloudConstant` — 占位常量类。
 - **扩展提示**：未来可引入 Nacos 注册/配置中心、Gateway、Sentinel、分布式链路追踪等。
 
 ## `frame-me-starter-multi-redis`
@@ -462,7 +464,7 @@ me:
   - `com.frame.me.redis.util.RedissonSync` — Redisson 同步原语：读写锁、公平锁、联锁、信号量、倒计时门闩、可过期信号量（红锁已随 Redisson 4.x 弃用）。
   - `com.frame.me.redis.util.RedissonTopic` — Redisson 消息能力：Topic、PatternTopic、ReliableTopic、Stream。
   - `com.frame.me.redis.util.RedissonLimiter` — Redisson 限流：基于 `RRateLimiter` 的令牌桶限流。
-  - `com.frame.me.redis.RedisConstant` — 占位常量接口。
+  - `com.frame.me.redis.RedisConstant` — 占位常量类。
 - **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`、`RedissonLockAutoConfiguration`。
 - **启用条件**：
   - `RedisAutoConfiguration`：类路径存在 `StringRedisTemplate`，`me.redis.enabled=true`（默认开启，可显式关闭）。
@@ -659,7 +661,7 @@ me:
   - `com.frame.me.cache.config.CacheAutoConfiguration` — 自动装配入口，启用方法级缓存注解。
   - `com.frame.me.cache.config.CacheProperties` — `me.cache` 配置属性绑定。
   - `com.frame.me.cache.config.JetCacheInfrastructureRoleFixer` — 修复 JetCache 内部配置类的 BeanPostProcessor 警告。
-  - `com.frame.me.cache.CacheConstant` — 占位常量接口。
+  - `com.frame.me.cache.CacheConstant` — 占位常量类。
 - **自动装配**：通过 `frame-me-starter-l1l2-cache/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CacheAutoConfiguration`。
 - **启用条件**：
   - 类路径存在 JetCache 核心类。
@@ -738,7 +740,8 @@ public Boolean delete(Long id) { ... }
 - **可配置项**（前缀 `me.encrypt`）：
   - `me.encrypt.password` — 主密码，运行时由环境变量 / 启动参数注入，**不落配置文件**。
   - `me.encrypt.algorithm` — PBE 算法名，默认 `PBEWITHHMACSHA512ANDAES_256`。
-  - `me.encrypt.iterations` — 密钥迭代次数，默认 `1000`。
+  - `me.encrypt.iterations` — 密钥迭代次数，默认 `100000`（可通过该配置覆盖；
+    若修改默认值，需用 `JasyptEncryptCli` 重新生成已有的 `ME(...)` 密文）。
 - **使用方式**：
   - 生成密文：`java -cp ... com.frame.me.encrypt.cli.JasyptEncryptCli <明文> <主密码>`。
   - 配置：把敏感值写成 `password: ME(密文)`。
@@ -758,7 +761,7 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `MeApplicationEvent`。
   - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
   - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志。
-  - `com.frame.me.op.audit.spi.AuditLogOperatorSupplier` — 操作人提供接口，默认返回 `anonymous`。
+  - `com.frame.me.op.audit.spi.IAuditLogOperatorSupplier` — 操作人提供接口，默认返回 `anonymous`。
   - `com.frame.me.op.audit.config.AuditAutoConfiguration` — 自动装配入口。
   - `com.frame.me.op.audit.config.AuditProperties` — `me.audit` 配置属性绑定。
 - **自动装配**：通过 `frame-me-starter-op-audit/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuditAutoConfiguration`。
@@ -794,6 +797,7 @@ public Boolean delete(Long id) { ... }
   - `sender.enabled` — 是否注册 `INotifySender` Bean，默认 `true`。
   - `global-default` — 全局默认通道类型，如 `email` / `webhook` / `sms`；未配置时无全局默认发送能力。
   - `global-receivers` — 全局默认接收者列表；调用方未指定接收者时使用（例如异步异常通知）。
+  - `include-error-detail` — 通知发送失败时，`NotifyResult.message` 是否包含异常原始信息（如 `e.getMessage()`、响应体），默认 `false`；关闭时返回统一通用文案，避免内部信息外泄。
   - `email.*` — 邮件通道配置（host、port、username、password、clients 等）。
   - `webhook.*` — Webhook 通道配置（url、headers、clients 等）。
   - `sms.*` — 短信通道配置（url、headers、clients 等）。
@@ -852,7 +856,7 @@ public class AlertService {
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
 - **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
-  - `com.frame.me.booter.BooterConstant` — 占位常量接口。
+  - `com.frame.me.booter.BooterConstant` — 占位常量类。
 - **使用方**：业务工程的 `xx-service` 模块。
 - **设计约定**：
   - 业务 `xx-service` 通过引入 `frame-me-booter` 一键启动通用能力。

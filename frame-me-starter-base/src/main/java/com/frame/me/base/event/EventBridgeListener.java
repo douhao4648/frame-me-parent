@@ -2,7 +2,7 @@ package com.frame.me.base.event;
 
 import com.alibaba.fastjson2.JSON;
 import com.frame.me.event.EventBridgeMessage;
-import com.frame.me.event.EventType;
+import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 查找注册器，反序列化负载并还原为本地 {@link MeApplicationEvent}，再次通过 Spring 本地管道发布。
  * 这样同服务的 {@link org.springframework.context.event.EventListener} 无需关心事件来源。</p>
  *
- * <p>启动时会自动从 Spring 上下文收集所有 {@link EventType} Bean 并注册；
- * 业务也可手动调用 {@link #register(EventType)}。</p>
+ * <p>启动时会自动从 Spring 上下文收集所有 {@link IEventType} Bean 并注册；
+ * 业务也可手动调用 {@link #register(IEventType)}。</p>
  *
  * @author frame-me
  */
@@ -32,8 +32,8 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
 
     private final ApplicationEventPublisher localPublisher;
     private final EventBridgeProperties properties;
-    private final Map<String, EventTransport> transports;
-    private final Map<String, EventType<?>> registry = new ConcurrentHashMap<>();
+    private final Map<String, IEventTransport> transports;
+    private final Map<String, IEventType<?>> registry = new ConcurrentHashMap<>();
     private ApplicationContext applicationContext;
 
     /**
@@ -45,7 +45,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
      */
     public EventBridgeListener(ApplicationEventPublisher localPublisher,
                                EventBridgeProperties properties,
-                               Map<String, EventTransport> transports) {
+                               Map<String, IEventTransport> transports) {
         this.localPublisher = localPublisher;
         this.properties = properties;
         this.transports = transports;
@@ -65,7 +65,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
         if (applicationContext == null) {
             return;
         }
-        applicationContext.getBeansOfType(EventType.class).values().forEach(this::register);
+        applicationContext.getBeansOfType(IEventType.class).values().forEach(this::register);
         log.info("Event bridge auto-registered types: {}", registry.keySet());
     }
 
@@ -76,7 +76,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
      *
      * @param eventType 事件类型定义
      */
-    public void register(EventType<?> eventType) {
+    public void register(IEventType<?> eventType) {
         String type = eventType.type();
         if (registry.putIfAbsent(type, eventType) != null) {
             return;
@@ -88,9 +88,9 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
         }
 
         String transportName = properties.resolveTransport(type);
-        EventTransport transport = transports.get(transportName);
+        IEventTransport transport = transports.get(transportName);
         if (transport == null) {
-            log.warn("No EventTransport bean named '{}' found for event type: {}, skip subscribe",
+            log.warn("No IEventTransport bean named '{}' found for event type: {}, skip subscribe",
                     transportName, type);
             return;
         }
@@ -106,7 +106,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
      */
     public void onMessage(EventBridgeMessage message) {
         String type = message.getType();
-        EventType<?> eventType = registry.get(type);
+        IEventType<?> eventType = registry.get(type);
         if (eventType == null) {
             log.warn("No event type registered for: {}", type);
             return;
@@ -132,7 +132,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
 
         try {
             @SuppressWarnings("unchecked")
-            EventType<Object> typedEventType = (EventType<Object>) eventType;
+            IEventType<Object> typedEventType = (IEventType<Object>) eventType;
             Object payload = JSON.parseObject(message.getPayload(), typedEventType.payloadClass());
             MeApplicationEvent localEvent = typedEventType.toLocalEvent(payload, message.getSourceService());
             localPublisher.publishEvent(localEvent);

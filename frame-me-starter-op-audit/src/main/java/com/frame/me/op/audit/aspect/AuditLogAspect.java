@@ -5,7 +5,7 @@ import com.frame.me.op.audit.annotation.AuditLog;
 import com.frame.me.op.audit.config.AuditProperties;
 import com.frame.me.op.audit.core.AuditLogEvent;
 import com.frame.me.op.audit.core.AuditLogRecord;
-import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
+import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import com.frame.me.base.event.EventBridgePublisher;
 import com.frame.me.base.event.EventBridgeProperties;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +43,7 @@ public class AuditLogAspect {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\#([a-zA-Z_][\\w.]*)");
 
     private final EventBridgePublisher publisher;
-    private final AuditLogOperatorSupplier operatorSupplier;
+    private final IAuditLogOperatorSupplier operatorSupplier;
     private final AuditProperties properties;
     private final EventBridgeProperties eventBridgeProperties;
 

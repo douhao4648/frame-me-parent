@@ -82,8 +82,9 @@ public class NotifyAutoConfiguration {
 
         // 注册默认 email 客户端
         EmailChannelProperties email = notifyProperties.getEmail();
+        boolean includeErrorDetail = notifyProperties.isIncludeErrorDetail();
         if (isEmailConfigured(email)) {
-            clients.put("email", new EmailNotifyClient("email", email, templateEngines));
+            clients.put("email", new EmailNotifyClient("email", email, templateEngines, includeErrorDetail));
             channelDefaults.put("email", "email");
             log.info("Notify default client registered: name=email, type={}", NotifyChannelType.EMAIL.getCode());
         }
@@ -94,7 +95,7 @@ public class NotifyAutoConfiguration {
                 .orElse(Collections.emptyMap())
                 .forEach((name, props) -> {
                     if (isEmailConfigured(props)) {
-                        clients.put("email:" + name, new EmailNotifyClient(name, props, templateEngines));
+                        clients.put("email:" + name, new EmailNotifyClient(name, props, templateEngines, includeErrorDetail));
                         log.info("Notify client registered: name=email:{}, type={}", name, NotifyChannelType.EMAIL.getCode());
                     }
                 });
@@ -102,7 +103,7 @@ public class NotifyAutoConfiguration {
         // 注册默认 webhook 客户端
         WebhookChannelProperties webhook = notifyProperties.getWebhook();
         if (isWebhookConfigured(webhook)) {
-            clients.put("webhook", new WebhookNotifyClient("webhook", webhook, restClientBuilder));
+            clients.put("webhook", new WebhookNotifyClient("webhook", webhook, restClientBuilder, includeErrorDetail));
             channelDefaults.put("webhook", "webhook");
             log.info("Notify default client registered: name=webhook, type={}", "webhook");
         }
@@ -113,7 +114,7 @@ public class NotifyAutoConfiguration {
                 .orElse(Collections.emptyMap())
                 .forEach((name, props) -> {
                     if (isWebhookConfigured(props)) {
-                        clients.put("webhook:" + name, new WebhookNotifyClient(name, props, restClientBuilder));
+                        clients.put("webhook:" + name, new WebhookNotifyClient(name, props, restClientBuilder, includeErrorDetail));
                         log.info("Notify client registered: name=webhook:{}, type={}", name, "webhook");
                     }
                 });
@@ -121,7 +122,7 @@ public class NotifyAutoConfiguration {
         // 注册默认 sms 客户端
         SmsChannelProperties sms = notifyProperties.getSms();
         if (isSmsConfigured(sms)) {
-            clients.put("sms", new SmsNotifyClient("sms", sms, restClientBuilder));
+            clients.put("sms", new SmsNotifyClient("sms", sms, restClientBuilder, includeErrorDetail));
             channelDefaults.put("sms", "sms");
             log.info("Notify default client registered: name=sms, type={}", NotifyChannelType.SMS.getCode());
         }
@@ -132,7 +133,7 @@ public class NotifyAutoConfiguration {
                 .orElse(Collections.emptyMap())
                 .forEach((name, props) -> {
                     if (isSmsConfigured(props)) {
-                        clients.put("sms:" + name, new SmsNotifyClient(name, props, restClientBuilder));
+                        clients.put("sms:" + name, new SmsNotifyClient(name, props, restClientBuilder, includeErrorDetail));
                         log.info("Notify client registered: name=sms:{}, type={}", name, NotifyChannelType.SMS.getCode());
                     }
                 });

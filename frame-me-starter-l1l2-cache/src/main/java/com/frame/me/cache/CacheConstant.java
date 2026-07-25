@@ -1,8 +1,10 @@
 package com.frame.me.cache;
 
 /**
- * Cache 模块常量.
+ * Cache 模块常量类.
  */
-public interface CacheConstant {
+public final class CacheConstant {
 
+    private CacheConstant() {
+    }
 }

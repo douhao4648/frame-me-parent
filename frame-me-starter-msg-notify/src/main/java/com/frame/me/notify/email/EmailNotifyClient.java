@@ -28,13 +28,21 @@ public class EmailNotifyClient implements INotifyClient {
     private final EmailChannelProperties properties;
     private final Session session;
     private final List<INotifyTemplateEngine> templateEngines;
+    private final boolean includeErrorDetail;
 
     public EmailNotifyClient(String name, EmailChannelProperties properties,
                              List<INotifyTemplateEngine> templateEngines) {
+        this(name, properties, templateEngines, false);
+    }
+
+    public EmailNotifyClient(String name, EmailChannelProperties properties,
+                             List<INotifyTemplateEngine> templateEngines,
+                             boolean includeErrorDetail) {
         this.name = name;
         this.properties = properties;
         this.session = createSession(properties);
         this.templateEngines = templateEngines == null ? List.of() : templateEngines;
+        this.includeErrorDetail = includeErrorDetail;
     }
 
     private Session createSession(EmailChannelProperties props) {
@@ -71,7 +79,8 @@ public class EmailNotifyClient implements INotifyClient {
             return NotifyResult.ok(mimeMessage.getMessageID());
         } catch (Exception e) {
             log.error("Email send failed via client '{}': {}", name, e.getMessage(), e);
-            return NotifyResult.fail("EMAIL_SEND_ERROR", e.getMessage());
+            String failMessage = includeErrorDetail ? e.getMessage() : "Email send failed";
+            return NotifyResult.fail("EMAIL_SEND_ERROR", failMessage);
         }
     }
 

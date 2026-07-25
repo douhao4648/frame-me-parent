@@ -1,7 +1,7 @@
 package com.frame.me.base.event;
 
 import com.frame.me.event.EventBridgeMessage;
-import com.frame.me.event.EventType;
+import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,17 +34,17 @@ class EventBridgePublisherTest {
     private ApplicationEventPublisher localPublisher;
 
     @Mock
-    private EventTransport redisTransport;
+    private IEventTransport redisTransport;
 
     @Mock
-    private EventTransport mqTransport;
+    private IEventTransport mqTransport;
 
     @Test
     void shouldPublishLocalEventAndBroadcastViaDefaultTransport() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setServiceName("test-service");
 
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgePublisher publisher = new EventBridgePublisher(localPublisher, properties, transports);
@@ -68,7 +68,7 @@ class EventBridgePublisherTest {
         properties.setDefaultTransport("redis");
         properties.getTransports().put("order:paid", "mq");
 
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
         transports.put("mq", mqTransport);
 
@@ -86,7 +86,7 @@ class EventBridgePublisherTest {
     @Test
     void shouldNotBroadcastWhenDisabled() {
         EventBridgeProperties properties = new EventBridgeProperties();
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgePublisher publisher = new EventBridgePublisher(localPublisher, properties, transports);
@@ -107,7 +107,7 @@ class EventBridgePublisherTest {
     void shouldSkipBroadcastWhenTransportNotFound() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setDefaultTransport("mq");
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgePublisher publisher = new EventBridgePublisher(localPublisher, properties, transports);
@@ -123,7 +123,7 @@ class EventBridgePublisherTest {
     void listenerShouldDispatchRegisteredEventType() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setServiceName("consumer-service");
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgeListener listener = new EventBridgeListener(localPublisher, properties, transports);
@@ -143,7 +143,7 @@ class EventBridgePublisherTest {
     void shouldCarryTargetFieldsInMessage() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setServiceName("producer-service");
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgePublisher publisher = new EventBridgePublisher(localPublisher, properties, transports);
@@ -164,7 +164,7 @@ class EventBridgePublisherTest {
     void listenerShouldIgnoreEventForOtherService() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setServiceName("consumer-service");
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgeListener listener = new EventBridgeListener(localPublisher, properties, transports);
@@ -181,7 +181,7 @@ class EventBridgePublisherTest {
     void listenerShouldDispatchEventForCurrentService() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setServiceName("consumer-service");
-        Map<String, EventTransport> transports = new HashMap<>();
+        Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
         EventBridgeListener listener = new EventBridgeListener(localPublisher, properties, transports);
@@ -258,7 +258,7 @@ class EventBridgePublisherTest {
     /**
      * 测试事件类型注册项.
      */
-    private static class TestEventType implements EventType<TestPayload> {
+    private static class TestEventType implements IEventType<TestPayload> {
 
         @Override
         public String type() {

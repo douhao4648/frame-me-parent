@@ -35,16 +35,16 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 
 ```bash
 # 编译
-mvn clean compile
+./mvnw clean compile
 
 # 运行全部测试
-mvn test
+./mvnw test
 
 # 运行单个测试类
-mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
+./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
 
 # 启动示例应用
-mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
+./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
 更多命令与 profile（`p6spy`、`swagger`）见 `docs/build.md` 与 `docs/testing.md`。

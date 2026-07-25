@@ -10,7 +10,7 @@ import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.base.config.AsyncAutoConfiguration;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.op.audit.config.AuditAutoConfiguration;
-import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
+import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -85,9 +85,9 @@ public class AuthAutoConfiguration {
      * 审计操作人提供者，从认证上下文获取当前用户 ID.
      */
     @Bean
-    @ConditionalOnClass(AuditLogOperatorSupplier.class)
-    @ConditionalOnMissingBean(AuditLogOperatorSupplier.class)
-    public AuditLogOperatorSupplier auditAuthOperatorSupplier() {
+    @ConditionalOnClass(IAuditLogOperatorSupplier.class)
+    @ConditionalOnMissingBean(IAuditLogOperatorSupplier.class)
+    public IAuditLogOperatorSupplier auditAuthOperatorSupplier() {
         return new AuditAuthOperatorSupplier();
     }
 

@@ -17,7 +17,7 @@ import java.util.Map;
  * 事件桥接自动配置.
  *
  * <p>仅在 {@code me.event-bridge.enabled=true}（默认）时装配，提供发布器和监听器 Bean。
- * 具体的 {@link EventTransport} 实现由各自 starter（如 Redis、MQ）提供。</p>
+ * 具体的 {@link IEventTransport} 实现由各自 starter（如 Redis、MQ）提供。</p>
  *
  * @author frame-me
  */
@@ -54,14 +54,14 @@ public class EventBridgeAutoConfiguration {
     @Bean
     public EventBridgePublisher eventBridgePublisher(ApplicationEventPublisher publisher,
                                                      EventBridgeProperties properties,
-                                                     Map<String, EventTransport> transports) {
+                                                     Map<String, IEventTransport> transports) {
         return new EventBridgePublisher(publisher, properties, normalizeTransports(transports));
     }
 
     @Bean
     public EventBridgeListener eventBridgeListener(ApplicationEventPublisher publisher,
                                                    EventBridgeProperties properties,
-                                                   Map<String, EventTransport> transports) {
+                                                   Map<String, IEventTransport> transports) {
         return new EventBridgeListener(publisher, properties, normalizeTransports(transports));
     }
 
@@ -69,13 +69,14 @@ public class EventBridgeAutoConfiguration {
      * 规范化 transport 名称.
      *
      * <p>例如 {@code redisEventTransport} 同时支持以 {@code redis} 作为 key 查找，
-     * 让配置中可以使用简洁名称。</p>
+     * 让配置中可以使用简洁名称。注意 Bean 名按实现类命名，仍以 {@code EventTransport} 结尾，
+     * 而非接口 {@link IEventTransport} 的 {@code I} 前缀。</p>
      *
      * @param transports 原始 transport Bean Map
      * @return 规范化后的 Map
      */
-    private static Map<String, EventTransport> normalizeTransports(Map<String, EventTransport> transports) {
-        Map<String, EventTransport> result = new HashMap<>(transports);
+    private static Map<String, IEventTransport> normalizeTransports(Map<String, IEventTransport> transports) {
+        Map<String, IEventTransport> result = new HashMap<>(transports);
         transports.forEach((name, transport) -> {
             if (name.endsWith("EventTransport")) {
                 String shortName = name.substring(0, name.length() - "EventTransport".length());

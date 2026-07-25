@@ -1,5 +1,7 @@
 package com.frame.me.base;
 
-public interface BaseConstant {
+public final class BaseConstant {
 
+    private BaseConstant() {
+    }
 }

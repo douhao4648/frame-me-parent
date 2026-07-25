@@ -1,8 +1,10 @@
 package com.frame.me.booter;
 
 /**
- * Booter 模块占位常量接口.
+ * Booter 模块占位常量类.
  */
-public interface BooterConstant {
+public final class BooterConstant {
 
+    private BooterConstant() {
+    }
 }

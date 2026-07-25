@@ -19,24 +19,28 @@
 /Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 ```
 
+项目已配置 **Maven Wrapper**（`./mvnw`），无需本地安装 Maven 也可构建。以下命令默认使用 Wrapper；若本地已有 Maven，也可将 `./mvnw` 替换为 `mvn`。
+
 编译全部模块：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn clean compile
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw clean compile
 ```
 
 运行测试：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn test
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw test
 ```
 
 启动示例应用：
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
+  ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
+
+Wrapper 的 JVM 参数已配置在 `.mvn/jvm.config`（UTF-8、最大堆 2G）。
 
 应用默认运行在 `8080` 端口，名称为 `frame-me-tester`。
 

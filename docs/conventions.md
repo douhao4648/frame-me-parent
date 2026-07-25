@@ -117,21 +117,23 @@ throw new InternalException("数据库连接失败");
 
 | 处理器 | 捕获异常 | HTTP 状态 | 日志级别 | 返回值 |
 |---|---|---|---|---|
-| `handleBusinessException` | `BusinessException` | 默认 200 | `error` | `Result.error(code, message, exception)` |
-| `handleInternalException` | `InternalException` | 500 | `error` | `Result.error(code, message, exception)` |
+| `handleBusinessException` | `BusinessException` | 默认 200 | `error` | `Result.error(code, message, exception)` / `Result.error(code, message)` |
+| `handleInternalException` | `InternalException` | 500 | `error` | `Result.error(code, message, exception)` / `Result.error(code, message)` |
 | `handleMethodArgumentNotValidException` | `MethodArgumentNotValidException`（`@RequestBody` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
 | `handleConstraintViolationException` | `ConstraintViolationException`（`@PathVariable`/`@RequestParam` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条约束错误消息)` |
 | `handleBindException` | `BindException`（表单/查询参数绑定失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
 | `handleHttpMessageNotReadableException` | `HttpMessageNotReadableException`（请求体缺失或不可读） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, "请求体不能为空")` |
-| `handleException` | `Exception` | 默认 200 | `error` | `Result.error(ResultCode.ERROR, message, exception)` |
+| `handleException` | `Exception` | 默认 200 | `error` | `Result.error(ERROR, message, exception)` / `Result.error(ERROR, message)` |
+
+是否把异常完整堆栈写入 `Result.err` 由 `me.exception.include-stacktrace` 控制，默认 `true`（保持兼容）。生产环境建议设为 `false`，避免堆栈中的类路径、参数等敏感信息随响应体泄漏；异常详情仍可通过服务端日志定位。
 
 ## 编码风格
 
 - **包名**：`com.frame.me.<module>`，与 Maven 模块后缀一致。
 - **Lombok**：使用 `@Data`、`@Getter`、`@NoArgsConstructor`、`@AllArgsConstructor`、`@Slf4j`。
-- **常量容器**：每个模块定义一个空的 `*Constant` 接口作为占位，如 `CommonConstant`、`BaseConstant`、`AuthConstant`。
+- **常量容器**：每个模块定义一个 `*Constant` 占位类，声明为 `final` 并私有化构造器（如 `BaseConstant`、`AuthConstant`），防止被实例化或 `implements` 滥用。
 - **注释**：类级 Javadoc 使用中文。
-- **类设计**：当前没有类被声明为 `final`，保持默认可继承。
+- **类设计**：普通业务类保持默认可继承，不强制声明 `final`；工具类（仅含静态方法/常量、无实例状态）建议声明为 `final` 并私有化构造器，防止被实例化或继承。
 
 ## 参数校验约定
 
@@ -554,7 +556,7 @@ me:
 401 / 403 语义：
 
 - Filter 层（`AuthFilter`）未登录仍返回 401，与 JWT 模式一致。
-- 注解与路径规则层抛出的 sa-token 异常由 `SaTokenExceptionAdvice` 映射：`NotLoginException` → 401；`NotRoleException` / `NotPermissionException` / `DisableServiceException` → 403（统一 `Result`，HTTP 200、业务码在 body）。
+- 注解与路径规则层抛出的 sa-token 异常由 `SaTokenExceptionAdvice` 映射：`NotLoginException` → 401；`NotRoleException` / `NotPermissionException` / `DisableServiceException` → 403（统一 `Result`，HTTP 200、业务码在 body）。返回给客户端的 `msg` 固定使用 `ResultCode` 通用文案（如“未授权”“禁止访问”），异常原始消息仅记录日志，避免信息泄露。
 
 **选型：jwt + rbac vs sa-token**
 

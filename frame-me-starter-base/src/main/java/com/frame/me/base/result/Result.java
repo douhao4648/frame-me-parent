@@ -61,6 +61,18 @@ public class Result<T> implements IResult<T> {
      *
      * @param code    状态码
      * @param message 错误消息
+     * @param <T>     业务数据类型
+     * @return 错误响应
+     */
+    public static <T> IResult<T> error(Integer code, String message) {
+        return new Result<>(code, message, null, null, null);
+    }
+
+    /**
+     * 构造错误响应.
+     *
+     * @param code    状态码
+     * @param message 错误消息
      * @param err     错误详情
      * @param <T>     业务数据类型
      * @return 错误响应

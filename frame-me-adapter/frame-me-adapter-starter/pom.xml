@@ -26,6 +26,7 @@
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-mybatis-plus</artifactId>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -58,8 +58,44 @@ class AsyncAutoConfigurationTest {
                 .contains("类：" + TestService.class.getName())
                 .contains("方法：asyncMethod")
                 .contains("异常：" + RuntimeException.class.getName())
-                .contains("消息：test error");
+                .contains("消息：test error")
+                .doesNotContain("堆栈：")
+                .doesNotContain("at " + TestService.class.getName());
         assertThat(receiversCaptor.getValue()).containsExactly("dev@example.com");
+    }
+
+    @Test
+    void shouldIncludeStacktraceWhenConfigured() throws NoSuchMethodException {
+        AsyncProperties properties = new AsyncProperties();
+        properties.setExceptionNotifyEnabled(true);
+        properties.setExceptionIncludeStacktrace(true);
+        properties.setExceptionNotifyReceivers(List.of("dev@example.com"));
+
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.initialize();
+
+        INotifySender sender = mock(INotifySender.class);
+        when(sender.send(anyString(), anyString(), anyList())).thenReturn(true);
+        ObjectProvider<INotifySender> senderProvider = new ObjectProvider<>() {
+            @Override
+            public INotifySender getIfAvailable() {
+                return sender;
+            }
+        };
+
+        AsyncAutoConfiguration configuration = new AsyncAutoConfiguration();
+        AsyncConfigurer asyncConfigurer = configuration.asyncConfigurer(executor, properties, senderProvider);
+        AsyncUncaughtExceptionHandler handler = asyncConfigurer.getAsyncUncaughtExceptionHandler();
+
+        Method method = TestService.class.getMethod("asyncMethod");
+        RuntimeException exception = new RuntimeException("test error");
+        handler.handleUncaughtException(exception, method);
+
+        ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
+        verify(sender).send(eq("异步方法执行异常"), contentCaptor.capture(), anyList());
+        assertThat(contentCaptor.getValue())
+                .contains("堆栈：")
+                .contains("at ");
     }
 
     @Test

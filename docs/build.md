@@ -16,6 +16,14 @@
 export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 ```
 
+## Maven Wrapper
+
+项目已配置 **Maven Wrapper**（根目录 `mvnw` / `mvnw.cmd` + `.mvn/wrapper`），默认绑定 Maven `3.9.9`。本地无需安装 Maven，直接用 `./mvnw`（Windows 用 `mvnw.cmd`）即可构建。
+
+- Wrapper 的 JVM 参数统一放在 `.mvn/jvm.config`（当前配置 `-Dfile.encoding=UTF-8 -Xmx2g`）。
+- 如果本地已安装 Maven，也可将以下命令中的 `./mvnw` 替换为 `mvn`，但推荐优先使用 Wrapper，避免版本不一致。
+- CI 流水线应统一使用 `./mvnw`，确保与本地构建环境一致。
+
 ## 父 POM 关键配置
 
 根 `pom.xml` 路径：`/Users/douhao4648/Documents/Frame_Me/frame-me-parent/pom.xml`
@@ -26,6 +34,8 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
   - Spring Cloud Alibaba：`2025.1.0.0`
   - Lombok：`1.18.46`
   - Hutool：`5.8.46`
+  - JetCache：`2.8.0.RC`
+  - Kryo5：`5.6.2`（由 `frame-me-starter-l1l2-cache` 使用，版本在根 `pom.xml` 集中管理）
 - 编译插件：`maven-compiler-plugin:3.15.0`，启用 `-parameters` 参数。
 - Lombok 注解处理器在 `annotationProcessorPaths` 中显式声明。
 - `maven-source-plugin:3.3.1` 会在构建时附带源码包。
@@ -35,41 +45,41 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 ### 编译整个工程
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn clean compile
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw clean compile
 ```
 
 ### 运行所有测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn test
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw test
 ```
 
 ### 运行单个测试类
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
+  ./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
 ```
 
 ### 运行单个测试方法
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
+  ./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
 ```
 
 ### 打包可运行 Jar
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service package
+  ./mvnw -pl frame-me-tester/frame-me-tester-service package
 ```
 
 ### 启动应用
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
+  ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
 应用默认运行在 `9090` 端口（管理端口 `9091`），应用名称为 `frame-me-tester`。
@@ -82,7 +92,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pp6spy
+  ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pp6spy
 ```
 
 引入 `p6spy-spring-boot-starter`，可在日志中输出实际执行的 SQL 及耗时。需要在 `application.yml` 中开启：
@@ -99,7 +109,7 @@ decorator:
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pswagger
+  ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pswagger
 ```
 
 引入 `frame-me-starter-doc-openapi`，提供 `/swagger-ui.html` 和 `/v3/api-docs`。需要在 `application.yml` 中开启并配置：

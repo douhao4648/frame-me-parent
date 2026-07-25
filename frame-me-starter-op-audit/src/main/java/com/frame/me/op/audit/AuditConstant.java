@@ -1,9 +1,12 @@
 package com.frame.me.op.audit;
 
 /**
- * 审计模块占位常量接口.
+ * 审计模块占位常量类.
  *
  * @author frame-me
  */
-public interface AuditConstant {
+public final class AuditConstant {
+
+    private AuditConstant() {
+    }
 }

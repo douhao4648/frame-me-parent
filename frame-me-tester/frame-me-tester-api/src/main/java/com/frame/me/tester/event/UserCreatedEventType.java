@@ -1,6 +1,6 @@
 package com.frame.me.tester.event;
 
-import com.frame.me.event.EventType;
+import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 
 /**
@@ -11,7 +11,7 @@ import com.frame.me.event.MeApplicationEvent;
  *
  * @author frame-me
  */
-public class UserCreatedEventType implements EventType<UserCreatedPayload> {
+public class UserCreatedEventType implements IEventType<UserCreatedPayload> {
 
     @Override
     public String type() {

@@ -26,7 +26,9 @@ public class EncryptProperties {
     private String algorithm = EncryptConstant.DEFAULT_ALGORITHM;
 
     /**
-     * 密钥迭代次数，默认 1000.
+     * 密钥迭代次数，默认 {@link com.frame.me.encrypt.EncryptConstant#DEFAULT_ITERATIONS}.
+     *
+     * <p>可通过 {@code me.encrypt.iterations} 按环境与安全策略调整。</p>
      */
     private int iterations = EncryptConstant.DEFAULT_ITERATIONS;
 }

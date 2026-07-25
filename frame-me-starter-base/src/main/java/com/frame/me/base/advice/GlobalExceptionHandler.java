@@ -1,6 +1,7 @@
 package com.frame.me.base.advice;
 
 import com.frame.me.api.result.IResult;
+import com.frame.me.base.config.ExceptionProperties;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.exception.InternalException;
 import com.frame.me.base.result.Result;
@@ -28,13 +29,19 @@ import java.io.IOException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private final ExceptionProperties exceptionProperties;
+
+    public GlobalExceptionHandler(ExceptionProperties exceptionProperties) {
+        this.exceptionProperties = exceptionProperties;
+    }
+
     /**
      * 处理业务异常.
      */
     @ExceptionHandler(BusinessException.class)
     public IResult<Void> handleBusinessException(BusinessException e) {
         log.error("业务异常: {}", e.getMessage(), e);
-        return Result.error(e.getCode(), e.getMessage(), e);
+        return errorResult(e.getCode(), e.getMessage(), e);
     }
 
     /**
@@ -44,7 +51,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public IResult<Void> handleInternalException(InternalException e) {
         log.error("内部异常: {}", e.getMessage(), e);
-        return Result.error(e.getCode(), e.getMessage(), e);
+        return errorResult(e.getCode(), e.getMessage(), e);
     }
 
     /**
@@ -114,6 +121,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public IResult<Void> handleException(Exception e) {
         log.error("系统异常: {}", e.getMessage(), e);
-        return Result.error(ResultCode.ERROR.getCode(), e.getMessage(), e);
+        return errorResult(ResultCode.ERROR.getCode(), e.getMessage(), e);
+    }
+
+    private IResult<Void> errorResult(Integer code, String message, Throwable throwable) {
+        if (exceptionProperties.isIncludeStacktrace()) {
+            return Result.error(code, message, throwable);
+        }
+        return Result.error(code, message);
     }
 }

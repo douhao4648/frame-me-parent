@@ -4,7 +4,7 @@ import com.frame.me.auth.rbac.config.RbacAutoConfiguration;
 import com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration;
-import com.frame.me.auth.rbac.redis.store.PermissionCacheStore;
+import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -43,7 +43,7 @@ class RbacRedisAbsentClasspathTest {
         runner.run(context -> {
             assertThat(context).hasSingleBean(IAuthPermissionProvider.class);
             assertThat(context.getBean(IAuthPermissionProvider.class)).isInstanceOf(ConfigAuthPermissionProvider.class);
-            assertThat(context).doesNotHaveBean(PermissionCacheStore.class);
+            assertThat(context).doesNotHaveBean(IPermissionCacheStore.class);
             // 数据源插槽由始终在场的 RbacAutoConfiguration 注册，不受 RedisUtils 缺席影响
             assertThat(context).hasBean("authPermissionSource");
         });

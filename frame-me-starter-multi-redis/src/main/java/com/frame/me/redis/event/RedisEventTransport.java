@@ -1,6 +1,6 @@
 package com.frame.me.redis.event;
 
-import com.frame.me.base.event.EventTransport;
+import com.frame.me.base.event.IEventTransport;
 import com.frame.me.event.EventBridgeMessage;
 import com.frame.me.redis.util.RedissonTopic;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  * @author frame-me
  */
 @Slf4j
-public class RedisEventTransport implements EventTransport, MessageListener<EventBridgeMessage> {
+public class RedisEventTransport implements IEventTransport, MessageListener<EventBridgeMessage> {
 
     private final String topicPrefix;
     private final Map<String, Consumer<EventBridgeMessage>> dispatchers = new ConcurrentHashMap<>();

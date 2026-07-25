@@ -3,7 +3,7 @@ package com.frame.me.auth.rbac.redis.config;
 import com.frame.me.auth.rbac.config.RbacAutoConfiguration;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.redis.RedisAuthPermissionProvider;
-import com.frame.me.auth.rbac.redis.store.PermissionCacheStore;
+import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.auth.rbac.redis.store.RedisPermissionCacheStore;
 import com.frame.me.redis.util.RedisUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -46,8 +46,8 @@ public class RbacRedisAutoConfiguration {
      * 权限快照的 Redis 缓存存储.
      */
     @Bean
-    @ConditionalOnMissingBean(PermissionCacheStore.class)
-    public PermissionCacheStore permissionCacheStore(RbacRedisProperties properties) {
+    @ConditionalOnMissingBean(IPermissionCacheStore.class)
+    public IPermissionCacheStore permissionCacheStore(RbacRedisProperties properties) {
         return new RedisPermissionCacheStore(properties);
     }
 
@@ -59,7 +59,7 @@ public class RbacRedisAutoConfiguration {
     public IAuthPermissionProvider redisAuthPermissionProvider(
             @Qualifier("authPermissionSource") IAuthPermissionProvider source,
             RbacRedisProperties properties,
-            PermissionCacheStore cacheStore) {
+            IPermissionCacheStore cacheStore) {
         return new RedisAuthPermissionProvider(source, properties, cacheStore);
     }
 }

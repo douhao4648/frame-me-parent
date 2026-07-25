@@ -1,7 +1,7 @@
 package com.frame.me.auth.audit;
 
 import com.frame.me.auth.core.AuthContext;
-import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
+import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 
 /**
  * 基于认证上下文的审计操作人提供者.
@@ -10,7 +10,7 @@ import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
  *
  * @author frame-me
  */
-public class AuditAuthOperatorSupplier implements AuditLogOperatorSupplier {
+public class AuditAuthOperatorSupplier implements IAuditLogOperatorSupplier {
 
     @Override
     public String getOperatorId() {

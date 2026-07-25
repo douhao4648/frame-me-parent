@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,9 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>表达式经 {@link SpelExpressionParser} 解析后按字符串缓存，避免每次请求重复构建 AST；
  * root 对象无状态，全局复用单例。</p>
  *
- * <p><b>安全约束：</b>表达式被视为可信输入（来自开发者注解或受控配置）。
- * {@link StandardEvaluationContext} 允许 {@code T(...)} 类型引用与反射调用，
- * 因此切勿把表达式来源接入低权限可写的配置中心，否则存在远程代码执行风险。</p>
+ * <p><b>安全约束：</b>求值使用 {@link SimpleEvaluationContext#forReadOnlyDataBinding()}
+ * 并仅开启 root 实例方法调用，禁止 {@code T(...)} 类型引用、构造器、bean 解析等危险能力，
+ * 因此表达式来源即使接入配置中心也不会导致远程代码执行。</p>
  *
  * @author frame-me
  */
@@ -65,7 +65,10 @@ public class AuthExpressionRoot {
         }
         try {
             Expression exp = cachedExpression(expression);
-            StandardEvaluationContext ctx = new StandardEvaluationContext(ROOT);
+            SimpleEvaluationContext ctx = SimpleEvaluationContext.forReadOnlyDataBinding()
+                    .withInstanceMethods()
+                    .withRootObject(ROOT)
+                    .build();
             if (variables != null && !variables.isEmpty()) {
                 variables.forEach(ctx::setVariable);
             }

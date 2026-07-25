@@ -32,12 +32,21 @@ public class SmsNotifyClient implements INotifyClient {
     private final String name;
     private final SmsChannelProperties properties;
     private final RestClient restClient;
+    private final boolean includeErrorDetail;
 
     public SmsNotifyClient(String name,
                            SmsChannelProperties properties,
                            RestClient.Builder restClientBuilder) {
+        this(name, properties, restClientBuilder, false);
+    }
+
+    public SmsNotifyClient(String name,
+                           SmsChannelProperties properties,
+                           RestClient.Builder restClientBuilder,
+                           boolean includeErrorDetail) {
         this.name = name;
         this.properties = properties;
+        this.includeErrorDetail = includeErrorDetail;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(properties.getTimeout());
         factory.setReadTimeout(properties.getTimeout());
@@ -85,11 +94,14 @@ public class SmsNotifyClient implements INotifyClient {
         } catch (RestClientResponseException e) {
             log.warn("SMS response error via client '{}': status={}, body={}",
                     name, e.getStatusCode().value(), e.getResponseBodyAsString());
-            return NotifyResult.fail("SMS_RESPONSE_ERROR",
-                    "status=" + e.getStatusCode().value() + ", body=" + e.getResponseBodyAsString());
+            String responseMessage = includeErrorDetail
+                    ? "status=" + e.getStatusCode().value() + ", body=" + e.getResponseBodyAsString()
+                    : "SMS server returned error";
+            return NotifyResult.fail("SMS_RESPONSE_ERROR", responseMessage);
         } catch (Exception e) {
             log.error("SMS send failed via client '{}': {}", name, e.getMessage(), e);
-            return NotifyResult.fail("SMS_SEND_ERROR", e.getMessage());
+            String sendMessage = includeErrorDetail ? e.getMessage() : "SMS send failed";
+            return NotifyResult.fail("SMS_SEND_ERROR", sendMessage);
         }
     }
 

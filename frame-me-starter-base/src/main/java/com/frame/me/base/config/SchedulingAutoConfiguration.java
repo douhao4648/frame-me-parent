@@ -98,7 +98,7 @@ public class SchedulingAutoConfiguration {
             return "unknown";
         }
 
-        private static String buildExceptionContent(String location, Throwable throwable) {
+        private String buildExceptionContent(String location, Throwable throwable) {
             StringWriter writer = new StringWriter();
             writer.write("位置：");
             writer.write(location);
@@ -106,8 +106,10 @@ public class SchedulingAutoConfiguration {
             writer.write(throwable.getClass().getName());
             writer.write("\n消息：");
             writer.write(String.valueOf(throwable.getMessage()));
-            writer.write("\n堆栈：\n");
-            throwable.printStackTrace(new PrintWriter(writer));
+            if (properties.isExceptionIncludeStacktrace()) {
+                writer.write("\n堆栈：\n");
+                throwable.printStackTrace(new PrintWriter(writer));
+            }
             return writer.toString();
         }
 

@@ -5,7 +5,7 @@ import com.frame.me.auth.rbac.permission.DataPermission;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.permission.Permission;
 import com.frame.me.auth.rbac.redis.config.RbacRedisProperties;
-import com.frame.me.auth.rbac.redis.store.PermissionCacheStore;
+import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.base.user.User;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +30,7 @@ class RedisAuthPermissionProviderTest {
     /**
      * 内存版缓存存储，替代 Redis，并记录读写次数.
      */
-    static class InMemoryStore implements PermissionCacheStore {
+    static class InMemoryStore implements IPermissionCacheStore {
         final Map<String, UserPermissionSnapshot> map = new ConcurrentHashMap<>();
         int setCount = 0;
 

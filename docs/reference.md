@@ -112,7 +112,7 @@
 | `JwtTokenService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtTokenService.java` |
 | `JwtAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtAuthUserResolver.java` |
 | `IAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthUserDetailsService.java` |
-| `RefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/RefreshTokenStore.java` |
+| `IRefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/IRefreshTokenStore.java` |
 | `RedisRefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/RedisRefreshTokenStore.java` |
 | `JwtAuthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/web/JwtAuthController.java` |
 | `LoginDTO`（共用） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/web/dto/LoginDTO.java` |
@@ -136,7 +136,7 @@
 | `AuditLogEvent` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/core/AuditLogEvent.java` |
 | `AuditLogRecord` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/core/AuditLogRecord.java` |
 | `AuditLogLogger` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/listener/AuditLogLogger.java` |
-| `AuditLogOperatorSupplier` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/spi/AuditLogOperatorSupplier.java` |
+| `IAuditLogOperatorSupplier` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/spi/IAuditLogOperatorSupplier.java` |
 | `AuditAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/config/AuditAutoConfiguration.java` |
 | `AuditProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/config/AuditProperties.java` |
 | `AuditConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/AuditConstant.java` |
@@ -243,7 +243,7 @@
 | `QueryObjectArgumentResolver` | `@QueryMap` 查询对象参数解析器 |
 | `EventBridgePublisher` | 事件桥接发布入口 |
 | `EventBridgeListener` | 订阅通道、按 `type` 分发、还原为本地事件 |
-| `EventTransport` | 传输通道抽象（`send` / `subscribe`） |
+| `IEventTransport` | 传输通道抽象（`send` / `subscribe`） |
 | `EventBridgeProperties` | `me.event-bridge.*` 配置属性绑定 |
 | `EventBridgeAutoConfiguration` | 事件桥接自动装配入口；`serviceName` 未配置时默认取 `spring.application.name`。 |
 | `INotifySender` | 通用通知发送接口（`frame-me-starter-base`）。 |
@@ -271,7 +271,7 @@
 | `AuditLogEvent` | 审计事件，继承 `MeApplicationEvent` |
 | `AuditLogRecord` | 审计记录负载 |
 | `AuditLogLogger` | 本地 `@EventListener`，默认输出结构化日志 |
-| `AuditLogOperatorSupplier` | 操作人提供接口，默认返回 `anonymous` |
+| `IAuditLogOperatorSupplier` | 操作人提供接口，默认返回 `anonymous` |
 | `AuditAutoConfiguration` | 审计自动装配入口 |
 | `AuditProperties` | `me.audit` 配置属性绑定 |
 | `AuthContext` | ThreadLocal 当前用户上下文 |
@@ -364,7 +364,7 @@
    - 当前会落入通用 `Exception` 处理器，返回 HTTP 默认 200 + code 500。
 
 3. **`frame-me-starter-cloud` 为空壳模块**
-   - 当前仅包含占位常量接口。
+   - 当前仅包含占位常量类。
    - 适合作为未来 Nacos、Gateway 等微服务云组件能力的载体。
 
 4. **`frame-me-starter-auth` 已实现认证授权抽象层，已有 JWT 与 Sa-Token 两种认证实现**

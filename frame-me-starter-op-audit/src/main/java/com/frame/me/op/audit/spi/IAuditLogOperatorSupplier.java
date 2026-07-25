@@ -8,7 +8,7 @@ package com.frame.me.op.audit.spi;
  *
  * @author frame-me
  */
-public interface AuditLogOperatorSupplier {
+public interface IAuditLogOperatorSupplier {
 
     /**
      * 获取当前操作人标识.

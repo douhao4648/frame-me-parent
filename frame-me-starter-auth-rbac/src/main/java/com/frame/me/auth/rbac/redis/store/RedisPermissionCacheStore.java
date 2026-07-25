@@ -18,7 +18,7 @@ import java.time.Duration;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class RedisPermissionCacheStore implements PermissionCacheStore {
+public class RedisPermissionCacheStore implements IPermissionCacheStore {
 
     private final RbacRedisProperties properties;
 

@@ -86,6 +86,7 @@ class WebhookNotifyClientTest {
 
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getCode()).isEqualTo("WEBHOOK_RESPONSE_ERROR");
+        assertThat(result.getMessage()).isEqualTo("Webhook server returned error");
     }
 
     @Test
@@ -99,6 +100,22 @@ class WebhookNotifyClientTest {
 
         assertThat(result.isSuccess()).isFalse();
         assertThat(result.getCode()).isEqualTo("WEBHOOK_SEND_ERROR");
+        assertThat(result.getMessage()).isEqualTo("Webhook send failed");
+    }
+
+    @Test
+    void shouldIncludeErrorDetailWhenConfigured() {
+        statusCode.set(500);
+        WebhookNotifyClient client = createClient(baseUrl, null, true);
+
+        NotifyResult result = client.send(NotifyMessage.builder()
+                .title("告警")
+                .content("服务异常")
+                .build());
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.getCode()).isEqualTo("WEBHOOK_RESPONSE_ERROR");
+        assertThat(result.getMessage()).contains("status=500");
     }
 
     @Test
@@ -114,10 +131,14 @@ class WebhookNotifyClientTest {
     }
 
     private WebhookNotifyClient createClient(String url, String secret) {
+        return createClient(url, secret, false);
+    }
+
+    private WebhookNotifyClient createClient(String url, String secret, boolean includeErrorDetail) {
         WebhookChannelProperties properties = new WebhookChannelProperties();
         properties.setUrl(url);
         properties.setSecret(secret);
         properties.setTimeout(2000);
-        return new WebhookNotifyClient("test", properties, RestClient.builder());
+        return new WebhookNotifyClient("test", properties, RestClient.builder(), includeErrorDetail);
     }
 }

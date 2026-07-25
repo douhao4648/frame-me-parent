@@ -3,7 +3,7 @@ package com.frame.me.op.audit.config;
 import com.frame.me.op.audit.AuditLogEventConfiguration;
 import com.frame.me.op.audit.aspect.AuditLogAspect;
 import com.frame.me.op.audit.listener.AuditLogLogger;
-import com.frame.me.op.audit.spi.AuditLogOperatorSupplier;
+import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import com.frame.me.base.event.EventBridgeProperties;
 import com.frame.me.base.event.EventBridgePublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -30,14 +30,14 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AuditLogOperatorSupplier auditLogOperatorSupplier() {
+    public IAuditLogOperatorSupplier auditLogOperatorSupplier() {
         return () -> "anonymous";
     }
 
     @Bean
     @ConditionalOnMissingBean
     public AuditLogAspect auditLogAspect(EventBridgePublisher publisher,
-                                          AuditLogOperatorSupplier operatorSupplier,
+                                          IAuditLogOperatorSupplier operatorSupplier,
                                           AuditProperties properties,
                                           EventBridgeProperties eventBridgeProperties) {
         log.info("AuditLogAspect initialized, targetService={}", properties.getTargetService());

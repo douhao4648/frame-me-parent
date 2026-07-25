@@ -1,5 +1,7 @@
 package com.frame.me.adapter;
 
-public interface AdapterConstant {
+public final class AdapterConstant {
 
+    private AdapterConstant() {
+    }
 }

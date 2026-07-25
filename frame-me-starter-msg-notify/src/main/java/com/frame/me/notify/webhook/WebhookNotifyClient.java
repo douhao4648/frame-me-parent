@@ -30,12 +30,21 @@ public class WebhookNotifyClient implements INotifyClient {
     private final String name;
     private final WebhookChannelProperties properties;
     private final RestClient restClient;
+    private final boolean includeErrorDetail;
 
     public WebhookNotifyClient(String name,
                                WebhookChannelProperties properties,
                                RestClient.Builder restClientBuilder) {
+        this(name, properties, restClientBuilder, false);
+    }
+
+    public WebhookNotifyClient(String name,
+                               WebhookChannelProperties properties,
+                               RestClient.Builder restClientBuilder,
+                               boolean includeErrorDetail) {
         this.name = name;
         this.properties = properties;
+        this.includeErrorDetail = includeErrorDetail;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(properties.getTimeout());
         factory.setReadTimeout(properties.getTimeout());
@@ -77,11 +86,14 @@ public class WebhookNotifyClient implements INotifyClient {
         } catch (RestClientResponseException e) {
             log.warn("Webhook response error via client '{}': url={}, status={}, body={}",
                     name, url, e.getStatusCode().value(), e.getResponseBodyAsString());
-            return NotifyResult.fail("WEBHOOK_RESPONSE_ERROR",
-                    "status=" + e.getStatusCode().value() + ", body=" + e.getResponseBodyAsString());
+            String responseMessage = includeErrorDetail
+                    ? "status=" + e.getStatusCode().value() + ", body=" + e.getResponseBodyAsString()
+                    : "Webhook server returned error";
+            return NotifyResult.fail("WEBHOOK_RESPONSE_ERROR", responseMessage);
         } catch (Exception e) {
             log.error("Webhook send failed via client '{}': {}", name, e.getMessage(), e);
-            return NotifyResult.fail("WEBHOOK_SEND_ERROR", e.getMessage());
+            String sendMessage = includeErrorDetail ? e.getMessage() : "Webhook send failed";
+            return NotifyResult.fail("WEBHOOK_SEND_ERROR", sendMessage);
         }
     }
 

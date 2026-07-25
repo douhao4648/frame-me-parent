@@ -5,7 +5,7 @@ package com.frame.me.ws.mvc;
  *
  * @author frame-me
  */
-public class WsMvcConstant {
+public final class WsMvcConstant {
 
     private WsMvcConstant() {
     }

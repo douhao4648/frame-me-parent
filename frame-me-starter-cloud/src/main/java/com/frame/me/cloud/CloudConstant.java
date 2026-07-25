@@ -1,5 +1,7 @@
 package com.frame.me.cloud;
 
-public interface CloudConstant {
+public final class CloudConstant {
 
+    private CloudConstant() {
+    }
 }

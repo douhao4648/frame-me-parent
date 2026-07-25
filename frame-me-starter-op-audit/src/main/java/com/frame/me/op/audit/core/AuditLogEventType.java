@@ -1,6 +1,6 @@
 package com.frame.me.op.audit.core;
 
-import com.frame.me.event.EventType;
+import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 
 /**
@@ -11,7 +11,7 @@ import com.frame.me.event.MeApplicationEvent;
  *
  * @author frame-me
  */
-public class AuditLogEventType implements EventType<AuditLogRecord> {
+public class AuditLogEventType implements IEventType<AuditLogRecord> {
 
     @Override
     public String type() {

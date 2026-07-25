@@ -57,4 +57,12 @@ public class SchedulingProperties {
      * 例如 frame-me-starter-msg-notify 会回退到 {@code me.notify.global-receivers}。</p>
      */
     private List<String> exceptionNotifyReceivers = new ArrayList<>();
+
+    /**
+     * 调度异常通知内容是否包含完整堆栈，默认 false。
+     *
+     * <p>默认仅发送异常类名与 message，避免堆栈中的类路径、参数等敏感信息通过邮件、
+     * 钉钉、短信等通道外泄。调试时可设为 true。</p>
+     */
+    private boolean exceptionIncludeStacktrace = false;
 }
