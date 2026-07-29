@@ -46,7 +46,8 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AuditLogLogger auditLogLogger(AuditProperties properties) {
-        return new AuditLogLogger(properties);
+    public AuditLogLogger auditLogLogger(AuditProperties properties,
+                                         EventBridgeProperties eventBridgeProperties) {
+        return new AuditLogLogger(properties, eventBridgeProperties);
     }
 }

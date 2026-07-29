@@ -117,11 +117,18 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理其他未知异常.
+     *
+     * <p>默认对外返回异常自身 message；当 {@code me.exception.mask-unknown-message=true}
+     * 时收敛为通用文案（"系统错误"），真实异常信息只进服务端日志，避免未知异常
+     * 携带的 SQL、类路径、内网地址等内部细节泄漏给调用方。</p>
      */
     @ExceptionHandler(Exception.class)
     public IResult<Void> handleException(Exception e) {
         log.error("系统异常: {}", e.getMessage(), e);
-        return errorResult(ResultCode.ERROR.getCode(), e.getMessage(), e);
+        String message = exceptionProperties.isMaskUnknownMessage()
+                ? ResultCode.ERROR.getMsg()
+                : e.getMessage();
+        return errorResult(ResultCode.ERROR.getCode(), message, e);
     }
 
     private IResult<Void> errorResult(Integer code, String message, Throwable throwable) {

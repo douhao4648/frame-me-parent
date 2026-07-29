@@ -7,6 +7,7 @@ import com.frame.me.auth.propagation.AuthContextTaskDecorator;
 import com.frame.me.auth.propagation.AuthPropagationInterceptor;
 import com.frame.me.auth.resolver.LoginUserArgumentResolver;
 import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.auth.spi.IServiceInstanceProbe;
 import com.frame.me.base.config.AsyncAutoConfiguration;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.op.audit.config.AuditAutoConfiguration;
@@ -14,6 +15,7 @@ import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -44,21 +46,37 @@ public class AuthAutoConfiguration {
 
     /**
      * 默认用户解析器：从请求头读取用户 ID 和账号.
+     *
+     * <p>该解析器无条件信任客户端传入的 {@code X-User-Id} 头，仅适用于不直接对外暴露的
+     * 内网服务间调用场景，默认不装配，需显式配置 {@code me.auth.header-resolver.enabled=true}。
+     * 对外应用应引入 auth-jwt / auth-sa-token 提供真实实现。</p>
      */
     @Bean
     @ConditionalOnMissingBean(IAuthUserResolver.class)
+    @ConditionalOnProperty(prefix = "me.auth.header-resolver", name = "enabled", havingValue = "true")
     public IAuthUserResolver authUserResolver() {
+        log.warn("已启用基于请求头的用户解析器（X-User-Id），该方式无条件信任客户端传入的身份头，"
+                + "仅适用于前置网关已剥离外部身份头的内网服务间调用，切勿用于直接对外的服务");
         return new HeaderAuthUserResolver();
     }
 
     /**
      * 认证过滤器，解析并设置当前用户上下文.
+     *
+     * <p>缺少 {@link IAuthUserResolver} 实现时直接启动失败并给出指引，
+     * 避免静默退化为不安全的默认行为。</p>
      */
     @Bean
-    public FilterRegistrationBean<Filter> authFilter(IAuthUserResolver userResolver,
+    public FilterRegistrationBean<Filter> authFilter(ObjectProvider<IAuthUserResolver> userResolverProvider,
                                                       RequestMappingHandlerMapping handlerMapping,
                                                       AuthProperties properties,
                                                       IFilterErrorResponseWriter errorResponseWriter) {
+        IAuthUserResolver userResolver = userResolverProvider.getIfAvailable(() -> {
+            throw new IllegalStateException(
+                    "未找到 IAuthUserResolver 实现：对外应用请引入 frame-me-starter-auth-jwt 或 "
+                            + "frame-me-starter-auth-sa-token；内网服务间调用可显式配置 "
+                            + "me.auth.header-resolver.enabled=true 启用基于请求头的解析器");
+        });
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new AuthFilter(userResolver, handlerMapping, properties, errorResponseWriter));
         registration.addUrlPatterns("/*");
@@ -97,8 +115,44 @@ public class AuthAutoConfiguration {
     @Bean
     @ConditionalOnClass(RestClientHttpServiceGroupConfigurer.class)
     @ConditionalOnProperty(prefix = "me.auth.propagate", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public AuthPropagationInterceptor authPropagationInterceptor(AuthProperties properties) {
-        return new AuthPropagationInterceptor(properties);
+    public AuthPropagationInterceptor authPropagationInterceptor(
+            AuthProperties properties,
+            ObjectProvider<IServiceInstanceProbe> serviceInstanceProbeProvider) {
+        if (properties.getPropagate().getAllowedHosts().isEmpty()) {
+            log.info("认证信息传播未配置目标主机白名单（me.auth.propagate.allowed-hosts）："
+                    + "仅向注册中心服务名及单标签内网主机传播认证头，外部域名/IP 一律不传播");
+        }
+        return new AuthPropagationInterceptor(properties, serviceInstanceProbeProvider.getIfAvailable());
+    }
+
+    /**
+     * 注册中心服务名探针装配：classpath 存在 Spring Cloud LoadBalancer 时，
+     * 以 {@code LoadBalancerClient.choose(host)} 判定目标主机是否为注册中心服务名.
+     *
+     * <p>独立嵌套配置 + 条件注解，保证无 Spring Cloud 的项目不会触探该类加载。
+     * 业务方可注册自定义 {@link IServiceInstanceProbe} bean 覆盖默认实现。</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.cloud.client.loadbalancer.LoadBalancerClient")
+    static class ServiceInstanceProbeConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(IServiceInstanceProbe.class)
+        @ConditionalOnProperty(prefix = "me.auth.propagate.service-discovery", name = "enabled",
+                havingValue = "true", matchIfMissing = true)
+        IServiceInstanceProbe loadBalancerServiceInstanceProbe(
+                ObjectProvider<org.springframework.cloud.client.loadbalancer.LoadBalancerClient> loadBalancerClient) {
+            return host -> {
+                try {
+                    org.springframework.cloud.client.loadbalancer.LoadBalancerClient client =
+                            loadBalancerClient.getIfAvailable();
+                    return client != null && client.choose(host) != null;
+                } catch (Exception e) {
+                    log.debug("LoadBalancer 服务名探测失败: host={}, {}", host, e.getMessage());
+                    return false;
+                }
+            };
+        }
     }
 
     /**

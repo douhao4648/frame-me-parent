@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.frame.me.base.event.EventBridgeProperties;
 import com.frame.me.op.audit.config.AuditProperties;
 import com.frame.me.op.audit.core.AuditLogEvent;
 import com.frame.me.op.audit.core.AuditLogRecord;
@@ -41,9 +42,7 @@ class AuditLogLoggerTest {
 
     @Test
     void shouldLogWhenEnabled() {
-        AuditProperties properties = new AuditProperties();
-        properties.setLogEnabled(true);
-        AuditLogLogger loggerListener = new AuditLogLogger(properties);
+        AuditLogLogger loggerListener = new AuditLogLogger(enabledProperties(), currentService());
 
         AuditLogRecord record = new AuditLogRecord();
         record.setAction("创建用户");
@@ -62,7 +61,7 @@ class AuditLogLoggerTest {
     void shouldSkipWhenDisabled() {
         AuditProperties properties = new AuditProperties();
         properties.setLogEnabled(false);
-        AuditLogLogger loggerListener = new AuditLogLogger(properties);
+        AuditLogLogger loggerListener = new AuditLogLogger(properties, currentService());
 
         AuditLogRecord record = new AuditLogRecord();
         record.setAction("删除用户");
@@ -70,5 +69,32 @@ class AuditLogLoggerTest {
         loggerListener.onAuditLog(new AuditLogEvent("test-service", record, null));
 
         assertThat(appender.list).isEmpty();
+    }
+
+    /**
+     * 其他服务广播的审计事件（远程重发布）不打印，避免跨服务日志泛滥.
+     */
+    @Test
+    void shouldSkipRemoteBroadcastEvent() {
+        AuditLogLogger loggerListener = new AuditLogLogger(enabledProperties(), currentService());
+
+        AuditLogRecord record = new AuditLogRecord();
+        record.setAction("其他服务的操作");
+
+        loggerListener.onAuditLog(new AuditLogEvent("order-service", record, null));
+
+        assertThat(appender.list).isEmpty();
+    }
+
+    private AuditProperties enabledProperties() {
+        AuditProperties properties = new AuditProperties();
+        properties.setLogEnabled(true);
+        return properties;
+    }
+
+    private EventBridgeProperties currentService() {
+        EventBridgeProperties eventBridgeProperties = new EventBridgeProperties();
+        eventBridgeProperties.setServiceName("test-service");
+        return eventBridgeProperties;
     }
 }

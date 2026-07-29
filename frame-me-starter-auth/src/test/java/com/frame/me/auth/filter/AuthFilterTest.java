@@ -70,6 +70,34 @@ class AuthFilterTest {
     }
 
     @Test
+    void testWhitelistPassWithContextPath() throws Exception {
+        // 配置 context-path 后白名单按应用内路径匹配，仍应命中放行
+        properties.setWhitelist(List.of("/api/public/**"));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/api/public/info");
+        request.setContextPath("/app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+    }
+
+    @Test
+    void testWhitelistWithContextPathPrefixAlsoMatches() throws Exception {
+        // 白名单误带 context-path 前缀时平滑兼容，同样命中放行
+        properties.setWhitelist(List.of("/app/api/public/**"));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/api/public/info");
+        request.setContextPath("/app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+    }
+
+    @Test
     void testAnonymousAnnotationPass() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/anon");
         MockHttpServletResponse response = new MockHttpServletResponse();

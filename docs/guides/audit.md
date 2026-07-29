@@ -4,7 +4,7 @@
 
 ## 快速开始
 
-业务 `xx-service` 已引入 `frame-me-booter` 时，能力自动生效，无需额外依赖。
+业务 `xx-service` 已引入 `frame-me-boot` 时，能力自动生效，无需额外依赖。
 
 ```java
 @Service
@@ -31,8 +31,8 @@ public class UserService {
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
 | `enabled` | `true` | 是否启用审计模块 |
-| `log-enabled` | `true` | 是否在本地打印审计日志 |
-| `target-service` | `""` | 为空时只走本地事件；配置为审计服务名时，通过事件桥接定向发送 |
+| `log-enabled` | `true` | 是否在本地打印审计日志（仅打印本服务产生的事件；其他服务广播来的事件由审计中心专用消费者处理，不在各服务重复打印） |
+| `target-service` | `""` | 为空时通过事件桥接广播；配置为审计服务名时定向发送 |
 | `max-param-length` | `0` | 参数 JSON 最大长度，0 表示不限制 |
 
 ```yaml

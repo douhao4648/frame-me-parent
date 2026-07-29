@@ -5,6 +5,7 @@ import com.frame.me.auth.rbac.config.RbacProperties;
 import com.frame.me.auth.rbac.permission.AuthExpressionRoot;
 import com.frame.me.auth.rbac.permission.AuthPermissionHolder;
 import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
+import com.frame.me.auth.util.ContextPathUtils;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.io.IOException;
 import java.util.Map;
@@ -84,9 +86,13 @@ public class PermissionFilter implements Filter {
     }
 
     private String findExpr(HttpServletRequest request) {
-        String uri = request.getRequestURI();
+        // 使用应用内路径匹配：getRequestURI() 含 context-path，
+        // 配置 server.servlet.context-path 后会导致规则全部失配（静默放行，fail-open）
+        String uri = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
         for (Map.Entry<String, String> entry : properties.getRules().entrySet()) {
-            if (pathMatcher.match(entry.getKey(), uri)) {
+            // 平滑兼容误带 context-path 前缀的规则写法
+            String pattern = ContextPathUtils.stripContextPath(entry.getKey(), request.getContextPath());
+            if (pathMatcher.match(pattern, uri)) {
                 return entry.getValue();
             }
         }

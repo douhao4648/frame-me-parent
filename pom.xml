@@ -68,7 +68,8 @@
         <module>frame-me-starter-sensi-encrypt</module>
         <module>frame-me-starter-op-audit</module>
         <module>frame-me-starter-msg-notify</module>
-        <module>frame-me-booter</module>
+        <module>frame-me-boot</module>
+        <module>frame-me-launcher</module>
         <module>frame-me-tester</module>
     </modules>
 
@@ -160,7 +161,7 @@
             </dependency>
             <dependency>
                 <groupId>com.frame.me</groupId>
-                <artifactId>frame-me-booter</artifactId>
+                <artifactId>frame-me-boot</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

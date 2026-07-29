@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # 项目身份
 
-`frame-me-parent` 是基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 脚手架，采用 `frame-me-api` / `frame-me-booter` 分离设计，示例模块 `frame-me-tester` 进一步拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现）。详细架构、约定、命令和类索引见 `docs/` 知识库。
+`frame-me-parent` 是基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 脚手架，采用 `frame-me-api` / `frame-me-boot` 分离设计，示例模块 `frame-me-tester` 进一步拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现）。详细架构、约定、命令和类索引见 `docs/` 知识库。
 
 # 知识库检索
 

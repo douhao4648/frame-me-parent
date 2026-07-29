@@ -4,6 +4,7 @@ import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.auth.util.ContextPathUtils;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
@@ -24,6 +25,7 @@ import org.springframework.util.PathMatcher;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerExecutionChain;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.io.IOException;
 
@@ -110,12 +112,15 @@ public class AuthFilter implements Filter {
      * </p>
      */
     private boolean isAnonymous(HttpServletRequest request) {
-        String uri = request.getRequestURI();
+        // 使用应用内路径匹配：getRequestURI() 含 context-path，
+        // 配置 server.servlet.context-path 后会导致白名单全部失配
+        String uri = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
 
-        // 1. 配置白名单
+        // 1. 配置白名单（平滑兼容误带 context-path 前缀的写法）
         if (properties.getWhitelist() != null) {
             for (String pattern : properties.getWhitelist()) {
-                if (pathMatcher.match(pattern, uri)) {
+                String appPattern = ContextPathUtils.stripContextPath(pattern, request.getContextPath());
+                if (pathMatcher.match(appPattern, uri)) {
                     return true;
                 }
             }

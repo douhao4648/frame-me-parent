@@ -8,8 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 基于请求头的默认用户解析器.
  *
- * <p>仅用于开发/测试兜底，从请求头中读取用户 ID 和账号构建 {@link User}。
-生产环境应使用 JWT、Sa-Token、Spring Security 等真实实现替换。</p>
+ * <p>仅用于不直接对外暴露的内网服务间调用兜底，从请求头中读取用户 ID 和账号构建 {@link User}。
+ * 该解析器无条件信任客户端传入的身份头，默认不装配，需显式配置
+ * {@code me.auth.header-resolver.enabled=true} 开启；对外应用应使用 JWT、Sa-Token 等真实实现。</p>
  *
  * @author frame-me
  */

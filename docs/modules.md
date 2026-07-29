@@ -80,7 +80,8 @@
   - `me.scheduling.exception-notify-enabled` — 调度任务异常时是否尝试发送通知，默认 `true`。
   - `me.scheduling.exception-notify-receivers` — 调度异常通知接收者列表，默认空列表；为空时由 `INotifySender` 实现回退到 `me.notify.global-receivers`。
   - `me.scheduling.exception-include-stacktrace` — 调度异常通知内容是否包含完整堆栈，默认 `false`（仅发送异常类名与 message，避免堆栈信息外泄）。
-  - `me.exception.include-stacktrace` — 全局异常响应（`Result.err`）是否包含完整堆栈，默认 `true`（保持兼容）；生产环境建议设为 `false`。
+  - `me.exception.include-stacktrace` — 全局异常响应（`Result.err`）是否包含完整堆栈，默认 `false`（fail-closed）；排查问题时显式设为 `true`。
+  - `me.exception.mask-unknown-message` — 兜底未知异常对外是否屏蔽真实 message，默认 `false`（返回异常自身 message，兼容原行为）；设为 `true` 时对外固定返回通用文案（"系统错误"），真实 message 只进服务端日志，对外服务建议开启。
   - `me.restclient.pool.max-per-route` — 每个路由的最大连接数，默认 `50`。
   - `me.event-bridge.enabled` — 是否启用事件桥接，默认 `true`。
   - `me.event-bridge.service-name` — 当前服务名，默认取 `spring.application.name`；未配置时回退为 `unknown`。用于事件来源追踪与自身消息过滤。
@@ -157,7 +158,7 @@ me:
 - **设计约定**：
   - 表名到实体名映射：去掉第一个下划线前缀，例如 `spo_fms_device` → `FmsDevice`。
   - **Mapper 接口必须标注 `@Mapper` 注解**，并继承 MyBatis-Plus `BaseMapper<T>`，以便自动扫描与通用 CRUD。
-  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入 `frame-me-starter-mybatis-plus` 以获得 MyBatis-Plus 数据访问能力。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-mybatis-plus` 以获得 MyBatis-Plus 数据访问能力。
 
 ## `frame-me-starter-mybatis-flex`
 
@@ -173,7 +174,7 @@ me:
 - **启用条件**：类路径存在 `com.mybatisflex.core.BaseMapper`。
 - **设计约定**：
   - 与 `frame-me-starter-mybatis-plus` **二选一**，不可同时引入。
-  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入以替换默认的 MyBatis-Plus。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入以替换默认的 MyBatis-Plus。
   - 雪花 ID 自动复用 base 的 `SnowflakeUtils`，与 MyBatis-Plus 使用同一套雪花实例。
 
 ## `frame-me-adapter`
@@ -222,7 +223,7 @@ me:
   - 支持读取 `spring.datasource.hikari.*` 和 `spring.datasource.druid.*` 连接池属性。
   - 需要切换数据源时，使用 `@DS("slave")` 等 baomidou 注解。
 - **设计约定**：
-  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入 `frame-me-starter-dynamic-ds` 以获得多数据源能力。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-dynamic-ds` 以获得多数据源能力。
 
 **示例配置**：
 
@@ -269,7 +270,7 @@ spring:
   - `me.swagger.contact.name/email/url` — 联系人信息。
   - `me.swagger.groups` — API 分组列表；未配置时默认注册一个名为 `default`、匹配所有路径的分组。
 - **设计约定**：
-  - 不纳入 `frame-me-booter`，由业务 `xx-service` 按需引入。
+  - 不纳入 `frame-me-boot`，由业务 `xx-service` 按需引入。
   - 在 `frame-me-starter-base` 中通过 Maven profile `swagger` 引入：`mvn ... -Pswagger`。
 
 **示例配置**：
@@ -294,14 +295,14 @@ me:
 
 ## `frame-me-starter-auth`
 
-- **定位**：认证抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点，默认带一个基于请求头的极简兜底实现；具体认证实现由独立 starter 接管，当前已有 `frame-me-starter-auth-jwt` 与 `frame-me-starter-auth-sa-token` 两种可选实现（`frame-me-starter-auth-security` 等仍可后续扩展）。RBAC 授权能力已独立到 `frame-me-starter-auth-rbac`。
-- **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现；`spring-security-crypto` 为 optional 依赖（`PasswordUtils` 的 BCrypt 实现），由真正做账号密码认证的实现 starter 显式声明。
+- **定位**：认证抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点；具体认证实现由独立 starter 接管，当前已有 `frame-me-starter-auth-jwt` 与 `frame-me-starter-auth-sa-token` 两种可选实现（`frame-me-starter-auth-security` 等仍可后续扩展）。另带一个基于请求头的极简兜底实现（默认关闭，仅内网服务间调用显式开启）。RBAC 授权能力已独立到 `frame-me-starter-auth-rbac`。
+- **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现；`spring-security-crypto` 为 optional 依赖（`PasswordUtils` 的 BCrypt 实现），由真正做账号密码认证的实现 starter 显式声明；`spring-cloud-commons` 为 optional 依赖，存在 Spring Cloud 注册中心时用于甄别服务名调用以决定认证头传播。
 - **关键类**：
   - `com.frame.me.auth.config.AuthAutoConfiguration` — 自动装配入口。
   - `com.frame.me.auth.config.AuthProperties` — `me.auth.*` 配置属性绑定。
   - `com.frame.me.auth.core.AuthContext` — ThreadLocal 当前用户上下文。
   - `com.frame.me.auth.core.AuthUserAuthenticator` — 账号密码认证器（查用户 → 401 → 校验密码 → 401），供 JWT / Sa-Token 等认证实现的 `login` 共用。
-  - `com.frame.me.auth.core.HeaderAuthUserResolver` — 默认请求头兜底用户解析器。
+  - `com.frame.me.auth.core.HeaderAuthUserResolver` — 基于请求头（`X-User-Id`）的兜底用户解析器，默认不装配，需 `me.auth.header-resolver.enabled=true` 显式开启。
   - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。
   - `com.frame.me.auth.spi.IAuthUserResolver` — 请求解析当前用户接口。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — 用户详情服务 SPI（按账号/ID 查询用户、校验密码），供 JWT / Sa-Token 等认证实现共用；`matches` 为 default 方法（BCrypt），业务换算法时覆盖。
@@ -315,10 +316,13 @@ me:
 - **自动装配**：通过 `frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuthAutoConfiguration`。
 - **可配置项**：
   - `me.auth.enabled` — 是否启用认证模块，默认 `true`。
-  - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。
+  - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。按**应用内路径**匹配（不含 `server.servlet.context-path`）；配置误带 context-path 前缀时自动剥离前缀平滑兼容。
+  - `me.auth.header-resolver.enabled` — 是否启用基于请求头（`X-User-Id`）的兜底用户解析器，默认 `false`。该解析器无条件信任客户端传入的身份头，仅适用于前置网关已剥离外部身份头的内网服务间调用，开启时启动日志会输出 WARN。
+  - `me.auth.propagate.allowed-hosts` — 认证头传播的目标主机白名单（精确主机名 / `*.example.com` 后缀通配 / `*`），默认空。未命中白名单时按服务名调用甄别放行：注册中心服务名（Spring Cloud LoadBalancer 可解析，经专用 SPI `IServiceInstanceProbe` 判定，业务可自定义覆盖）与单标签内网主机名默认放行，外部多标签域名/IP 一律不传播；`me.auth.propagate.service-discovery.enabled=false` 可关闭豁免回到严格白名单模式。
 - **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得认证上下文能力。
-  - 默认的 `HeaderAuthUserResolver` 仅用于开发/测试，生产环境应由真实认证实现替换。
+  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得认证上下文能力。
+  - **fail-closed**：容器中没有任何 `IAuthUserResolver` 实现且未开启 `me.auth.header-resolver.enabled` 时，`AuthFilter` 装配直接抛出带指引的异常（提示引入 auth-jwt / auth-sa-token 或显式开启 header-resolver），不会静默退化为不安全默认行为。
+  - `HeaderAuthUserResolver` 无条件信任 `X-User-Id` 头，仅限内网服务间调用；对外应用必须引入 `frame-me-starter-auth-jwt` 或 `frame-me-starter-auth-sa-token`（两者均 `@AutoConfigureBefore(AuthAutoConfiguration)`，先于抽象层注册解析器使其退避）。
   - 通过 `@AutoConfigureBefore(AuditAutoConfiguration.class)` 保证审计模块能拿到当前登录用户 ID。
 
 ## `frame-me-starter-auth-rbac`
@@ -348,7 +352,7 @@ me:
 - **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacAutoConfiguration`、`RbacRedisAutoConfiguration`。
 - **可配置项**：
   - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。**总开关，为 `false` 时 Redis 后端一并退避。**
-  - `me.auth.permission.rules` — Filter 层「Ant 路径 → SpEL 表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 会剥离 `/`、`*` 导致规则静默失效（详见 `docs/conventions.md`）。
+  - `me.auth.permission.rules` — Filter 层「Ant 路径 → SpEL 表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 会剥离 `/`、`*` 导致规则静默失效（详见 `docs/conventions.md`）。按**应用内路径**匹配（不含 `server.servlet.context-path`）；规则 key 误带 context-path 前缀时自动剥离前缀平滑兼容。
   - `me.auth.permission.roles` — 角色到权限映射（逗号分隔 `resource:action`，action 可省略默认 `*`）。
   - `me.auth.permission.users` — 用户 ID 到角色映射（逗号分隔）。
   - `me.auth.permission.propagate.async.enabled` — 是否传播权限上下文到 `@Async` 线程，默认 `true`。
@@ -397,7 +401,7 @@ me:
   - `me.auth.jwt.cookie-domain` — Refresh Token Cookie 的 Domain。未配置时 JSON 返回 Refresh Token；配置后（如 `.example.com`）将 Refresh Token 作为 `HttpOnly`/`Secure`/`SameSite=Lax` Cookie 下发，JSON 中不再返回，且 `refresh`/`logout` 自动读写/清除 Cookie。
   - `me.auth.jwt.path` — JWT 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/刷新/当前用户接口均迁移到该路径下。
 - **设计约定**：
-  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入。
   - 业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
   - Access Token 为无状态 JWT；Refresh Token 存 Redis，支持登出失效。
   - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；**默认关闭**，需通过 `me.auth.admin.logout.enabled=true` 开启，开启后必须自行配置访问控制（`me.auth.permission.rules` 或自定义拦截器）。
@@ -430,7 +434,7 @@ me:
   - `me.auth.sa-token.redis.enabled` — 是否启用 Redis 会话存储，默认 `true`（需 classpath 存在 `frame-me-starter-multi-redis`）。
   - `me.auth.sa-token.redis.client-name` — Redis 实例名（对应 `me.redis.clients` 的 key），默认 `default`。
 - **设计约定**：
-  - **不纳入 `frame-me-booter`**，业务 `xx-service` 需显式引入。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入。
   - 业务接入只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，与 JWT 实现共用同一份业务实现。
   - 当前只做不透明 token 的会话模式（Redis / 内存），代码不假设 token 格式；`StpLogicJwtForSimple`（jwt-simple）留口——未来接入只需替换 `StpUtil.setStpLogic(...)`，`SaTokenAuthService` 无需改动。
   - multi-redis 缺席时退回 sa-token 内存 DAO（单实例可用），启动时 WARN 提示；多实例部署必须引入 `frame-me-starter-multi-redis` 以共享会话。
@@ -487,7 +491,7 @@ me:
   - Redisson 连接配置优先级：配 `spring.data.redis.redisson.config=classpath:redisson.yaml`（与 `redisson-spring-boot-starter` 标准配置项对齐）时用 Redisson 原生 YAML（支持全部 5 种模式，含 masterSlave/replicated）；否则自动复用 `spring.data.redis.*`——配 `cluster.nodes` 走集群、配 `sentinel.master/nodes` 走哨兵，否则单机，无需额外配置。
   - 用户名/密码在 Redisson 4.x 中需在顶层 `Config` 对象上设置，本 starter 已通过 `Config.setUsername` / `Config.setPassword` 实现。
 - **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得 Redis 能力。
+  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得 Redis 能力。
   - Redisson 为 optional 依赖，未引入时不影响 `RedisUtils` 使用。
   - 各 Redisson 工具类采用 `final` + 静态 `init(RedissonClient)` 模式，未初始化时调用会抛出 `IllegalStateException`。
 
@@ -583,7 +587,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - 业务推送：注入 `SsePushService` 调用 `broadcast` / `pushToReceiver`。
   - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 SSE 客户端自动收到。
 - **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
+  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
 
@@ -632,7 +636,7 @@ me:
   - 业务推送：注入 `WsMvcPushService` 调用 `broadcast` / `pushToReceiver`。
   - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 WebSocket 客户端自动收到。
 - **设计约定**：
-  - **不纳入 `frame-me-booter`**，由业务 `xx-service` 按需引入。
+  - **不纳入 `frame-me-boot`**，由业务 `xx-service` 按需引入。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
   - 后续可扩展 `frame-me-starter-ws-webflux`（WebFlux 原生 WebSocket）、`frame-me-starter-ws-stomp`（Servlet STOMP）、`frame-me-starter-rsocket`（RSocket），路径与 auto-config 条件均与本模块不冲突。
@@ -671,7 +675,7 @@ me:
   - 使用 `@CacheInvalidate` 在写操作时使缓存失效。
   - 使用 `@CacheUpdate` 在更新操作时更新缓存。
 - **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得缓存能力。
+  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得缓存能力。
   - 默认关闭，需显式开启。
   - 缓存连接参数通过 `jetcache.*` 原生属性控制。
   - 当前使用 `java` 序列化作为 value encoder，要求缓存对象实现 `Serializable`。
@@ -747,7 +751,7 @@ public Boolean delete(Long id) { ... }
   - 配置：把敏感值写成 `password: ME(密文)`。
   - 运行：通过环境变量/启动参数注入主密码，**不写入配置文件**：`ME_ENCRYPT_PASSWORD=xxx` 或 `-Dme.encrypt.password=xxx`。
 - **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即获得能力。
+  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即获得能力。
   - 跳过系统环境变量属性源（规避 Boot 3.5+ 系统环境源不被包装解密的已知行为，且密文放环境变量无意义）。
   - 本质是「用主密码加密其它密钥」，主密码仍需妥善保管；若要求密钥完全不落地，应改用 Vault/KMS 方案。
 
@@ -760,7 +764,7 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`。
   - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `MeApplicationEvent`。
   - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
-  - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志。
+  - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志；仅打印本服务产生的事件（按事件源与当前服务名比对），不重复打印其他服务广播来的事件。
   - `com.frame.me.op.audit.spi.IAuditLogOperatorSupplier` — 操作人提供接口，默认返回 `anonymous`。
   - `com.frame.me.op.audit.config.AuditAutoConfiguration` — 自动装配入口。
   - `com.frame.me.op.audit.config.AuditProperties` — `me.audit` 配置属性绑定。
@@ -802,7 +806,7 @@ public Boolean delete(Long id) { ... }
   - `webhook.*` — Webhook 通道配置（url、headers、clients 等）。
   - `sms.*` — 短信通道配置（url、headers、clients 等）。
 - **设计约定**：
-  - 已纳入 `frame-me-booter`，业务 `xx-service` 引入 `frame-me-booter` 即可获得通知能力。
+  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得通知能力。
   - 发送方法支持 `List<String>` 与单个 `String` 接收者两种重载。
   - 传入接收者为空时，`MsgNotifySender` 会自动回退到 `me.notify.global-receivers`。
 
@@ -851,16 +855,16 @@ public class AlertService {
 }
 ```
 
-## `frame-me-booter`
+## `frame-me-boot`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
 - **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
-  - `com.frame.me.booter.BooterConstant` — 占位常量类。
+  - `com.frame.me.boot.BooterConstant` — 占位常量类。
 - **使用方**：业务工程的 `xx-service` 模块。
 - **设计约定**：
-  - 业务 `xx-service` 通过引入 `frame-me-booter` 一键启动通用能力。
-  - `frame-me-booter` 无自己的自动装配类，依赖的 `frame-me-starter-base` 等模块会通过传递依赖自动注册。
+  - 业务 `xx-service` 通过引入 `frame-me-boot` 一键启动通用能力。
+  - `frame-me-boot` 无自己的自动装配类，依赖的 `frame-me-starter-base` 等模块会通过传递依赖自动注册。
   - `frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合，因为不同项目通常会重写适配层或按需引入文档能力。
   - `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 同样按需引入，不纳入聚合。
 
@@ -868,7 +872,7 @@ public class AlertService {
 <!-- 业务 xx-service：引入通用能力 -->
 <dependency>
     <groupId>com.frame.me</groupId>
-    <artifactId>frame-me-booter</artifactId>
+    <artifactId>frame-me-boot</artifactId>
 </dependency>
 
 <!-- 默认适配层 / 老接口规范（可选，可被项目自定义适配层替换） -->
@@ -884,7 +888,7 @@ public class AlertService {
 </dependency>
 ```
 
-- **扩展提示**：新增通用功能子模块后，应将其加入 `frame-me-booter` 的依赖列表；`frame-me-adapter-starter`、`frame-me-starter-doc-openapi` 等可替换/可选模块应保持独立，不加入 `frame-me-booter`。
+- **扩展提示**：新增通用功能子模块后，应将其加入 `frame-me-boot` 的依赖列表；`frame-me-adapter-starter`、`frame-me-starter-doc-openapi` 等可替换/可选模块应保持独立，不加入 `frame-me-boot`。
 
 ## `frame-me-tester`
 
@@ -923,7 +927,7 @@ public class AlertService {
 ## `frame-me-tester-service`
 
 - **定位**：示例业务实现层与可运行 Spring Boot 入口。
-- **依赖**：`frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`redisson`、`spring-boot-starter-test`（test scope）；`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus`、`druid-spring-boot-4-starter` 在 POM 中注释保留，可按需恢复。
+- **依赖**：`frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`redisson`、`spring-boot-starter-test`（test scope）；`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus`、`druid-spring-boot-4-starter` 在 POM 中注释保留，可按需恢复。
 - **关键类/文件**：
   - `com.frame.me.tester.Application` — `@SpringBootApplication` 启动类。
   - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi`，故意触发 NPE 以验证异常处理。
@@ -975,6 +979,6 @@ public class AlertService {
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-starter-msg-notify` | `frame-me-api`、`frame-me-starter-base` |
-| `frame-me-booter` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
+| `frame-me-boot` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
 | `frame-me-tester-api` | `frame-me-api` |
-| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-booter`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |
+| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |

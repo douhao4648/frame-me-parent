@@ -62,4 +62,45 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getMsg()).isEqualTo("系统挂了");
         assertThat(result.getErr()).isNull();
     }
+
+    /**
+     * 兜底异常默认对外返回真实 message（兼容原行为）.
+     */
+    @Test
+    void genericException_returnsMessageByDefault() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(new ExceptionProperties());
+        IResult<Void> result = handler.handleException(new RuntimeException("系统挂了"));
+        assertThat(result.getMsg()).isEqualTo("系统挂了");
+    }
+
+    /**
+     * 开启 mask-unknown-message 后，兜底异常对外收敛为通用文案，内部细节只进日志.
+     */
+    @Test
+    void genericException_maskUnknownMessageWhenEnabled() {
+        ExceptionProperties masked = new ExceptionProperties();
+        masked.setMaskUnknownMessage(true);
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(masked);
+        IResult<Void> result = handler.handleException(
+                new RuntimeException("Table 't_secret_user' doesn't exist"));
+        assertThat(result.getCode()).isEqualTo(ResultCode.ERROR.getCode());
+        assertThat(result.getMsg()).isEqualTo(ResultCode.ERROR.getMsg());
+        assertThat(result.getMsg()).doesNotContain("t_secret_user");
+    }
+
+    /**
+     * includeStacktrace 默认关闭，避免堆栈随响应体泄漏.
+     */
+    @Test
+    void includeStacktrace_defaultsToFalse() {
+        assertThat(new ExceptionProperties().isIncludeStacktrace()).isFalse();
+    }
+
+    /**
+     * maskUnknownMessage 默认关闭，保持返回 message 的原行为.
+     */
+    @Test
+    void maskUnknownMessage_defaultsToFalse() {
+        assertThat(new ExceptionProperties().isMaskUnknownMessage()).isFalse();
+    }
 }

@@ -2,9 +2,10 @@ package com.frame.me.auth.propagation;
 
 import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.core.AuthContext;
+import com.frame.me.auth.spi.IServiceInstanceProbe;
 import com.frame.me.base.user.User;
 import jakarta.annotation.Nonnull;
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
@@ -25,13 +26,32 @@ import java.util.List;
  * （header-auth），并且会从 {@link AuthContext} 补充当前用户信息，使 JWT 上游调用
  * header-auth 下游时也能被识别。</p>
  *
+ * <p>传播目标控制：命中 {@code me.auth.propagate.allowed-hosts} 白名单的主机放行；
+ * 未命中时，若目标被甄别为注册中心服务名调用（LoadBalancer 可解析）或单标签内网主机名，
+ * 默认同样放行（可用 {@code me.auth.propagate.service-discovery.enabled=false} 关闭）；
+ * 其余外部域名/IP 一律不传播，防止凭证泄漏给第三方。</p>
+ *
  * @author frame-me
  */
 @Slf4j
-@RequiredArgsConstructor
 public class AuthPropagationInterceptor implements ClientHttpRequestInterceptor {
 
     private final AuthProperties properties;
+
+    /**
+     * 注册中心服务名探针（可选）：判定目标主机是否为 LoadBalancer 可解析的服务名.
+     */
+    @Nullable
+    private final IServiceInstanceProbe serviceInstanceProbe;
+
+    public AuthPropagationInterceptor(AuthProperties properties) {
+        this(properties, null);
+    }
+
+    public AuthPropagationInterceptor(AuthProperties properties, @Nullable IServiceInstanceProbe serviceInstanceProbe) {
+        this.properties = properties;
+        this.serviceInstanceProbe = serviceInstanceProbe;
+    }
 
     @Override
     @Nonnull
@@ -41,10 +61,85 @@ public class AuthPropagationInterceptor implements ClientHttpRequestInterceptor 
             return execution.execute(request, body);
         }
 
+        if (!isHostAllowed(request)) {
+            log.debug("目标主机不在认证传播白名单内，跳过认证头传播: host={}", request.getURI().getHost());
+            return execution.execute(request, body);
+        }
+
         propagateHeaders(request);
         propagateUserInfoFromContext(request);
 
         return execution.execute(request, body);
+    }
+
+    /**
+     * 判断出站请求目标主机是否允许传播认证头.
+     *
+     * <p>命中 {@code allowed-hosts} 白名单（精确主机名不区分大小写、{@code *.example.com}
+     * 后缀通配、{@code *} 全匹配）直接放行；未命中时按服务名调用甄别：
+     * 单标签主机名（不含 {@code .}）视为内网服务名放行，或注册中心探针可解析的服务名放行。</p>
+     */
+    private boolean isHostAllowed(HttpRequest request) {
+        String host = request.getURI().getHost();
+        if (host == null || host.isEmpty()) {
+            return false;
+        }
+        if (matchesWhitelist(host, properties.getPropagate().getAllowedHosts())) {
+            return true;
+        }
+        return isServiceDiscoveryTarget(host);
+    }
+
+    /**
+     * 白名单匹配；白名单为空时不命中任何主机.
+     */
+    private boolean matchesWhitelist(String host, List<String> allowedHosts) {
+        if (allowedHosts == null || allowedHosts.isEmpty()) {
+            return false;
+        }
+        for (String pattern : allowedHosts) {
+            if (pattern == null || pattern.isBlank()) {
+                continue;
+            }
+            String normalized = pattern.trim().toLowerCase();
+            if ("*".equals(normalized)) {
+                return true;
+            }
+            String lowerHost = host.toLowerCase();
+            if (normalized.startsWith("*.")) {
+                String suffix = normalized.substring(1);
+                if (lowerHost.endsWith(suffix) && lowerHost.length() > suffix.length()) {
+                    return true;
+                }
+            } else if (lowerHost.equals(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 甄别目标是否为内部服务名调用.
+     *
+     * <p>单标签主机名（如 {@code order-service}、{@code localhost}）天然属于内网；
+     * 多标签主机名交由注册中心探针判定（覆盖 {@code order.default.svc.cluster.local} 等
+     * K8s 全限定服务名场景）。</p>
+     */
+    private boolean isServiceDiscoveryTarget(String host) {
+        if (Boolean.FALSE.equals(properties.getPropagate().getServiceDiscovery().getEnabled())) {
+            return false;
+        }
+        if (!host.contains(".")) {
+            return true;
+        }
+        if (serviceInstanceProbe != null) {
+            try {
+                return serviceInstanceProbe.test(host);
+            } catch (Exception e) {
+                log.debug("注册中心服务名探测失败: host={}, {}", host, e.getMessage());
+            }
+        }
+        return false;
     }
 
     /**

@@ -35,6 +35,12 @@
             <artifactId>spring-security-crypto</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- optional：存在 Spring Cloud 注册中心时，用于甄别服务名调用以决定是否传播认证头 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-commons</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

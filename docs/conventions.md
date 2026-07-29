@@ -123,9 +123,11 @@ throw new InternalException("数据库连接失败");
 | `handleConstraintViolationException` | `ConstraintViolationException`（`@PathVariable`/`@RequestParam` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条约束错误消息)` |
 | `handleBindException` | `BindException`（表单/查询参数绑定失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
 | `handleHttpMessageNotReadableException` | `HttpMessageNotReadableException`（请求体缺失或不可读） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, "请求体不能为空")` |
-| `handleException` | `Exception` | 默认 200 | `error` | `Result.error(ERROR, message, exception)` / `Result.error(ERROR, message)` |
+| `handleException` | `Exception` | 默认 200 | `error` | `Result.error(ERROR, message, exception)` / `Result.error(ERROR, message)`；`me.exception.mask-unknown-message=true` 时 message 收敛为通用文案（"系统错误"） |
 
-是否把异常完整堆栈写入 `Result.err` 由 `me.exception.include-stacktrace` 控制，默认 `true`（保持兼容）。生产环境建议设为 `false`，避免堆栈中的类路径、参数等敏感信息随响应体泄漏；异常详情仍可通过服务端日志定位。
+是否把异常完整堆栈写入 `Result.err` 由 `me.exception.include-stacktrace` 控制，默认 `false`（fail-closed，避免堆栈中的类路径、参数等敏感信息随响应体泄漏）；排查问题时可显式设为 `true`，异常详情仍可通过服务端日志定位。
+
+对外口径约定：`BusinessException` 与 `InternalException` 的 message 视为业务方有意对外，原样回传；兜底 `Exception` 的 message 来源不可控（可能携带 SQL、类路径、内网地址），默认仍回传（兼容原行为），对外服务建议配置 `me.exception.mask-unknown-message=true` 收敛为通用文案（真实 message 只进服务端日志）。
 
 ## 编码风格
 
@@ -277,6 +279,8 @@ Page<DemoEntity> page = demoMapper.selectPage(PageableUtils.toPage(param), wrapp
 PageResult<DemoVO> result = PageableUtils.toPageResult(page, DemoConvert.INSTANCE::toVo);
 ```
 
+> **排序字段安全**：`PageUtils` 与 `PageableUtils` 对客户端传入的排序字段统一按白名单 `^[A-Za-z0-9_.]+$` 校验（允许 `table.column` 限定名），非法字段静默丢弃，防止 ORDER BY SQL 注入；列名在 SQL 中无法参数化，业务侧切勿绕过工具类直接拼接排序字段。
+
 ### Service 层
 
 项目当前未提供统一的 Service 基类封装。业务 Service 接口可直接继承 MyBatis-Plus 的 `com.baomidou.mybatisplus.extension.service.IService<T>`，实现类继承 `com.baomidou.mybatisplus.extension.service.impl.ServiceImpl<M, T>`，或根据业务自行约定。
@@ -393,13 +397,13 @@ me:
 
 类路径：`frame-me-starter-auth/src/main/java/com/frame/me/auth`
 
-`frame-me-booter` 已默认引入 `frame-me-starter-auth`，业务 `xx-service` 无需额外配置即可获得以下能力：
+`frame-me-boot` 已默认引入 `frame-me-starter-auth`，业务 `xx-service` 无需额外配置即可获得以下能力：
 
 - **`AuthContext`**：ThreadLocal 当前用户上下文，提供 `getUser()` / `getUserId()` / `getAccount()` / `setUser(User)` / `clear()`。
 - **`@LoginUser`**：标注在 Controller 方法参数上，自动注入当前登录用户。
 - **`@Anonymous`**：标注在 Controller 类或方法上，表示该接口允许匿名访问。
 - **`AuthFilter`**：全局认证过滤器，默认拦截 `/*`。
-  - 配置白名单路径（`me.auth.whitelist`）或 `@Anonymous` 注解可放行。
+  - 配置白名单路径（`me.auth.whitelist`）或 `@Anonymous` 注解可放行。白名单按**应用内路径**匹配（不含 `server.servlet.context-path`，配置误带 context-path 前缀时自动剥离兼容）。
   - 非白名单请求未解析到用户时返回 401。
   - 配置 `me.auth.enforce-login=false` 可关闭强制登录，此时过滤器仅尝试解析用户并写入 `AuthContext`，不返回 401。
   - **Filter 层错误响应格式由 `IFilterErrorResponseWriter` SPI 决定**：`frame-me-starter-base` 默认输出 `Result` 格式；引入 `frame-me-adapter-starter` 后自动切换为外部 `Response` 格式，与 Controller 层的老接口规范保持一致。
@@ -491,7 +495,7 @@ me:
 
 类路径：`frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken`
 
-基于 sa-token（`cn.dev33:sa-token-spring-boot4-starter`，1.45.0）的会话治理型认证实现，面向需要踢人 / 封禁 / 在线会话 / 多端互斥的后台场景。**不纳入 `frame-me-booter`**，业务 `xx-service` 显式引入：
+基于 sa-token（`cn.dev33:sa-token-spring-boot4-starter`，1.45.0）的会话治理型认证实现，面向需要踢人 / 封禁 / 在线会话 / 多端互斥的后台场景。**不纳入 `frame-me-boot`**，业务 `xx-service` 显式引入：
 
 ```xml
 <dependency>
@@ -606,6 +610,10 @@ me:
         - Authorization
         - X-User-Id
         - X-User-Account
+      allowed-hosts:                   # 目标主机白名单，默认空
+        - "*.internal.example.com"
+      service-discovery:
+        enabled: true                  # 默认 true，服务名调用豁免（见下）
       user-info:
         enabled: true                  # 默认 true，从 AuthContext 补充 X-User-Id / X-User-Account
         user-id-header: X-User-Id
@@ -614,6 +622,10 @@ me:
 
 - `enabled`：是否启用传播，默认 `true`。
 - `headers`：需要从当前请求原样传播到下游的头名列表。
+- `allowed-hosts`：允许注入认证头的目标主机白名单，支持精确主机名（不区分大小写）、`*.example.com` 后缀通配与 `*` 全匹配，默认空。
+- `service-discovery.enabled`：服务名调用豁免，默认 `true`。开启时目标主机被甄别为**注册中心服务名**（classpath 存在 Spring Cloud 时以 `LoadBalancerClient.choose(host)` 判定，覆盖 `order.default.svc.cluster.local` 等 K8s 全限定名）或**单标签内网主机名**（不含 `.`，如 `order-service`、`localhost`）即允许传播，无需配置白名单；外部多标签域名/IP 一律不传播。关闭后仅严格按 `allowed-hosts` 白名单传播。探针通过专用 SPI `IServiceInstanceProbe` 注入（避免与容器中其他通用 `Predicate<String>` bean 冲突），业务方可注册自定义实现覆盖默认的 LoadBalancer 探针。
+- 即默认配置下：内部服务名调用零配置照常传播，第三方地址拿不到 `Authorization` / `X-User-Id`；有非服务名的内网调用（直连 IP/域名）时配置 `allowed-hosts` 补充。
+- **前提**：拦截器先于 LoadBalancer 拦截器执行（此时 URI host 仍是服务名），Spring Cloud 默认装配顺序满足该前提；若项目自定义了拦截器顺序导致 LB 先解析为 IP，服务名调用会被误判为外部而不传播。
 - `user-info.enabled`：是否从 `AuthContext` 补充用户头，默认 `true`。
 - `user-info.user-id-header` / `user-info.user-account-header`：用户 ID / 账号对应的头名，可自定义。
 

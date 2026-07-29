@@ -48,6 +48,11 @@ public class AuthProperties {
     private Admin admin = new Admin();
 
     /**
+     * 基于请求头的默认用户解析器开关配置.
+     */
+    private HeaderResolver headerResolver = new HeaderResolver();
+
+    /**
      * 服务间调用时认证信息传播配置.
      */
     private Propagate propagate = new Propagate();
@@ -65,6 +70,26 @@ public class AuthProperties {
          * 自行保护，避免任意已登录/匿名用户可踢掉他人。</p>
          */
         private Boolean logoutEnabled = false;
+    }
+
+    /**
+     * 基于请求头的默认用户解析器开关配置.
+     *
+     * <p>该解析器无条件信任客户端传入的 {@code X-User-Id} 请求头，
+     * 仅适用于不直接对外暴露的内网服务间调用场景，因此默认关闭、需显式开启。</p>
+     */
+    @Data
+    public static class HeaderResolver {
+
+        /**
+         * 是否启用基于请求头的默认用户解析器，默认 {@code false}.
+         *
+         * <p>仅当服务不直接对外暴露（前置网关已剥离外部请求的 {@code X-User-Id} 头）、
+         * 且调用方均为内网可信服务时才应开启。对外应用应引入
+         * {@code frame-me-starter-auth-jwt} 或 {@code frame-me-starter-auth-sa-token}
+         * 提供真实的 {@code IAuthUserResolver} 实现。</p>
+         */
+        private Boolean enabled = false;
     }
 
     /**
@@ -90,6 +115,39 @@ public class AuthProperties {
          * （header-auth），覆盖两类认证方式。</p>
          */
         private List<String> headers = List.of("Authorization", "X-User-Id", "X-User-Account");
+
+        /**
+         * 允许传播认证头的目标主机白名单，默认空列表（不限制，保持兼容）.
+         *
+         * <p>支持精确主机名（不区分大小写）、{@code *.example.com} 后缀通配以及 {@code *} 全匹配。
+         * 配置后仅当出站请求的目标主机命中白名单时才注入认证头，
+         * 防止 {@code Authorization} / {@code X-User-Id} 泄漏给外部第三方地址。</p>
+         */
+        private List<String> allowedHosts = new ArrayList<>();
+
+        /**
+         * 注册中心服务名调用甄别配置.
+         */
+        private ServiceDiscovery serviceDiscovery = new ServiceDiscovery();
+
+        /**
+         * 注册中心服务名调用甄别配置.
+         *
+         * <p>开启后，目标主机被甄别为注册中心服务名（Spring Cloud LoadBalancer 可解析）
+         * 或单标签内网主机名（不含 {@code .}，如 {@code order-service}、{@code localhost}）时，
+         * 即使不在 {@code allowed-hosts} 白名单内也允许传播认证头——内部服务名调用天然可信，
+         * 外部域名/IP 默认不传播。</p>
+         */
+        @Data
+        public static class ServiceDiscovery {
+
+            /**
+             * 是否允许向甄别为服务名调用的目标传播认证头，默认 {@code true}.
+             *
+             * <p>关闭后仅严格按 {@code allowed-hosts} 白名单传播。</p>
+             */
+            private Boolean enabled = true;
+        }
 
         /**
          * 是否从 {@link com.frame.me.auth.core.AuthContext} 补充用户头.

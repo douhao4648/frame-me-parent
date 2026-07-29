@@ -1,0 +1,157 @@
+package com.frame.me.auth.config;
+
+import com.frame.me.auth.core.HeaderAuthUserResolver;
+import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.auth.spi.IServiceInstanceProbe;
+import com.frame.me.base.result.ResultCode;
+import com.frame.me.base.user.User;
+import com.frame.me.base.web.IFilterErrorResponseWriter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * {@link AuthAutoConfiguration} 装配测试：验证 Header 解析器开关、fail-closed 与业务接管.
+ *
+ * @author frame-me
+ */
+class AuthAutoConfigurationTest {
+
+    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(AuthAutoConfiguration.class))
+            .withUserConfiguration(StubInfraConfig.class);
+
+    /**
+     * fail-closed：无任何 IAuthUserResolver 实现且未显式开启 Header 解析器时，
+     * 启动直接失败并给出指引，而不是静默退化为不安全的默认行为.
+     */
+    @Test
+    void failsFastWhenNoResolver() {
+        runner.run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure())
+                    .hasStackTraceContaining("未找到 IAuthUserResolver 实现");
+        });
+    }
+
+    /**
+     * 显式开启后装配 Header 解析器，认证过滤器正常注册.
+     */
+    @Test
+    void headerResolverEnabledBySwitch() {
+        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(IAuthUserResolver.class))
+                            .isInstanceOf(HeaderAuthUserResolver.class);
+                    assertThat(context).hasBean("authFilter");
+                });
+    }
+
+    /**
+     * 业务自定义 IAuthUserResolver 时，即使开关开启，Header 解析器也让位.
+     */
+    @Test
+    void customResolverTakesPrecedence() {
+        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+                .withUserConfiguration(CustomResolverConfig.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(IAuthUserResolver.class);
+                    assertThat(context.getBean(IAuthUserResolver.class))
+                            .isInstanceOf(CustomResolver.class);
+                });
+    }
+
+    /**
+     * 容器中存在无关的通用 Predicate bean 时，不会被当作服务名探针，
+     * 传播拦截器仍使用默认的 LoadBalancer 探针，装配不冲突.
+     */
+    @Test
+    void unrelatedPredicateBeanNotHijackedAsProbe() {
+        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+                .withUserConfiguration(UnrelatedPredicateConfig.class)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasBean("authPropagationInterceptor");
+                    assertThat(context).hasSingleBean(IServiceInstanceProbe.class);
+                    assertThat(context.getBean(IServiceInstanceProbe.class))
+                            .isNotSameAs(context.getBean("unrelatedPredicate"));
+                });
+    }
+
+    /**
+     * 业务自定义 IServiceInstanceProbe 时覆盖默认的 LoadBalancer 探针.
+     */
+    @Test
+    void customProbeOverridesDefault() {
+        IServiceInstanceProbe customProbe = host -> true;
+        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+                .withBean(IServiceInstanceProbe.class, () -> customProbe)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(IServiceInstanceProbe.class);
+                    assertThat(context.getBean(IServiceInstanceProbe.class)).isSameAs(customProbe);
+                });
+    }
+
+    /**
+     * 测试基础设施：authFilter 依赖的 MVC 与错误响应写入器 stub.
+     */
+    @Configuration(proxyBeanMethods = false)
+    static class StubInfraConfig {
+
+        @Bean
+        RequestMappingHandlerMapping requestMappingHandlerMapping() {
+            return new RequestMappingHandlerMapping();
+        }
+
+        @Bean
+        IFilterErrorResponseWriter filterErrorResponseWriter() {
+            return (HttpServletResponse response, ResultCode resultCode, String message) -> {
+            };
+        }
+    }
+
+    /**
+     * 无关的通用 Predicate bean 配置：模拟业务或第三方库注册的 Predicate.
+     */
+    @Configuration(proxyBeanMethods = false)
+    static class UnrelatedPredicateConfig {
+
+        @Bean
+        java.util.function.Predicate<String> unrelatedPredicate() {
+            return host -> true;
+        }
+    }
+
+    /**
+     * 业务自定义解析器配置.
+     */
+    @Configuration(proxyBeanMethods = false)
+    static class CustomResolverConfig {
+
+        @Bean
+        IAuthUserResolver customAuthUserResolver() {
+            return new CustomResolver();
+        }
+    }
+
+    /**
+     * 业务自定义解析器.
+     */
+    static class CustomResolver implements IAuthUserResolver {
+
+        @Override
+        public User resolve(HttpServletRequest request) {
+            return null;
+        }
+    }
+}

@@ -143,6 +143,41 @@ class PermissionFilterTest {
     }
 
     @Test
+    void testRuleMatchesWithContextPath() throws Exception {
+        // 配置 context-path 后规则按应用内路径匹配，仍应命中而非静默放行
+        properties.getRules().put("/api/admin/**", "role('admin')");
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/api/admin/users");
+        request.setContextPath("/app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        // 命中规则且未登录 → 401；若规则失配则会放行（fail-open 回归）
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getContentAsString().contains("401"));
+        assertNull(chain.getRequest());
+    }
+
+    @Test
+    void testRuleWithContextPathPrefixAlsoMatches() throws Exception {
+        // 规则误带 context-path 前缀时平滑兼容，同样命中而非静默放行
+        properties.getRules().put("/app/api/admin/**", "role('admin')");
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/app/api/admin/users");
+        request.setContextPath("/app");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(200, response.getStatus());
+        assertTrue(response.getContentAsString().contains("401"));
+        assertNull(chain.getRequest());
+    }
+
+    @Test
     void testPermissionDisabled() throws Exception {
         properties.setEnabled(false);
         properties.getRules().put("/api/admin/**", "role('admin')");

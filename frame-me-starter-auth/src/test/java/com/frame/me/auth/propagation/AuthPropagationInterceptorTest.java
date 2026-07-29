@@ -163,6 +163,101 @@ class AuthPropagationInterceptorTest {
     }
 
     @Test
+    void testAllowedHostsExactMatch() throws IOException {
+        properties.getPropagate().setAllowedHosts(List.of("downstream"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertEquals("Bearer token123", outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
+    void testAllowedHostsWildcardSuffix() throws IOException {
+        properties.getPropagate().setAllowedHosts(List.of("*.internal.example.com"));
+        outboundRequest = new MockClientHttpRequest(HttpMethod.GET,
+                URI.create("http://order.internal.example.com/api/demo"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertEquals("Bearer token123", outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
+    void testWildcardSuffixDoesNotMatchBareDomain() throws IOException {
+        properties.getPropagate().setAllowedHosts(List.of("*.internal.example.com"));
+        outboundRequest = new MockClientHttpRequest(HttpMethod.GET,
+                URI.create("http://internal.example.com/api/demo"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertNull(outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
+    void testDisallowedHostSkipped() throws IOException {
+        properties.getPropagate().setAllowedHosts(List.of("trusted.internal"));
+        outboundRequest = new MockClientHttpRequest(HttpMethod.GET,
+                URI.create("http://external.evil-corp.com/api/demo"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+        AuthContext.setUser(createUser(1L, "admin"));
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertNull(outboundRequest.getHeaders().getFirst("Authorization"));
+        assertNull(outboundRequest.getHeaders().getFirst("X-User-Id"));
+    }
+
+    @Test
+    void testExternalHostNotPropagatedByDefault() throws IOException {
+        // 未配置白名单时，多标签外部域名默认不传播（fail-closed）
+        outboundRequest = new MockClientHttpRequest(HttpMethod.GET,
+                URI.create("http://api.third-party.com/webhook"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertNull(outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
+    void testProbeAllowsFullyQualifiedServiceName() throws IOException {
+        // 注册中心探针可解析的多标签服务名（如 K8s 全限定名）放行
+        interceptor = new AuthPropagationInterceptor(properties,
+                host -> host.equals("order.default.svc.cluster.local"));
+        outboundRequest = new MockClientHttpRequest(HttpMethod.GET,
+                URI.create("http://order.default.svc.cluster.local/api/demo"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertEquals("Bearer token123", outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
+    void testServiceDiscoveryDisabledBlocksSingleLabelHost() throws IOException {
+        // 关闭服务名豁免后，单标签主机名也不再放行（严格白名单模式）
+        properties.getPropagate().getServiceDiscovery().setEnabled(false);
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertNull(outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
+    void testAllowedHostsStarMatchesAll() throws IOException {
+        properties.getPropagate().setAllowedHosts(List.of("*"));
+        bindRequestWithHeader("Authorization", "Bearer token123");
+
+        interceptor.intercept(outboundRequest, new byte[0], execution);
+
+        assertEquals("Bearer token123", outboundRequest.getHeaders().getFirst("Authorization"));
+    }
+
+    @Test
     void testCustomUserInfoHeaders() throws IOException {
         properties.getPropagate().getUserInfo().setUserIdHeader("X-Uid");
         properties.getPropagate().getUserInfo().setUserAccountHeader("X-Account");

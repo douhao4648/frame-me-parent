@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -76,11 +77,23 @@ public final class PageableUtils {
         return result;
     }
 
+    /**
+     * 合法排序字段名的白名单模式：仅允许字母、数字、下划线以及点（table.column）.
+     *
+     * <p>排序列名在 SQL 中无法参数化，且 {@code PageParam.orders} 由客户端请求绑定，
+     * 必须按白名单校验防止 ORDER BY 注入（与两个 PageUtils 的 {@code SAFE_COLUMN} 一致）。</p>
+     */
+    private static final Pattern SAFE_COLUMN = Pattern.compile("^[A-Za-z0-9_.]+$");
+
     private static <T> void addOrder(Page<T> page, PageParam.OrderItem order) {
         if (order == null || order.getColumn() == null || order.getColumn().isBlank()) {
             return;
         }
         String column = order.getColumn().trim();
+        if (!SAFE_COLUMN.matcher(column).matches()) {
+            // 非法排序字段直接丢弃，与 PageUtils.parseSegment 行为一致
+            return;
+        }
         page.addOrder(order.isAsc()
                 ? com.baomidou.mybatisplus.core.metadata.OrderItem.asc(column)
                 : com.baomidou.mybatisplus.core.metadata.OrderItem.desc(column));
