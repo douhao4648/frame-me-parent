@@ -43,6 +43,7 @@ class ConfigAuthPermissionProviderTest {
     void testGetPermissionsByRoles() {
         properties.getUsers().put("1", "admin");
         properties.getRoles().put("admin", "user:*,order:r");
+        provider.init();
 
         User user = createUser(1L);
         Collection<Permission> permissions = provider.getPermissions(user);
@@ -57,6 +58,7 @@ class ConfigAuthPermissionProviderTest {
         properties.getUsers().put("1", "admin,operator");
         properties.getRoles().put("admin", "user:*");
         properties.getRoles().put("operator", "order:r");
+        provider.init();
 
         User user = createUser(1L);
         Collection<Permission> permissions = provider.getPermissions(user);
@@ -68,6 +70,7 @@ class ConfigAuthPermissionProviderTest {
     void testActionDefaultsToStar() {
         properties.getUsers().put("1", "admin");
         properties.getRoles().put("admin", "order");
+        provider.init();
 
         User user = createUser(1L);
         Collection<Permission> permissions = provider.getPermissions(user);
@@ -82,11 +85,27 @@ class ConfigAuthPermissionProviderTest {
     void testIgnoreEmptySegments() {
         properties.getUsers().put("1", "admin");
         properties.getRoles().put("admin", "user:r, ,,order:w");
+        provider.init();
 
         User user = createUser(1L);
         Collection<Permission> permissions = provider.getPermissions(user);
 
         assertEquals(2, permissions.size());
+    }
+
+    /**
+     * roles 配置段 resource 为空时启动期 fail-fast（与 data-scopes 同标准），
+     * 避免配置笔误被静默吞成永不匹配的死条目.
+     */
+    @Test
+    void testBlankResourceInRolesFailsFastAtInit() {
+        properties.getRoles().put("admin", ":read");
+        IllegalStateException ex = assertThrows(IllegalStateException.class, provider::init);
+        assertTrue(ex.getMessage().contains("roles[admin]"), ex.getMessage());
+        assertTrue(ex.getMessage().contains(":read"), ex.getMessage());
+
+        properties.getRoles().put("admin", "user:r,:w");
+        assertThrows(IllegalStateException.class, provider::init, "多段中任一 resource 为空都应 fail-fast");
     }
 
     @Test

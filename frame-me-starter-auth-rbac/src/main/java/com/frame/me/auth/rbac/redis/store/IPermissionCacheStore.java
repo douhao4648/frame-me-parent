@@ -17,13 +17,17 @@ public interface IPermissionCacheStore {
     /**
      * 读取权限快照.
      *
+     * <p>实现允许可用性降级：读取异常时返回 {@code null}，由上层回退到数据源。</p>
+     *
      * @param key 缓存 key
-     * @return 快照，不存在返回 {@code null}
+     * @return 快照，不存在或读取失败返回 {@code null}
      */
     UserPermissionSnapshot get(String key);
 
     /**
      * 写入权限快照.
+     *
+     * <p>实现允许可用性降级：写入异常时静默忽略，上层下次读取会回源重建。</p>
      *
      * @param key      缓存 key
      * @param snapshot 快照
@@ -33,6 +37,10 @@ public interface IPermissionCacheStore {
 
     /**
      * 删除权限快照.
+     *
+     * <p>服务于权限吊销（{@code evict}），属安全动作：实现<b>必须</b>在删除失败时抛出异常，
+     * 让调用方感知「吊销未生效」并重试；不允许像读/写一样静默降级，
+     * 否则旧快照残留会导致已吊销权限继续生效。</p>
      *
      * @param key 缓存 key
      */

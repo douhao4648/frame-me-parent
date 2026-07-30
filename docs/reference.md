@@ -357,7 +357,7 @@
 ## 已知扩展点
 
 1. **`IResult.rid` / `Response.requestId` 未填充**
-   - 字段已预留，但没有任何工厂方法或 Advice 为其赋值。
+   - 字段已预留，`Result2ResponseAdvice` 会把 `rid` 透传到 `requestId`，但生产侧（工厂方法、过滤器）尚无为 `rid` 赋值的环节。
    - 适合扩展：TraceId 生成过滤器、MDC 透传等。
 
 2. **`RetryException` 未单独处理**
@@ -372,9 +372,8 @@
    - `frame-me-starter-auth-jwt`（JWT + refresh token）与 `frame-me-starter-auth-sa-token`（sa-token 会话治理）二选一接入。
    - 后续可继续扩展 `frame-me-starter-auth-security` 等替代实现。
 
-5. **`HealthController` 故意触发 NPE**
-   - 实现 `IHealthApi`，用于验证异常处理链路是否正常工作。
-   - 若后续需要真正的健康检查接口，需重写该方法。
+5. **`HealthController` 为正常健康检查端点**
+   - 实现 `IHealthApi`，返回 `UP`，标注 `@Anonymous` 供 LB / 监控探针匿名直连。
 
 6. **`frame-me-tester` 已拆分为 `frame-me-tester-api` + `frame-me-tester-service`**
    - API 契约放在 `frame-me-tester-api`，使用 Spring HTTP Interface 声明（`IDemoApi` 与 `IFlexDemoApi` 双套契约）。

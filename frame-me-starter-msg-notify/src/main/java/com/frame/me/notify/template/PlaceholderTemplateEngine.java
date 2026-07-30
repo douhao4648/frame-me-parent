@@ -37,6 +37,8 @@ public class PlaceholderTemplateEngine implements INotifyTemplateEngine {
 
     @Override
     public boolean supports(String templateType) {
-        return "placeholder".equalsIgnoreCase(templateType);
+        // 认领 null：FreeMarker（optional 依赖）缺席时，默认 templateType 路径
+        // 才能真正回退到本引擎；FreeMarker 在场时它排在引擎列表前，仍优先认领
+        return templateType == null || "placeholder".equalsIgnoreCase(templateType);
     }
 }

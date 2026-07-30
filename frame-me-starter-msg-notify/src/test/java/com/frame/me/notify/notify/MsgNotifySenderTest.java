@@ -90,6 +90,27 @@ class MsgNotifySenderTest {
         assertThat(result).isFalse();
     }
 
+    /**
+     * channel 为 null / 空白时返回 false 而非抛 NPE（符合"不抛异常"契约）.
+     */
+    @Test
+    void sendChannelShouldReturnFalseWhenChannelIsBlank() {
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+
+        assertThat(sender.sendChannel(null, "title", "content", List.of("receiver@example.com"))).isFalse();
+        assertThat(sender.sendChannel("  ", "title", "content", List.of("receiver@example.com"))).isFalse();
+    }
+
+    /**
+     * clientName 为 null 时返回 false 而非抛 NPE.
+     */
+    @Test
+    void sendClientShouldReturnFalseWhenClientNameIsNull() {
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+
+        assertThat(sender.sendClient(null, "title", "content", List.of("receiver@example.com"))).isFalse();
+    }
+
     @Test
     void sendClientShouldUseNamedClient() {
         RecordingClient alertClient = new RecordingClient("alert", "email");

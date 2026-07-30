@@ -64,7 +64,11 @@ public class MeWsMvcHandler extends TextWebSocketHandler {
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         String payload = message.getPayload();
         if ("ping".equalsIgnoreCase(payload)) {
-            session.sendMessage(new TextMessage("pong"));
+            // 经 manager 中的装饰 session 回复，与心跳/广播发送串行化，避免并发写帧交错
+            WebSocketSession registered = sessionManager.findSession(session.getId());
+            if (registered != null) {
+                registered.sendMessage(new TextMessage("pong"));
+            }
         }
         // 未来可扩展 JSON 命令协议（动态换订、ack 等）
     }

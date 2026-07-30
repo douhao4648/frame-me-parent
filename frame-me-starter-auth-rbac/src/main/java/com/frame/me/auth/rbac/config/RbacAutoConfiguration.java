@@ -12,6 +12,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -24,10 +25,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * RBAC 权限控制自动配置.
  *
+ * <p>仅 Servlet Web 应用装配：权限校验是 Web 请求关注点，
+ * 非 Web 应用下 Filter/拦截器无挂载点，整体退避。</p>
+ *
  * @author frame-me
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnProperty(prefix = "me.auth.permission", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(RbacProperties.class)
 public class RbacAutoConfiguration {

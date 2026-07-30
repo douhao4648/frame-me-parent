@@ -20,6 +20,11 @@ import java.util.stream.Collectors;
 public final class PageableUtils {
 
     /**
+     * 单页最大条数上限，防止客户端传入超大 pageSize 拖垮数据库与内存.
+     */
+    private static final int MAX_PAGE_SIZE = 500;
+
+    /**
      * 将 {@link PageParam} 转换为 MyBatis-Plus {@link Page}.
      *
      * @param param 分页请求参数
@@ -29,6 +34,9 @@ public final class PageableUtils {
     public static <T> Page<T> toPage(PageParam param) {
         long current = param.getPageNum() == null || param.getPageNum() < 1 ? 1 : param.getPageNum();
         long size = param.getPageSize() == null || param.getPageSize() < 1 ? 10 : param.getPageSize();
+        if (size > MAX_PAGE_SIZE) {
+            size = MAX_PAGE_SIZE;
+        }
         Page<T> page = new Page<>(current, size);
 
         if (param.getSearchCount() != null) {

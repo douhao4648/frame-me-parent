@@ -81,6 +81,19 @@ class JwtAuthControllerTest {
                 .andExpect(header().doesNotExist("Set-Cookie"));
     }
 
+    /**
+     * RFC 6750 §2.1：Bearer 前缀大小写不敏感。
+     * logout 端点用小写 {@code bearer} 前缀应正确剥离并放行（旧实现会因 startsWith 大小写敏感返回 null）。
+     */
+    @Test
+    void testLogoutWithLowercaseBearerPrefix() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "bearer accessToken"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").value(true));
+    }
+
     @Test
     void testAdminLogoutByUserId() throws Exception {
         AuthProperties.Admin admin = new AuthProperties.Admin();

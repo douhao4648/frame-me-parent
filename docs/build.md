@@ -37,7 +37,7 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
   - JetCache：`2.8.0.RC`
   - Kryo5：`5.6.2`（由 `frame-me-starter-l1l2-cache` 使用，版本在根 `pom.xml` 集中管理）
 - 编译插件：`maven-compiler-plugin:3.15.0`，启用 `-parameters` 参数。
-- Lombok 注解处理器在 `annotationProcessorPaths` 中显式声明。
+- 注解处理器分层声明：根 POM 的 `annotationProcessorPaths` 全局声明 `lombok` 与 `spring-boot-configuration-processor`（后者为 13 个 starter 生成配置元数据）；`mybatis-flex-processor` 与 `mapstruct-processor` 仅 `frame-me-tester-service` 使用，下放到该模块自行声明（`combine.children="append"` 在继承根配置基础上追加，不覆盖 lombok/configuration-processor）。
 - `maven-source-plugin:3.3.1` 会在构建时附带源码包。
 
 ## 常用 Maven 命令
@@ -105,6 +105,8 @@ decorator:
       enable-logging: true
 ```
 
+p6spy 的 `spy.properties` 配置文件位于 `frame-me-starter-base/src/main/resources/`（历史约定，随 base 打包进 classpath）。`-Pp6spy` 激活时 p6spy 从 classpath 读取该文件，控制日志格式、过滤规则与执行耗时阈值。p6spy 依赖本身由 tester-service 的 `p6spy` profile 引入，base 模块不依赖 p6spy，配置文件仅作为共享默认值随 base 下发。
+
 ### `swagger` — 接口文档
 
 ```bash
@@ -165,6 +167,8 @@ me:
     <version>${project.version}</version>
 </dependency>
 ```
+
+**lombok 依赖约定**：根 POM 的 `<dependencyManagement>` 已为 `lombok` 声明 `<scope>provided</scope>`，子模块声明 lombok 时**只需写 `groupId` + `artifactId`，不要重复写 `<scope>`**（继承根 POM 的 provided 即可）。`msg-notify`、`op-audit` 等历史模块重复写了 `<scope>provided</scope>`，语义等价但不统一，属冗余，新模块按本约定省略。
 
 4. 如果模块需要自动注册 Bean，参考 [architecture.md](./architecture.md) 中的自动装配约定，创建 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`。
 5. 保持包名为 `com.frame.me.demo.*`，与模块名后缀一致。

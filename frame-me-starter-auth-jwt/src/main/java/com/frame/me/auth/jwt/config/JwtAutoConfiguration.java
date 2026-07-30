@@ -1,6 +1,7 @@
 package com.frame.me.auth.jwt.config;
 
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.jwt.core.InMemoryRefreshTokenStore;
 import com.frame.me.auth.jwt.core.JwtAuthUserResolver;
 import com.frame.me.auth.jwt.core.JwtTokenService;
 import com.frame.me.auth.jwt.core.RedisRefreshTokenStore;
@@ -30,10 +31,33 @@ import org.springframework.context.annotation.Configuration;
 @AutoConfigureBefore(name = "com.frame.me.auth.config.AuthAutoConfiguration")
 public class JwtAutoConfiguration {
 
+    /**
+     * 内存兜底存储：未引入 multi-redis 且业务未自定义 {@link IRefreshTokenStore} 时装配.
+     *
+     * <p>单实例可用；多实例部署 Refresh Token 不跨实例共享，应引入
+     * {@code frame-me-starter-multi-redis} 切换为 Redis 存储。</p>
+     */
     @Bean
     @ConditionalOnMissingBean(IRefreshTokenStore.class)
-    public IRefreshTokenStore refreshTokenStore(JwtAuthProperties properties) {
-        return new RedisRefreshTokenStore(properties);
+    public IRefreshTokenStore inMemoryRefreshTokenStore() {
+        log.warn("未检测到 frame-me-starter-multi-redis，JWT Refresh Token 将使用内存存储（单实例可用）。"
+                + "多实例部署必须引入 frame-me-starter-multi-redis 以启用 Redis 存储后端。");
+        return new InMemoryRefreshTokenStore();
+    }
+
+    /**
+     * Redis 存储装配：classpath 存在 multi-redis 时激活，业务自定义
+     * {@link IRefreshTokenStore} 优先.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "com.frame.me.redis.util.RedisUtils")
+    static class RedisRefreshTokenStoreConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(IRefreshTokenStore.class)
+        public IRefreshTokenStore redisRefreshTokenStore(JwtAuthProperties properties) {
+            return new RedisRefreshTokenStore(properties);
+        }
     }
 
     /**

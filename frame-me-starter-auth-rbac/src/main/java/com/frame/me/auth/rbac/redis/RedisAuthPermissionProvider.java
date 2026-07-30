@@ -70,6 +70,9 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
     /**
      * 失效指定用户的权限缓存（L1 + L2），权限变更时调用.
      *
+     * <p>L2 删除失败时异常直接抛给调用方（吊销属安全动作，必须能感知「吊销未生效」并重试）；
+     * 此时本实例 L1 已清、L2 残留旧快照，重试本方法即可收敛。</p>
+     *
      * @param userId 用户 ID
      */
     public void evict(Object userId) {

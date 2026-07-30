@@ -73,10 +73,24 @@ class MeWsMvcHandlerTest {
     @Test
     void shouldRespondPongToPing() throws Exception {
         WebSocketSession session = mockSession("ws://localhost/api/ws?type=broadcast&eventType=user:created");
+        WebSocketSession registered = mock(WebSocketSession.class);
+        when(sessionManager.findSession("s1")).thenReturn(registered);
 
         handler.handleTextMessage(session, new TextMessage("ping"));
 
-        verify(session).sendMessage(new TextMessage("pong"));
+        // pong 必须经 manager 中的装饰 session 发送，与心跳/广播串行化
+        verify(registered).sendMessage(new TextMessage("pong"));
+        verify(session, never()).sendMessage(any());
+    }
+
+    @Test
+    void shouldNotRespondPongWhenSessionNotRegistered() throws Exception {
+        WebSocketSession session = mockSession("ws://localhost/api/ws?type=broadcast&eventType=user:created");
+        when(sessionManager.findSession("s1")).thenReturn(null);
+
+        handler.handleTextMessage(session, new TextMessage("ping"));
+
+        verify(session, never()).sendMessage(any());
     }
 
     @Test

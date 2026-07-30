@@ -1,6 +1,8 @@
 package com.frame.me.auth.satoken.core;
 
+import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.context.mock.SaTokenContextMockUtil;
+import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.util.PasswordUtils;
@@ -159,6 +161,52 @@ class SaTokenAuthServiceTest {
         assertThatThrownBy(() -> authService.refresh("invalid-token-value"))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
                         assertThat(e.getCode()).isEqualTo(ResultCode.UNAUTHORIZED.getCode()));
+    }
+
+    /**
+     * 续期目标必须是传入的 credential 而非上下文 token：
+     * 续期 A 后 A 的 timeout 被拉满，同上下文中的 B 保持不变.
+     */
+    @Test
+    void refresh_targetsCredentialNotContextToken() {
+        long originalTimeout = SaManager.getConfig().getTimeout();
+        SaManager.getConfig().setTimeout(100);
+        try {
+            stubUser(91006L, "frank");
+            stubUser(91007L, "grace");
+            String tokenA = authService.login("frank", RAW_PASSWORD);
+            String tokenB = authService.login("grace", RAW_PASSWORD);
+            // 人为压低两者 timeout，观察续期落在哪个 token 上
+            StpUtil.renewTimeout(tokenA, 50);
+            StpUtil.renewTimeout(tokenB, 70);
+
+            authService.refresh(tokenA);
+
+            assertThat(StpUtil.getTokenTimeout(tokenA)).isGreaterThan(90);
+            assertThat(StpUtil.getTokenTimeout(tokenB)).isLessThanOrEqualTo(70);
+        } finally {
+            SaManager.getConfig().setTimeout(originalTimeout);
+        }
+    }
+
+    /**
+     * Account-Session 整体缺失（过期/被清除，token 仍有效）时：
+     * getUser 回源数据源返回用户，但读路径不得重建空 session（no-create 语义）.
+     */
+    @Test
+    void getUser_sessionAbsent_fallsBackWithoutCreatingSession() {
+        stubUser(91008L, "henry");
+        String token = authService.login("henry", RAW_PASSWORD);
+
+        // 物理删除整个 Account-Session
+        SaSession session = StpUtil.getSessionByLoginId(91008L, false);
+        SaManager.getSaTokenDao().deleteObject(session.getId());
+        assertThat(StpUtil.getSessionByLoginId(91008L, false)).isNull();
+
+        User resolved = authService.getUser(token);
+        assertThat(resolved).isNotNull();
+        assertThat(resolved.getAccount()).isEqualTo("henry");
+        assertThat(StpUtil.getSessionByLoginId(91008L, false)).isNull();
     }
 
     /**

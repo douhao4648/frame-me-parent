@@ -41,6 +41,7 @@ public class Result2ResponseAdvice implements ResponseBodyAdvice<Object> {
         resp.setCode(result.getCode());
         resp.setMessage(result.getMsg());
         resp.setResult(result.getData());
+        resp.setRequestId(result.getRid());
         return resp;
     }
 }

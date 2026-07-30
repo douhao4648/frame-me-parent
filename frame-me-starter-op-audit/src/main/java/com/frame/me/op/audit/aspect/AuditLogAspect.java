@@ -14,6 +14,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 
@@ -42,7 +44,8 @@ public class AuditLogAspect {
     private static final SpelExpressionParser SPEL_PARSER = new SpelExpressionParser();
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\#([a-zA-Z_][\\w.]*)");
 
-    private final EventBridgePublisher publisher;
+    private final ApplicationEventPublisher localPublisher;
+    private final ObjectProvider<EventBridgePublisher> bridgePublisherProvider;
     private final IAuditLogOperatorSupplier operatorSupplier;
     private final AuditProperties properties;
     private final EventBridgeProperties eventBridgeProperties;
@@ -64,7 +67,13 @@ public class AuditLogAspect {
         AuditLogRecord record = new AuditLogRecord();
         record.setAction(resolveAction(auditLog, point));
         record.setCategory(auditLog.category());
-        record.setOperatorId(operatorSupplier.getOperatorId());
+        // 操作人 SPI 在 try 块外：异常不得阻断被审计的业务方法，降级为 anonymous.
+        try {
+            record.setOperatorId(operatorSupplier.getOperatorId());
+        } catch (Exception e) {
+            log.warn("审计操作人 SPI 取值失败，降级为 anonymous: action={}", record.getAction(), e);
+            record.setOperatorId("anonymous");
+        }
         record.setTimestamp(Instant.now());
         record.setSourceService(eventBridgeProperties.getServiceName());
         record.setTargetService(properties.getTargetService());
@@ -81,7 +90,7 @@ public class AuditLogAspect {
             result = point.proceed();
             success = true;
             if (auditLog.recordResult()) {
-                record.setResult(serialize(result));
+                record.setResult(truncate(serialize(result)));
             }
         } catch (Throwable t) {
             error = t;
@@ -162,7 +171,16 @@ public class AuditLogAspect {
 
     private void publish(AuditLogRecord record) {
         try {
-            publisher.publish(new AuditLogEvent(record.getSourceService(), record, record.getTargetService()));
+            AuditLogEvent event = new AuditLogEvent(record.getSourceService(), record, record.getTargetService());
+            EventBridgePublisher bridge = bridgePublisherProvider.getIfAvailable();
+            if (bridge != null) {
+                bridge.publish(event);
+            } else {
+                // me.event-bridge.enabled=false 时无桥接发布器：降级为仅本地发布，
+                // 本进程 @EventListener（如 AuditLogLogger）照常消费，审计中心收不到
+                log.debug("EventBridge 未启用，审计事件仅本地发布: action={}", record.getAction());
+                localPublisher.publishEvent(event);
+            }
         } catch (Exception e) {
             log.error("发布审计日志事件失败: action={}", record.getAction(), e);
         }

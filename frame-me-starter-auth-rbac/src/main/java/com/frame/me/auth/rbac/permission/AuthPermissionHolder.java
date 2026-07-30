@@ -104,6 +104,10 @@ public class AuthPermissionHolder {
      * <p>同一请求内只调用一次 {@link IAuthPermissionProvider}，即使该用户没有任何角色/权限。
      * Filter 与 Interceptor 共用本方法，避免重复实现。</p>
      *
+     * <p>原子写入：三个 provider 调用先取到局部变量，全部成功后才写入 ThreadLocal。
+     * 任一环节抛异常（DB/Redis 故障）都不留半加载状态——否则 Tomcat 线程复用时，
+     * 下一个请求可能读到上一个用户残留的角色集合。</p>
+     *
      * @param user     当前用户
      * @param provider 权限提供者
      */
@@ -111,9 +115,12 @@ public class AuthPermissionHolder {
         if (isLoaded()) {
             return;
         }
-        setRoles(provider.getRoles(user));
-        setPermissions(provider.getPermissions(user));
-        setDataPermissions(provider.getDataPermissions(user));
+        var roles = provider.getRoles(user);
+        var permissions = provider.getPermissions(user);
+        var dataPermissions = provider.getDataPermissions(user);
+        setRoles(roles);
+        setPermissions(permissions);
+        setDataPermissions(dataPermissions);
         LOADED.set(Boolean.TRUE);
     }
 

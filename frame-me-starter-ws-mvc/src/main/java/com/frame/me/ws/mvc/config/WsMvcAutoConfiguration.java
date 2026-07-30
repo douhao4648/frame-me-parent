@@ -57,7 +57,7 @@ public class WsMvcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "me.ws.mvc", name = "broadcast-enabled", havingValue = "true", matchIfMissing = true)
+    @ConditionalOnExpression("${me.ws.mvc.broadcast-enabled:true} or ${me.ws.mvc.targeted-enabled:true}")
     public WsMvcEventDispatcher wsMvcEventDispatcher(WsMvcSessionManager manager, WsMvcProperties properties) {
         return new WsMvcEventDispatcher(manager, properties);
     }

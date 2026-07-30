@@ -5,6 +5,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -90,5 +95,58 @@ class SseEmitterManagerTest {
         assertThatThrownBy(() -> limited.registerBroadcast("c"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("limit reached");
+    }
+
+    /**
+     * 并发 complete（触发 remove）与注册新 emitter：compute 原子清理保证不崩、结构自洽.
+     *
+     * <p>旧实现遍历中 remove key 触发 ConcurrentModificationException 或清空空集合期间新连接复用丢失；
+     * compute 段内原子完成"移除元素 + 判空移除 key".</p>
+     */
+    @Test
+    void shouldSurviveConcurrentRemoveAndRegister() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(4);
+        CountDownLatch start = new CountDownLatch(1);
+        java.util.List<Future<?>> futures = new java.util.ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            final int idx = i;
+            futures.add(pool.submit(() -> {
+                start.await();
+                for (int j = 0; j < 50; j++) {
+                    SseEmitter e = manager.registerBroadcast("user:created");
+                    if ((idx + j) % 2 == 0) {
+                        e.complete();
+                    }
+                }
+                return null;
+            }));
+        }
+        start.countDown();
+        for (Future<?> f : futures) {
+            f.get();
+        }
+        pool.shutdown();
+
+        // 不抛 ConcurrentModificationException、结构自洽：广播清理残留 complete emitter 后，
+        // 再广播命中数与存活数一致（幂等，无残留失败项）.
+        manager.broadcast("user:created", SsePayload.of("user:created", "cleanup"));
+        int sent = manager.broadcast("user:created", SsePayload.of("user:created", "hi"));
+        assertThat(sent).isEqualTo(manager.activeEmitterCount());
+    }
+
+    /**
+     * 心跳发送 SSE comment 保活：已 complete 的 emitter 发送失败被清理，存活 emitter 计入成功数.
+     */
+    @Test
+    void heartbeatCleansDeadEmittersAndKeepsAlive() {
+        SseEmitter alive = manager.registerBroadcast("user:created");
+        SseEmitter dead = manager.registerBroadcast("user:created");
+        dead.complete();
+
+        int success = manager.heartbeat();
+
+        // complete 的 emitter 发送 comment 失败被清理；存活 emitter 计入成功
+        assertThat(manager.activeEmitterCount()).isEqualTo(1);
+        assertThat(success).isEqualTo(1);
     }
 }

@@ -43,6 +43,10 @@ public class MsgNotifySender implements INotifySender {
 
     @Override
     public boolean sendChannel(String channel, String title, String content, List<String> receivers) {
+        if (channel == null || channel.isBlank()) {
+            log.debug("Skip channel notify: channel is blank");
+            return false;
+        }
         INotifyClient client;
         try {
             client = switch (channel) {

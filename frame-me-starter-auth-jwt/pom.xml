@@ -33,9 +33,10 @@
             <artifactId>jjwt-impl</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- JSON 序列化适配：用 jjwt-gson 而非 jjwt-jackson，避免引入 Jackson 2 与 Boot 4 的 Jackson 3 并存 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
+            <artifactId>jjwt-gson</artifactId>
             <scope>runtime</scope>
         </dependency>
         <!-- 抽象层 spring-security-crypto 为 optional，密码认证实现侧显式声明 -->

@@ -67,9 +67,9 @@ return Result.error("系统错误：{}", e.getMessage());
 | `code` | `Integer` | `Result.code` |
 | `message` | `String` | `Result.msg` |
 | `result` | `T` | `Result.data` |
-| `requestId` | `String` | `Result.rid`（当前为 `null`） |
+| `requestId` | `String` | `Result.rid`（`rid` 暂无生产侧填充） |
 
-`Response<T>` 实现了 `Serializable`。
+`Response<T>` 实现了 `Serializable` 与 `IResult<T>`：接口 getter（`getMsg`/`getData`/`getRid`）委托到 `message`/`result`/`requestId` 字段，JVM 内可按 `IResult` 契约正常读取；这些接口方法与 `success` 均标记 `@JsonIgnore`，序列化报文只携带上表四个字段，不混入规范字段名。
 
 ## 异常体系
 
@@ -137,6 +137,24 @@ throw new InternalException("数据库连接失败");
 - **注释**：类级 Javadoc 使用中文。
 - **类设计**：普通业务类保持默认可继承，不强制声明 `final`；工具类（仅含静态方法/常量、无实例状态）建议声明为 `final` 并私有化构造器，防止被实例化或继承。
 
+## 模块装配约定
+
+starter 模块对 **optional 依赖**（`<optional>true</optional>` 或 `provided` scope 的可选库，如 `multi-redis`、`redisson`、`freemarker`）必须做条件保护，确保消费方未引入该依赖时 starter 优雅退避/降级，不抛 `NoClassDefFoundError` / `ClassNotFoundException`。现有三种已验证模式，新模块按场景择一：
+
+- **模式 A：`@ConditionalOnClass` + 隔离内部配置类**（推荐，optional 依赖提供替代实现时）
+  - 把引用 optional 类的 Bean 装配放进**独立 `static` 内部配置类**，类上加 `@ConditionalOnClass`。Spring 在 ASM 阶段评估条件，optional 类缺席时整个内部类被跳过，其引用的 Bean 类不会被类加载器加载，从而不触发 NCDFE。
+  - 外层配置类提供**降级 Bean**（`@ConditionalOnMissingBean` 兜底）。示例见 `frame-me-starter-auth-jwt` 的 `JwtAutoConfiguration`：optional `multi-redis` 缺席时 `RedisRefreshTokenStoreConfiguration` 跳过，`InMemoryRefreshTokenStore` 兜底。
+  - `@ConditionalOnClass` 的 `value`（`.class`）与 `name`（字符串）在 ASM 评估下功能等价，均安全；**同一模块内尽量统一写法**（`RedissonLockAutoConfiguration` 用 `name`、`RedisEventTransportAutoConfiguration` 用 `.class`，混用不影响功能但不统一）。
+
+- **模式 B：`ClassUtils.isPresent` + 反射加载**（optional 依赖提供增强能力、无替代实现时）
+  - 装配期用 `ClassUtils.isPresent("fully.qualified.Name", classLoader)` 判定 optional 类是否在 classpath，在则用反射 `Class.forName(...).getDeclaredConstructor().newInstance()` 实例化增强实现，不在则跳过。
+  - 配合**占位兜底实现**保证核心功能不依赖 optional 库。示例见 `frame-me-starter-msg-notify`：optional `freemarker` 缺席时跳过 `FreemarkerTemplateEngine`，`PlaceholderTemplateEngine` 兜底。
+
+- **模式 C：`@ConditionalOnBean` 二次守卫**（optional 类在 classpath 但对应 Bean 可能未创建时）
+  - 在模式 A/B 基础上叠加 `@ConditionalOnBean(X.class)`，确保依赖的 Bean 实际存在于容器才装配，避免"类在但 Bean 未注册"的运行期空指针。示例见 `RedisEventTransportAutoConfiguration` 的 `@ConditionalOnBean({RedissonClient.class, EventBridgeProperties.class})`。
+
+- **配套测试**：每个 optional 依赖保护点必须有 **AbsentClasspath 测试**（用 `FilteredClassLoader` 屏蔽 optional 包模拟缺席），验证 starter 在缺类时整体退避不抛异常。示例见 `RbacRedisAbsentClasspathTest`、`RedisEventTransportAutoConfigurationTest#shouldNotConfigureTransportWhenRedissonJarAbsent`。
+
 ## 参数校验约定
 
 项目使用 Jakarta Validation（`jakarta.validation`），结合 Spring 的 `@Validated` / `@Valid` 进行参数校验。
@@ -179,6 +197,8 @@ IResult<Boolean> update(@Validated(UpdateGroup.class) @RequestBody DemoDTO dto);
 - 校验器：`frame-me-api/src/main/java/com/frame/me/validation/validator/TimeRangeValidator.java`
 
 类级校验注解，用于校验对象中两个时间字段满足 `开始时间 <= 结束时间`。任一字段为空时不校验。
+
+字段值解析优先级：JavaBean getter（`getXxx` / `isXxx`）→ 同名无参方法（record / 流式访问器）→ 声明字段直读（含父类）；字段不存在时不校验（静默通过）。
 
 | 属性 | 说明 | 默认值 |
 |---|---|---|
@@ -406,6 +426,7 @@ me:
   - 配置白名单路径（`me.auth.whitelist`）或 `@Anonymous` 注解可放行。白名单按**应用内路径**匹配（不含 `server.servlet.context-path`，配置误带 context-path 前缀时自动剥离兼容）。
   - 非白名单请求未解析到用户时返回 401。
   - 配置 `me.auth.enforce-login=false` 可关闭强制登录，此时过滤器仅尝试解析用户并写入 `AuthContext`，不返回 401。
+  - **ERROR dispatch 直接放行**：`FilterRegistrationBean` 默认挂 REQUEST/ERROR/ASYNC 三类 dispatch，过滤器对 ERROR（容器 `/error` 转发）不做任何校验与上下文清理——避免 404、servlet 级异常的真实状态码被 401 掩盖；`AuthContext` 由 REQUEST dispatch 的 finally 负责清理。
   - **Filter 层错误响应格式由 `IFilterErrorResponseWriter` SPI 决定**：`frame-me-starter-base` 默认输出 `Result` 格式；引入 `frame-me-adapter-starter` 后自动切换为外部 `Response` 格式，与 Controller 层的老接口规范保持一致。
 - **`IAuthService` / `IAuthUserResolver`**：SPI 接口，供具体认证实现（如 JWT）接管。
 
@@ -475,7 +496,9 @@ public class UserDetailsServiceImpl implements IAuthUserDetailsService {
 
 「查用户 → 空则 401 → 校验密码 → 失败 401」的认证步骤由抽象层
 `com.frame.me.auth.core.AuthUserAuthenticator.authenticate(...)` 承载，
-各认证实现的 `login` 直接调用，不再各自复制。
+各认证实现的 `login` 直接调用，不再各自复制。用户不存在时也会对哑 BCrypt hash
+执行一次同等耗时的 `matches`，消除响应时间差导致的账号枚举（对齐 Spring Security
+`userNotFoundPassword` 机制），实现 `matches` 时不应自行对空 hash 短路。
 
 ### 配置示例
 
@@ -763,7 +786,7 @@ boolean canWrite = AuthPermissionHolder.getPermissions().stream()
         .anyMatch(p -> p.matches("order", "w"));
 ```
 
-> 注意：`AuthPermissionHolder` 由 Filter/Interceptor 在命中权限校验时按需加载，未命中权限规则的普通接口调用前不会主动加载。
+> 注意：`AuthPermissionHolder` 由 Filter/Interceptor 在命中权限校验时按需加载，未命中权限规则的普通接口调用前不会主动加载。加载是原子写入：provider 中途抛异常（DB/Redis 故障）不留半加载状态，避免线程复用时读到上一个用户的残留角色。
 
 #### 数据权限
 

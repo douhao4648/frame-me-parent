@@ -98,9 +98,11 @@ public class SaTokenAuthService implements IAuthService {
         if (loginId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "Token 已失效");
         }
-        // 标准续期：无参上下文版原生刷新 Cookie；timeout 秒数取原生配置
-        StpUtil.renewTimeout(SaManager.getConfig().getTimeout());
-        StpUtil.updateLastActiveToNow();
+        // 续期对象与校验对象统一为传入 credential：无参重载作用于请求上下文 token，
+        // 非请求线程的 SPI 调用方会出现「校验 A 续期 B」或上下文无 token 抛 NotLoginException。
+        // timeout 秒数取原生配置；token 值不变，Cookie 客户端无需重写 Cookie
+        StpUtil.renewTimeout(credential, SaManager.getConfig().getTimeout());
+        StpUtil.stpLogic.updateLastActiveToNow(credential);
         return credential;
     }
 
@@ -128,7 +130,9 @@ public class SaTokenAuthService implements IAuthService {
      * @return 用户信息，用户不存在时返回 {@code null}
      */
     User loadUserByLoginId(Object loginId) {
-        SaSession session = StpUtil.getSessionByLoginId(loginId);
+        // no-create：读路径不允许产生写副作用（单参版会在 session 缺失时创建空 session），
+        // 缺失时回源数据源，由 cacheUser 决定能否回写
+        SaSession session = StpUtil.getSessionByLoginId(loginId, false);
         if (session != null) {
             User cached = readUser(session.get(SESSION_USER_KEY));
             if (cached != null) {
@@ -146,14 +150,17 @@ public class SaTokenAuthService implements IAuthService {
     /**
      * 把用户快照写入 Account-Session（JSON 字符串形式，跨内存/Redis 后端类型稳定）.
      *
+     * <p>session 为 null（已过期/被清除）时跳过回写——读路径不创建 session，
+     * 该罕见边缘下每次请求回源数据源，语义上优于凭空创建空会话。</p>
+     *
      * @param loginId sa-token 登录 ID
      * @param user    用户信息
-     * @param session 已获取的 Account-Session（可为 null，此时重新获取）
+     * @param session 已获取的 Account-Session（可为 null，此时跳过回写）
      */
     private void cacheUser(Object loginId, User user, SaSession session) {
         try {
             if (session == null) {
-                session = StpUtil.getSessionByLoginId(loginId);
+                session = StpUtil.getSessionByLoginId(loginId, false);
             }
             if (session != null) {
                 session.set(SESSION_USER_KEY, JSON.toJSONString(user));

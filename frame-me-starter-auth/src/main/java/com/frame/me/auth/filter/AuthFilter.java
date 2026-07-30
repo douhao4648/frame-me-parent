@@ -8,6 +8,7 @@ import com.frame.me.auth.util.ContextPathUtils;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -38,6 +39,7 @@ import java.io.IOException;
  *   <li>{@code me.auth.enforce-login=false} 时仅尝试解析用户并写入 {@link AuthContext}，不返回 401</li>
  *   <li>默认情况下非白名单接口未登录时直接返回 401</li>
  *   <li>已登录请求解析当前用户并写入 {@link AuthContext}</li>
+ *   <li>ERROR dispatch（容器 {@code /error} 转发）直接放行，避免 404/servlet 级异常的真实状态码被 401 掩盖</li>
  * </ol>
  * </p>
  *
@@ -60,6 +62,22 @@ public class AuthFilter implements Filter {
             throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
+
+        // ERROR dispatch（容器 /error 转发）直接放行：
+        // 不过滤可让 404/servlet 级异常的真实状态码不被 401 掩盖。
+        // 不清理 AuthContext —— 该 ThreadLocal 由 REQUEST dispatch 的 finally 负责清理
+        if (request.getDispatcherType() == DispatcherType.ERROR) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // CORS 预检请求（OPTIONS）直接放行，不参与认证：
+        // 预检由 CorsFilter（若启用）在更早优先级处理；此处为兜底，
+        // 避免业务自定义 filter 顺序或 @CrossOrigin 场景下预检被认证拦截返回 401
+        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
 
         try {
             if (isAnonymous(httpRequest)) {

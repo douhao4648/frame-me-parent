@@ -146,9 +146,44 @@ class SchedulingAutoConfigurationTest {
                 .contains("at ");
     }
 
+    /**
+     * 通知通道自身故障时，次生异常不得逃逸出异常处理器，且调度器后续任务不受影响.
+     */
+    @Test
+    void notifyFailureDoesNotEscapeHandler() throws Exception {
+        SchedulingProperties properties = new SchedulingProperties();
+        properties.setExceptionNotifyEnabled(true);
+
+        INotifySender sender = mock(INotifySender.class);
+        CountDownLatch sendLatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            sendLatch.countDown();
+            throw new IllegalStateException("notify channel down");
+        }).when(sender).send(anyString(), anyString(), anyList());
+        ObjectProvider<INotifySender> senderProvider = new ObjectProvider<>() {
+            @Override
+            public INotifySender getIfAvailable() {
+                return sender;
+            }
+        };
+
+        SchedulingAutoConfiguration configuration = new SchedulingAutoConfiguration();
+        ThreadPoolTaskScheduler scheduler = configuration.taskScheduler(properties, senderProvider);
+        scheduler.schedule(() -> {
+            throw new RuntimeException("scheduling error");
+        }, Instant.now());
+
+        assertThat(sendLatch.await(3, TimeUnit.SECONDS)).isTrue();
+
+        // 通知失败不影响后续调度任务
+        CountDownLatch nextTaskLatch = new CountDownLatch(1);
+        scheduler.schedule(nextTaskLatch::countDown, Instant.now());
+        assertThat(nextTaskLatch.await(3, TimeUnit.SECONDS)).isTrue();
+        scheduler.shutdown();
+    }
+
     @Configuration(proxyBeanMethods = false)
     static class CustomTaskSchedulerConfiguration {
-
         @Bean
         TaskScheduler customTaskScheduler() {
             return new CustomScheduler();

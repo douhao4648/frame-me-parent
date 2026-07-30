@@ -11,9 +11,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -27,24 +30,48 @@ import static org.mockito.Mockito.when;
 class AuditLogAspectTest {
 
     private EventBridgePublisher publisher;
+    private ApplicationEventPublisher localPublisher;
+    private ObjectProvider<EventBridgePublisher> bridgePublisherProvider;
     private IAuditLogOperatorSupplier operatorSupplier;
     private AuditProperties properties;
     private EventBridgeProperties eventBridgeProperties;
     private AuditService service;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         publisher = mock(EventBridgePublisher.class);
+        localPublisher = mock(ApplicationEventPublisher.class);
+        bridgePublisherProvider = mock(ObjectProvider.class);
         operatorSupplier = mock(IAuditLogOperatorSupplier.class);
         properties = new AuditProperties();
         eventBridgeProperties = new EventBridgeProperties();
         eventBridgeProperties.setServiceName("test-service");
         when(operatorSupplier.getOperatorId()).thenReturn("operator-1");
+        when(bridgePublisherProvider.getIfAvailable()).thenReturn(publisher);
 
-        AuditLogAspect aspect = new AuditLogAspect(publisher, operatorSupplier, properties, eventBridgeProperties);
+        AuditLogAspect aspect = new AuditLogAspect(localPublisher, bridgePublisherProvider,
+                operatorSupplier, properties, eventBridgeProperties);
         AspectJProxyFactory factory = new AspectJProxyFactory(new AuditService());
         factory.addAspect(aspect);
         service = factory.getProxy();
+    }
+
+    /**
+     * EventBridge 关闭（无 EventBridgePublisher bean）时降级为仅本地发布，
+     * 本进程 @EventListener 照常消费.
+     */
+    @Test
+    void shouldPublishLocallyWhenBridgeAbsent() {
+        when(bridgePublisherProvider.getIfAvailable()).thenReturn(null);
+
+        service.simpleAction();
+
+        ArgumentCaptor<AuditLogEvent> captor = ArgumentCaptor.forClass(AuditLogEvent.class);
+        verify(localPublisher).publishEvent(captor.capture());
+        verify(publisher, times(0)).publish(any());
+        assertThat(captor.getValue().getRecord().getAction())
+                .isEqualTo(AuditService.class.getName() + "#simpleAction");
     }
 
     @Test
@@ -172,6 +199,37 @@ class AuditLogAspectTest {
                 .isLessThanOrEqualTo(13); // 10 bytes + "..." (3 bytes)
     }
 
+    /**
+     * 操作人 SPI 抛异常时降级为 anonymous，不阻断被审计的业务方法.
+     */
+    @Test
+    void shouldFallbackOperatorWhenSupplierThrows() {
+        when(operatorSupplier.getOperatorId()).thenThrow(new IllegalStateException("SPI down"));
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.simpleAction());
+
+        ArgumentCaptor<AuditLogEvent> captor = ArgumentCaptor.forClass(AuditLogEvent.class);
+        verify(publisher).publish(captor.capture());
+        assertThat(captor.getValue().getRecord().getOperatorId()).isEqualTo("anonymous");
+    }
+
+    /**
+     * 返回值序列化也受 maxParamLength 截断，与 params 行为一致.
+     */
+    @Test
+    void shouldTruncateResultByByteLength() {
+        properties.setMaxParamLength(10);
+
+        service.bigResult();
+
+        ArgumentCaptor<AuditLogEvent> captor = ArgumentCaptor.forClass(AuditLogEvent.class);
+        verify(publisher).publish(captor.capture());
+
+        String result = captor.getValue().getRecord().getResult();
+        assertThat(result.getBytes(java.nio.charset.StandardCharsets.UTF_8).length)
+                .isLessThanOrEqualTo(13); // 10 bytes + "..." (3 bytes)
+    }
+
     public static class AuditService {
 
         @AuditLog(action = "创建用户", category = "用户管理",
@@ -211,6 +269,11 @@ class AuditLogAspectTest {
         @AuditLog
         public void failAction() {
             throw new IllegalStateException("boom");
+        }
+
+        @AuditLog(recordParams = false)
+        public String bigResult() {
+            return "x".repeat(200);
         }
     }
 

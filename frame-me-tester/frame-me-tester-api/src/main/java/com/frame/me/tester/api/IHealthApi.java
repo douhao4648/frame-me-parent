@@ -18,7 +18,7 @@ public interface IHealthApi {
      *
      * @return 健康状态文本
      */
-    @Operation(summary = "健康检查", description = "返回服务健康状态，触发异常可用于验证全局异常处理链路")
+    @Operation(summary = "健康检查", description = "返回服务健康状态")
     @GetExchange
     IResult<String> health();
 }

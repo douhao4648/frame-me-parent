@@ -45,9 +45,29 @@ class WsMvcAutoConfigurationTest {
                 .run(context -> assertThat(context).doesNotHaveBean(WsMvcAutoConfiguration.class));
     }
 
+    /**
+     * 仅关广播、定向仍开启时 Dispatcher 必须装配（定向事件推送依赖它），
+     * 广播分支由 Dispatcher 内部运行时开关拦截.
+     */
     @Test
-    void shouldNotConfigureDispatcherWhenBroadcastDisabled() {
+    void shouldKeepDispatcherWhenOnlyBroadcastDisabled() {
         webRunner.withPropertyValues("me.ws.mvc.broadcast-enabled=false")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(WsMvcSessionManager.class);
+                    assertThat(context).hasSingleBean(WsMvcEventDispatcher.class);
+                    assertThat(context).hasSingleBean(WsMvcPushService.class);
+                });
+    }
+
+    @Test
+    void shouldKeepDispatcherWhenOnlyTargetedDisabled() {
+        webRunner.withPropertyValues("me.ws.mvc.targeted-enabled=false")
+                .run(context -> assertThat(context).hasSingleBean(WsMvcEventDispatcher.class));
+    }
+
+    @Test
+    void shouldNotConfigureDispatcherWhenBothDisabled() {
+        webRunner.withPropertyValues("me.ws.mvc.broadcast-enabled=false", "me.ws.mvc.targeted-enabled=false")
                 .run(context -> {
                     assertThat(context).hasSingleBean(WsMvcSessionManager.class);
                     assertThat(context).doesNotHaveBean(WsMvcEventDispatcher.class);

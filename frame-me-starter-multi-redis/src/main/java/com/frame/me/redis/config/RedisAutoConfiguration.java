@@ -3,6 +3,7 @@ package com.frame.me.redis.config;
 import com.frame.me.redis.util.RedisUtils;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,8 +19,10 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,13 +30,17 @@ import java.util.Map;
  *
  * <p>启用后注册 {@link RedisUtils} 所需的 RedisTemplate 引用。
  * 默认实例来自 {@code spring.data.redis.*}，额外实例通过 {@code me.redis.clients.*} 配置。</p>
+ *
+ * <p>额外实例的 {@link LettuceConnectionFactory} 由本配置类手动创建、不注册为 Bean，
+ * 故其生命周期由本类管理：实现 {@link DisposableBean}，容器关闭时统一销毁，避免 TCP 连接与
+ * NIO 资源泄漏（默认实例的工厂由 Boot 管理，不在本类销毁范围）。</p>
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "org.springframework.data.redis.core.StringRedisTemplate")
 @ConditionalOnProperty(prefix = "me.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(RedisProperties.class)
-public class RedisAutoConfiguration {
+public class RedisAutoConfiguration implements DisposableBean {
 
     private static final String DEFAULT_CLIENT = "default";
 
@@ -42,6 +49,11 @@ public class RedisAutoConfiguration {
     private final RedisTemplate<Object, Object> redisTemplate;
 
     private final RedisProperties redisProperties;
+
+    /**
+     * 额外实例的连接工厂：由本类创建、由本类销毁.
+     */
+    private final List<LettuceConnectionFactory> extraConnectionFactories = new ArrayList<>();
 
     @Autowired(required = false)
     public RedisAutoConfiguration(StringRedisTemplate stringRedisTemplate,
@@ -66,6 +78,7 @@ public class RedisAutoConfiguration {
 
         redisProperties.getClients().forEach((name, config) -> {
             LettuceConnectionFactory connectionFactory = buildConnectionFactory(config);
+            extraConnectionFactories.add(connectionFactory);
 
             StringRedisTemplate extraStringTemplate = new StringRedisTemplate(connectionFactory);
             RedisTemplate<Object, Object> extraTemplate = new RedisTemplate<>();
@@ -78,6 +91,18 @@ public class RedisAutoConfiguration {
 
         RedisUtils.init(DEFAULT_CLIENT, stringTemplates, templates);
         log.info("Redis initialize : {}", stringTemplates.keySet());
+    }
+
+    @Override
+    public void destroy() {
+        for (LettuceConnectionFactory factory : extraConnectionFactories) {
+            try {
+                factory.destroy();
+            } catch (Exception e) {
+                log.warn("销毁额外 Redis 连接工厂失败: {}", e.getMessage());
+            }
+        }
+        extraConnectionFactories.clear();
     }
 
     /**

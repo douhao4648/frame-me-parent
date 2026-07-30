@@ -23,7 +23,11 @@ public class EventBridgeProperties {
     private boolean enabled = true;
 
     /**
-     * 当前服务名，用于追踪事件来源.
+     * 当前服务名，用于追踪事件来源与自过滤.
+     *
+     * <p>默认 {@code "unknown"}；启动时由 {@code EventBridgeAutoConfiguration} 依次回退为
+     * {@code spring.application.name}、随机唯一名（{@code unknown-<uuid>}），
+     * 保证自过滤始终可用，不会被未配置拖垮。</p>
      */
     private String serviceName = "unknown";
 

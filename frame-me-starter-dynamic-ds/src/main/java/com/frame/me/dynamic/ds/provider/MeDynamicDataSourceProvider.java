@@ -69,6 +69,8 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
 
     private void loadHikariProperties(DataSourceProperty property) {
         Map<String, Object> hikariProps = new HashMap<>();
+        // getPropertySources() 迭代顺序为高优先级→低优先级（命令行 > 环境变量 > 配置文件），
+        // 用 putIfAbsent 让高优先级源先占位、低优先级源不覆盖，与 environment.getProperty 的解析优先级一致.
         for (PropertySource<?> source : environment.getPropertySources()) {
             if (!(source instanceof EnumerablePropertySource<?> enumerable)) {
                 continue;
@@ -76,7 +78,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
             for (String name : enumerable.getPropertyNames()) {
                 if (name.startsWith(HIKARI_SOURCE_PREFIX)) {
                     String key = name.substring(HIKARI_SOURCE_PREFIX.length());
-                    hikariProps.put(key, source.getProperty(name));
+                    hikariProps.putIfAbsent(key, source.getProperty(name));
                 }
             }
         }
@@ -101,7 +103,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
             for (String name : enumerable.getPropertyNames()) {
                 if (name.startsWith(DRUID_SOURCE_PREFIX)) {
                     String key = name.substring(DRUID_SOURCE_PREFIX.length());
-                    druidProps.put(key, source.getProperty(name));
+                    druidProps.putIfAbsent(key, source.getProperty(name));
                 }
             }
         }

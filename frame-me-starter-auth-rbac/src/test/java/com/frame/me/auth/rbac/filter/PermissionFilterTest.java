@@ -191,6 +191,24 @@ class PermissionFilterTest {
         assertEquals(request, chain.getRequest());
     }
 
+    /**
+     * OPTIONS 预检请求即使命中权限规则且未登录，也直接放行，不返回 401：
+     * 预检不应被权限校验拦截，否则浏览器跨域预检失败。
+     */
+    @Test
+    void testOptionsPreflightPassesEvenWithRuleAndNoAuth() throws Exception {
+        properties.getRules().put("/api/admin/**", "role('admin')");
+
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/admin/users");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+        assertTrue(response.getContentAsString().isEmpty() || !response.getContentAsString().contains("401"));
+    }
+
     private User createUser(Long id) {
         User user = new User();
         user.setId(id);

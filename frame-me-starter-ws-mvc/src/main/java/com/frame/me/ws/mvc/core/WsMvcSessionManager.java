@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import java.io.IOException;
 import java.util.Map;
@@ -35,15 +36,20 @@ public class WsMvcSessionManager {
 
     /**
      * 注册广播订阅 Session.
+     * <p>
+     * 注册时以 {@link ConcurrentWebSocketSessionDecorator} 包装原始 session：
+     * 心跳、广播、pong 等多线程发送由此串行化，避免帧交错（TEXT_PARTIAL_WRITABLE），
+     * 并受 {@code me.ws.mvc.send-time-limit} / {@code buffer-size-limit} 防护慢客户端。
      *
      * @param session   WebSocket session
      * @param eventType 事件类型
      */
     public void registerBroadcast(WebSocketSession session, String eventType) {
         checkSessionLimit();
-        allSessions.add(session);
-        broadcastSessions.computeIfAbsent(eventType, k -> ConcurrentHashMap.newKeySet()).add(session);
-        sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(),
+        WebSocketSession decorated = decorate(session);
+        allSessions.add(decorated);
+        broadcastSessions.computeIfAbsent(eventType, k -> ConcurrentHashMap.newKeySet()).add(decorated);
+        sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
                 WsMvcConstant.SUBSCRIBE_BROADCAST, eventType, null));
     }
 
@@ -55,30 +61,46 @@ public class WsMvcSessionManager {
      */
     public void registerTargeted(WebSocketSession session, String receiverId) {
         checkSessionLimit();
-        allSessions.add(session);
-        targetedSessions.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(session);
-        sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(),
+        WebSocketSession decorated = decorate(session);
+        allSessions.add(decorated);
+        targetedSessions.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(decorated);
+        sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
                 WsMvcConstant.SUBSCRIBE_TARGETED, null, receiverId));
     }
 
     /**
-     * 移除 Session.
+     * 移除 Session（按 id 匹配，注册时的原始 session 与包装后的装饰实例均可传入）.
      *
      * @param session WebSocket session
      */
     public void removeSession(WebSocketSession session) {
-        if (!allSessions.remove(session)) {
-            return;
-        }
         SessionMetadata metadata = sessionMetadata.remove(session.getId());
         if (metadata == null) {
             return;
         }
+        WebSocketSession registered = metadata.getSession();
+        allSessions.remove(registered);
         if (WsMvcConstant.SUBSCRIBE_BROADCAST.equals(metadata.getSubscribeType())) {
-            removeFromMap(broadcastSessions, metadata.getEventType(), session);
+            removeFromMap(broadcastSessions, metadata.getEventType(), registered);
         } else {
-            removeFromMap(targetedSessions, metadata.getReceiverId(), session);
+            removeFromMap(targetedSessions, metadata.getReceiverId(), registered);
         }
+    }
+
+    /**
+     * 按 session id 查找已注册的（装饰后）Session，用于 handler 内回复消息.
+     *
+     * @param sessionId session id
+     * @return 装饰后的 session，未注册返回 null
+     */
+    public WebSocketSession findSession(String sessionId) {
+        SessionMetadata metadata = sessionMetadata.get(sessionId);
+        return metadata == null ? null : metadata.getSession();
+    }
+
+    private WebSocketSession decorate(WebSocketSession session) {
+        return new ConcurrentWebSocketSessionDecorator(session,
+                properties.getSendTimeLimit(), properties.getBufferSizeLimit());
     }
 
     /**
@@ -144,17 +166,23 @@ public class WsMvcSessionManager {
         }
     }
 
+    /**
+     * 从分类 Map 原子地移除一个 session.
+     *
+     * <p>用 {@code compute} 把"移除元素 + 判空移除 key"收敛到同一个原子段，
+     * 避免 remove-then-removeKey 两步之间新连接复用被清空的空 Set 而丢失.</p>
+     */
     private void removeFromMap(Map<String, Set<WebSocketSession>> map, String key, WebSocketSession session) {
         if (key == null) {
             return;
         }
-        Set<WebSocketSession> set = map.get(key);
-        if (set != null) {
-            set.remove(session);
-            if (set.isEmpty()) {
-                map.remove(key);
+        map.compute(key, (k, set) -> {
+            if (set == null) {
+                return null;
             }
-        }
+            set.remove(session);
+            return set.isEmpty() ? null : set;
+        });
     }
 
     private boolean send(WebSocketSession session, String json) {
@@ -179,6 +207,7 @@ public class WsMvcSessionManager {
     @AllArgsConstructor
     public static class SessionMetadata {
         private String sessionId;
+        private WebSocketSession session;
         private String subscribeType;
         private String eventType;
         private String receiverId;

@@ -18,6 +18,13 @@ import com.frame.me.base.user.User;
  */
 public final class AuthUserAuthenticator {
 
+    /**
+     * 哑 BCrypt hash：用户不存在时用于执行同等耗时的密码校验，
+     * 消除「账号不存在快速 401 / 账号存在慢速 401」的响应时间差（账号枚举 oracle）。
+     * 对齐 Spring Security {@code DaoAuthenticationProvider} 的 userNotFoundPassword 机制。
+     */
+    private static final String DUMMY_BCRYPT_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
     private AuthUserAuthenticator() {
     }
 
@@ -32,7 +39,10 @@ public final class AuthUserAuthenticator {
      */
     public static User authenticate(IAuthUserDetailsService userDetailsService, String account, String rawPassword) {
         User user = userDetailsService.loadUserByAccount(account);
-        if (user == null || !userDetailsService.matches(rawPassword, user.getPassword())) {
+        // 用户不存在也对哑 hash 执行同等耗时的校验，避免响应时间差泄漏账号是否存在
+        String passwordHash = user != null ? user.getPassword() : DUMMY_BCRYPT_HASH;
+        boolean matched = userDetailsService.matches(rawPassword, passwordHash);
+        if (user == null || !matched) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
         }
         return user;

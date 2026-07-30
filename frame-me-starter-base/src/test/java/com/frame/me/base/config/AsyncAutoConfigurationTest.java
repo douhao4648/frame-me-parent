@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -122,6 +123,36 @@ class AsyncAutoConfigurationTest {
         handler.handleUncaughtException(new RuntimeException("test"), method);
 
         verify(sender, never()).send(anyString(), anyString(), anyList());
+    }
+
+    /**
+     * 通知通道自身故障时，次生异常不得逃逸出异常处理器（原始异常已记录，通知降级为 warn）.
+     */
+    @Test
+    void notifyFailureDoesNotEscapeHandler() throws NoSuchMethodException {
+        AsyncProperties properties = new AsyncProperties();
+        properties.setExceptionNotifyEnabled(true);
+
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.initialize();
+
+        INotifySender sender = mock(INotifySender.class);
+        when(sender.send(anyString(), anyString(), anyList()))
+                .thenThrow(new IllegalStateException("notify channel down"));
+        ObjectProvider<INotifySender> senderProvider = new ObjectProvider<>() {
+            @Override
+            public INotifySender getIfAvailable() {
+                return sender;
+            }
+        };
+
+        AsyncAutoConfiguration configuration = new AsyncAutoConfiguration();
+        AsyncConfigurer asyncConfigurer = configuration.asyncConfigurer(executor, properties, senderProvider);
+        AsyncUncaughtExceptionHandler handler = asyncConfigurer.getAsyncUncaughtExceptionHandler();
+
+        Method method = TestService.class.getMethod("asyncMethod");
+        assertThatCode(() -> handler.handleUncaughtException(new RuntimeException("test"), method))
+                .doesNotThrowAnyException();
     }
 
     static class TestService {

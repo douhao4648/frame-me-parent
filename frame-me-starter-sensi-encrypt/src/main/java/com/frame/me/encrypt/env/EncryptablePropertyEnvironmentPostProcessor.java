@@ -8,15 +8,16 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.*;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 配置项解密处理器：解密形如 {@code ME(密文)} 的属性值.
  *
  * <p>在 Spring Boot 启动早期、配置文件加载之后运行，扫描 {@link ConfigurableEnvironment}
- * 中所有可枚举属性源，将 {@code ME(...)} 包裹的密文用 Jasypt 解密后，以更高优先级的属性源覆盖，
- * 使下游（数据源、Redis 等）拿到的是明文。</p>
+ * 中所有可枚举属性源，将含 {@code ME(...)} 密文的属性源<b>原位替换</b>为
+ * {@link DecryptedPropertySource} 包装器（读取时解密），使下游（数据源、Redis 等）拿到明文。
+ * 原位替换不改变优先级链：命令行 / JVM -D / 环境变量等更高优先级来源仍可覆盖加密配置项。</p>
  *
  * <p>主密码从 {@code me.encrypt.password} 读取（兼容环境变量 {@code ME_ENCRYPT_PASSWORD}、
  * JVM 系统属性），<b>不写入任何配置文件</b>。主密码缺失时直接跳过，对没有密文的应用零影响。</p>
@@ -44,31 +45,25 @@ public class EncryptablePropertyEnvironmentPostProcessor implements EnvironmentP
 
         StandardPBEStringEncryptor encryptor = JasyptEncryptor.create(password, algorithm, iterations);
 
-        MutablePropertySources sources = environment.getPropertySources();
-        // 收集所有解密项，按属性源优先级顺序（靠前者优先），最后以最高优先级覆盖
-        Map<String, Object> decrypted = new LinkedHashMap<>();
-        for (PropertySource<?> source : sources) {
+        // 先收集再替换，避免边遍历边修改属性源列表
+        List<DecryptedPropertySource> wrappers = new ArrayList<>();
+        for (PropertySource<?> source : environment.getPropertySources()) {
             if (source instanceof SystemEnvironmentPropertySource) {
                 continue;
             }
             if (!(source instanceof EnumerablePropertySource<?> enumerable)) {
                 continue;
             }
-            for (String name : enumerable.getPropertyNames()) {
-                if (decrypted.containsKey(name)) {
-                    continue;
-                }
-                if (enumerable.getProperty(name) instanceof String value
-                        && value.startsWith(prefix) && value.endsWith(suffix)) {
-                    String cipher = value.substring(prefix.length(), value.length() - suffix.length());
-                    decrypted.put(name, encryptor.decrypt(cipher));
-                }
+            DecryptedPropertySource wrapper = new DecryptedPropertySource(enumerable, encryptor, prefix, suffix);
+            if (wrapper.hasEncryptedProperties()) {
+                wrappers.add(wrapper);
             }
         }
-
-        if (!decrypted.isEmpty()) {
-            sources.addFirst(new MapPropertySource("frame-me-encrypt-decrypted", decrypted));
+        for (DecryptedPropertySource wrapper : wrappers) {
+            environment.getPropertySources().replace(wrapper.getName(), wrapper);
         }
+        // 启动期 fail-fast：预解密全部密文，密文损坏/主密码错误在启动即暴露，而非延迟到首次读取
+        wrappers.forEach(DecryptedPropertySource::decryptAll);
     }
 
     @Override

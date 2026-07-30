@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * 基于配置的权限提供者.
  *
  * <p>从 {@code me.auth.permission.*} 读取角色-权限映射和用户-角色映射，适合角色权限相对固定的场景。
- * 角色-权限映射在首次使用时预解析并缓存，避免每次请求重复 split/parse。
+ * 角色-权限映射与数据权限在启动期（{@code @PostConstruct}）eager 解析并缓存，非法配置启动即 fail-fast。
  * 业务可以通过声明自定义 {@link IAuthPermissionProvider} bean 覆盖本实现，接入数据库或远程服务；
  * 启用 Redis 后端时，作为数据源的自定义 bean 须命名为 {@code authPermissionSource}。</p>
  *
@@ -34,9 +34,9 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
     private final RbacProperties properties;
 
     /**
-     * 预解析后的角色 → 权限列表缓存（配置运行期不变，懒加载一次即可）.
+     * 预解析后的角色 → 权限列表缓存，启动期由 {@link #init()} eager 解析.
      */
-    private volatile Map<String, List<Permission>> parsedRolePermissions;
+    private Map<String, List<Permission>> parsedRolePermissions = Collections.emptyMap();
 
     /**
      * 预解析后的角色 → 数据权限列表缓存，启动期由 {@link #init()} eager 解析.
@@ -56,14 +56,16 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
     private final Set<String> warnedNoRoleUsers = ConcurrentHashMap.newKeySet();
 
     /**
-     * 启动期 eager 解析 {@code me.auth.permission.data-scopes}.
+     * 启动期 eager 解析 {@code me.auth.permission.data-scopes} 与 {@code me.auth.permission.roles}.
      *
-     * <p>格式或 scope 非法时抛 {@link IllegalStateException} 直接 fail-fast——非法条目若只 WARN
-     * 跳过，该资源数据权限缺失意味着不加任何行级限制（fail-open 方向，越权可见）。</p>
+     * <p>格式非法（data-scopes 格式/scope 非法、roles 段 resource 为空）时抛 {@link IllegalStateException}
+     * 直接 fail-fast——非法条目若只 WARN 跳过，该资源权限缺失意味着配置笔误被静默吞掉
+     * （data-scopes 方向更是 fail-open 越权可见），启动期暴露远好于运行期排查。</p>
      */
     @PostConstruct
     public void init() {
         parsedRoleDataScopes = parseAllDataScopes(properties.getDataScopes());
+        parsedRolePermissions = parseAll(properties.getRoles());
     }
 
     @Override
@@ -95,7 +97,7 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
             return Collections.emptyList();
         }
 
-        Map<String, List<Permission>> rolePermissions = parsedRolePermissions();
+        Map<String, List<Permission>> rolePermissions = parsedRolePermissions;
         if (rolePermissions.isEmpty()) {
             return Collections.emptyList();
         }
@@ -121,23 +123,6 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    /**
-     * 预解析 {@code me.auth.permission.roles} 为 {@code 角色 -> 权限列表}，懒加载并缓存.
-     */
-    private Map<String, List<Permission>> parsedRolePermissions() {
-        Map<String, List<Permission>> result = parsedRolePermissions;
-        if (result == null) {
-            synchronized (this) {
-                result = parsedRolePermissions;
-                if (result == null) {
-                    result = parseAll(properties.getRoles());
-                    parsedRolePermissions = result;
-                }
-            }
-        }
-        return result;
-    }
-
     private Map<String, List<Permission>> parseAll(Map<String, String> roles) {
         if (roles == null || roles.isEmpty()) {
             return Collections.emptyMap();
@@ -149,17 +134,21 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
                         e -> Arrays.stream(e.getValue().split(","))
                                 .map(String::trim)
                                 .filter(seg -> !seg.isEmpty())
-                                .map(this::parsePermission)
+                                .map(seg -> parsePermission(e.getKey(), seg))
                                 .collect(Collectors.toCollection(ArrayList::new))));
     }
 
-    private Permission parsePermission(String segment) {
+    /**
+     * 解析 {@code resource:action} 配置段，resource 为空直接 fail-fast（与 data-scopes 同标准）.
+     */
+    private Permission parsePermission(String role, String segment) {
         int colonIdx = segment.indexOf(':');
-        if (colonIdx == -1) {
-            return new Permission(segment, "*");
+        String resource = colonIdx == -1 ? segment : segment.substring(0, colonIdx);
+        String action = colonIdx == -1 ? "*" : segment.substring(colonIdx + 1);
+        if (resource.isBlank()) {
+            throw new IllegalStateException(
+                    "me.auth.permission.roles[" + role + "] 配置段 [" + segment + "] resource 不能为空");
         }
-        String resource = segment.substring(0, colonIdx);
-        String action = segment.substring(colonIdx + 1);
         if (action.isEmpty()) {
             action = "*";
         }

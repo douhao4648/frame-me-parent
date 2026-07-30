@@ -1,6 +1,7 @@
 package com.frame.me.base.user;
 
 import lombok.Data;
+import lombok.ToString;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -38,7 +39,11 @@ public class User implements Serializable {
 
     /**
      * 登录密码（建议存储加密后的密文）.
+     *
+     * <p>排除在 {@code toString()} 之外：口令哈希落入日志会抬高离线爆破面，
+     * 打印 user 对象排查问题时不得带出本字段。
      */
+    @ToString.Exclude
     private String password;
 
     /**

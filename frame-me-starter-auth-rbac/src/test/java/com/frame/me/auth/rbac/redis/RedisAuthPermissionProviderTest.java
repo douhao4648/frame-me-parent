@@ -136,6 +136,24 @@ class RedisAuthPermissionProviderTest {
         assertEquals(2, source.roleCalls, "evict 后应重新回源");
     }
 
+    /**
+     * L2 删除失败时 evict 必须把异常抛给调用方：
+     * 吊销属安全动作，吞异常会让「吊销成功」成为假象（L2 旧快照残留、权限继续生效）.
+     */
+    @Test
+    void evict_l2DeleteFailure_propagates() {
+        IPermissionCacheStore failingStore = new InMemoryStore() {
+            @Override
+            public void delete(String key) {
+                throw new IllegalStateException("redis down");
+            }
+        };
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(new CountingSource(), new RbacRedisProperties(), failingStore);
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> provider.evict(5L));
+    }
+
     @Test
     void nullUserOrNullId_returnsEmpty() {
         RedisAuthPermissionProvider provider =

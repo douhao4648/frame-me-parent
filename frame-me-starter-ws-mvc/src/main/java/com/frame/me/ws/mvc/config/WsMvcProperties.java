@@ -46,6 +46,20 @@ public class WsMvcProperties {
     private int heartbeatInterval = 30;
 
     /**
+     * 单个 session 发送消息的最长耗时（毫秒），超时后该 session 被关闭，默认 10000.
+     * <p>
+     * 对应 {@code ConcurrentWebSocketSessionDecorator} 的 sendTimeLimit，防止慢客户端阻塞发送线程。
+     */
+    private int sendTimeLimit = 10_000;
+
+    /**
+     * 单个 session 的发送缓冲上限（字节），超过后该 session 被关闭，默认 65536.
+     * <p>
+     * 对应 {@code ConcurrentWebSocketSessionDecorator} 的 bufferSizeLimit，防止慢客户端积压消息撑爆内存。
+     */
+    private int bufferSizeLimit = 65_536;
+
+    /**
      * 握手允许的 Origins，空表示允许所有（生产环境建议显式配置），默认空列表.
      */
     private List<String> allowedOrigins = Collections.emptyList();

@@ -77,9 +77,12 @@ public final class NotifyClientFactory {
      *
      * @param name 客户端名称
      * @return 对应客户端
-     * @throws IllegalStateException 客户端不存在时
+     * @throws IllegalStateException 名称为空或客户端不存在时
      */
     public static INotifyClient getClient(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalStateException("Notify client name is blank. Please check the me.notify configuration");
+        }
         INotifyClient client = CLIENT_MAP.get(name);
         if (client == null) {
             throw new IllegalStateException("Notify client '" + name + "' not registered. Please check the me.notify configuration");

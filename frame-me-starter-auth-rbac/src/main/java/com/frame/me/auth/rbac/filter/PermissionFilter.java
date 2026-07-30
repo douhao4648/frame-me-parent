@@ -50,6 +50,12 @@ public class PermissionFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
+        // CORS 预检请求（OPTIONS）直接放行，不参与权限校验
+        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         try {
             if (!isPermissionEnabled()) {
                 chain.doFilter(request, response);

@@ -10,6 +10,7 @@ import org.springframework.util.CollectionUtils;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -202,13 +203,15 @@ public class RedisClient {
     }
 
     /**
-     * 批量设置 Hash.
+     * 批量设置 Hash（与 {@link #hSet} 一致，值统一 JSON 序列化后存储）.
      *
      * @param key 键
      * @param map 映射
      */
     public void hSetAll(String key, Map<String, Object> map) {
-        str().opsForHash().putAll(key, map);
+        Map<String, String> serialized = new LinkedHashMap<>();
+        map.forEach((hashKey, value) -> serialized.put(hashKey, JSON.toJSONString(value)));
+        str().opsForHash().putAll(key, serialized);
     }
 
     /**

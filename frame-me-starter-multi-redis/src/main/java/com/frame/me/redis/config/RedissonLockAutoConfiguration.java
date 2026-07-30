@@ -10,6 +10,7 @@ import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.data.redis.autoconfigure.DataRedisProperties;
@@ -64,6 +65,7 @@ public class RedissonLockAutoConfiguration {
     private RedissonClient redissonClient;
 
     @Bean(destroyMethod = "")
+    @ConditionalOnMissingBean(RedissonClient.class)
     public RedissonClient meRedissonClient(DataRedisProperties dataRedisProperties,
                                            RedissonProperties redissonProperties,
                                            ResourceLoader resourceLoader) throws IOException {
@@ -103,7 +105,11 @@ public class RedissonLockAutoConfiguration {
             applyAuth(config, properties.getUsername(), properties.getPassword());
             log.info("Redisson lock initialize (cluster) : {}", cluster.getNodes());
         } else if (sentinel != null && sentinel.getMaster() != null && !sentinel.getMaster().isEmpty()) {
-            assert sentinel.getNodes() != null;
+            // 生产校验不能用 assert（-da 下被剥离，NPE 报错信息不可读）.
+            if (sentinel.getNodes() == null || sentinel.getNodes().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "spring.data.redis.sentinel.nodes 未配置：哨兵模式必须提供至少一个节点");
+            }
             config.useSentinelServers()
                     .setMasterName(sentinel.getMaster())
                     .addSentinelAddress(toAddresses(scheme, sentinel.getNodes()))
@@ -123,7 +129,7 @@ public class RedissonLockAutoConfiguration {
     }
 
     /**
-     * 给 {@code host:port} 列表加上 {@code redis://} / {@code rediss://} 前缀.
+     * 给 host:port 列表加上 scheme 前缀（redis:// 或 rediss://）。
      */
     private String[] toAddresses(String scheme, List<String> nodes) {
         return nodes.stream().map(node -> scheme + node).toArray(String[]::new);

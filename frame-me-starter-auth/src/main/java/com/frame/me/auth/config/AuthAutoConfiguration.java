@@ -20,6 +20,7 @@ import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -35,10 +36,15 @@ import java.util.List;
 /**
  * 认证模块自动配置.
  *
+ * <p>仅 Servlet Web 应用装配：非 Web 应用（{@code spring.main.web-application-type=none}）
+ * 下 {@code RequestMappingHandlerMapping} 不存在，缺此条件会导致 {@code authFilter} 装配失败、
+ * 启动崩溃；非 Web 场景无请求上下文，认证过滤器/参数解析器/传播装饰器本就无意义。</p>
+ *
  * @author frame-me
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(AuthProperties.class)
 @AutoConfigureBefore({AuditAutoConfiguration.class, AsyncAutoConfiguration.class})

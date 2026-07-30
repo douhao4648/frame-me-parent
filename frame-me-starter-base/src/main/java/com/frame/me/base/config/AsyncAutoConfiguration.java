@@ -167,10 +167,18 @@ public class AsyncAutoConfiguration {
             // 优先使用 me.async.exception-notify-receivers；为空时由 INotifySender 实现
             // 回退到 me.notify.global-receivers（见 frame-me-starter-msg-notify）。
             List<String> receivers = properties.getExceptionNotifyReceivers();
-            senders.ifAvailable(sender -> sender.send(
-                    "异步方法执行异常",
-                    buildExceptionContent(className, methodName, throwable),
-                    receivers));
+            senders.ifAvailable(sender -> {
+                try {
+                    sender.send(
+                            "异步方法执行异常",
+                            buildExceptionContent(className, methodName, throwable),
+                            receivers);
+                } catch (Exception notifyError) {
+                    // 通知是 best-effort 增强：原始异常已在上方记录，
+                    // 通知故障不得逃逸出异常处理器。
+                    log.warn("异步异常通知发送失败: {}.{}", className, methodName, notifyError);
+                }
+            });
         }
 
         private String buildExceptionContent(String className, String methodName, Throwable throwable) {

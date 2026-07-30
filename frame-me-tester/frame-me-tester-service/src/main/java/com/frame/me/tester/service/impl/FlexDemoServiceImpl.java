@@ -75,6 +75,11 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
         if (exist == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "数据 {} 不存在", id);
         }
+        if (dto.getVersion() == null) {
+            // 乐观锁版本号必填：MyBatis-Flex 在 version 为 null 时会跳过乐观锁检查，
+            // 不校验则并发更新失去保护。
+            throw new BusinessException(ResultCode.BAD_REQUEST, "更新数据 {} 必须携带 version 版本号", id);
+        }
         FlexDemoEntity entity = flexDemoConvert.toEntity(dto);
         entity.setId(id);
         entity.setVersion(dto.getVersion());

@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -83,14 +82,15 @@ public class JwtAuthController {
     /**
      * 刷新 Token.
      */
-    @Operation(summary = "刷新 Token", description = "使用 Refresh Token 换取新的 Token 对；优先从 Authorization 头读取，否则尝试 HttpOnly Cookie")
+    @Operation(summary = "刷新 Token", description = "使用 Refresh Token 换取新的 Token 对；优先从配置 token-header（默认 Authorization）头读取，否则尝试 HttpOnly Cookie")
     @Anonymous
     @PostMapping("/refresh")
     public IResult<TokenVO> refresh(
-            @RequestHeader(value = "Authorization", required = false) String refreshToken,
             HttpServletRequest request,
             HttpServletResponse response) {
-        String token = resolveRefreshToken(refreshToken, request);
+        // 头名与 JwtAuthUserResolver/logout 保持同一配置源（me.auth.jwt.token-header），
+        // 不用 @RequestHeader 硬编码，避免业务改头名后 refresh 静默失效
+        String token = resolveRefreshToken(request.getHeader(properties.getTokenHeader()), request);
         String tokenPair = authService.refresh(token);
         return Result.success(buildTokenResponse(tokenPair, response));
     }
@@ -128,10 +128,17 @@ public class JwtAuthController {
 
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader(properties.getTokenHeader());
-        if (header == null || !header.startsWith(properties.getTokenPrefix())) {
+        if (header == null) {
             return null;
         }
-        return header.substring(properties.getTokenPrefix().length()).trim();
+        // RFC 6750 §2.1：Bearer 前缀大小写不敏感
+        String prefix = properties.getTokenPrefix();
+        if (prefix == null || prefix.isEmpty()
+                || header.length() < prefix.length()
+                || !header.regionMatches(true, 0, prefix, 0, prefix.length())) {
+            return null;
+        }
+        return header.substring(prefix.length()).trim();
     }
 
     private String resolveRefreshToken(String headerToken, HttpServletRequest request) {

@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<configuration>
+<!--
+  frame-me 共享日志模板：不会被 Spring Boot 自动加载（文件名非 logback-spring.xml）。
+  应用在自己的 logback-spring.xml 中通过 <include resource="logback-frame-me.xml"/> 显式引入，
+  再按需追加业务专属 logger / appender。
+-->
+<included>
 
     <!-- 属性定义 -->
     <property name="LOG_PATTERN"
@@ -59,7 +64,6 @@
             <appender-ref ref="CONSOLE"/>
         </root>
         <logger name="com.frame.me" level="DEBUG"/>
-        <logger name="com.frame.me.tester.mapper" level="INFO"/>
         <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
@@ -70,7 +74,6 @@
             <appender-ref ref="ASYNC_FILE"/>
         </root>
         <logger name="com.frame.me" level="DEBUG"/>
-        <logger name="com.frame.me.tester.mapper" level="INFO"/>
         <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
@@ -81,7 +84,6 @@
             <appender-ref ref="ASYNC_FILE"/>
         </root>
         <logger name="com.frame.me" level="DEBUG"/>
-        <logger name="com.frame.me.tester.mapper" level="INFO"/>
         <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
@@ -104,4 +106,4 @@
         <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
-</configuration>
+</included>

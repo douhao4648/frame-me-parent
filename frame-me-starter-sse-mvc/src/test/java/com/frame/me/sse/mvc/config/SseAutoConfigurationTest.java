@@ -37,9 +37,29 @@ class SseAutoConfigurationTest {
                 .run(context -> assertThat(context).doesNotHaveBean(SseAutoConfiguration.class));
     }
 
+    /**
+     * 仅关广播、定向仍开启时 Dispatcher 必须装配（定向事件推送依赖它），
+     * 广播分支由 Dispatcher 内部运行时开关拦截.
+     */
     @Test
-    void shouldNotConfigureDispatcherWhenBroadcastDisabled() {
+    void shouldKeepDispatcherWhenOnlyBroadcastDisabled() {
         webRunner.withPropertyValues("me.sse.broadcast-enabled=false")
+                .run(context -> {
+                    assertThat(context).hasSingleBean(SseEmitterManager.class);
+                    assertThat(context).hasSingleBean(SseEventDispatcher.class);
+                    assertThat(context).hasSingleBean(SsePushService.class);
+                });
+    }
+
+    @Test
+    void shouldKeepDispatcherWhenOnlyTargetedDisabled() {
+        webRunner.withPropertyValues("me.sse.targeted-enabled=false")
+                .run(context -> assertThat(context).hasSingleBean(SseEventDispatcher.class));
+    }
+
+    @Test
+    void shouldNotConfigureDispatcherWhenBothDisabled() {
+        webRunner.withPropertyValues("me.sse.broadcast-enabled=false", "me.sse.targeted-enabled=false")
                 .run(context -> {
                     assertThat(context).hasSingleBean(SseEmitterManager.class);
                     assertThat(context).doesNotHaveBean(SseEventDispatcher.class);
@@ -52,5 +72,19 @@ class SseAutoConfigurationTest {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(SseAutoConfiguration.class))
                 .run(context -> assertThat(context).doesNotHaveBean(SseEmitterManager.class));
+    }
+
+    /**
+     * heartbeat-interval > 0 时装配心跳任务与调度支持；为 0（默认）时不装配，避免引入全局调度.
+     */
+    @Test
+    void shouldConfigureHeartbeatWhenIntervalPositive() {
+        webRunner.withPropertyValues("me.sse.heartbeat-interval=30")
+                .run(context -> assertThat(context).hasSingleBean(SseHeartbeatTask.class));
+    }
+
+    @Test
+    void shouldNotConfigureHeartbeatByDefault() {
+        webRunner.run(context -> assertThat(context).doesNotHaveBean(SseHeartbeatTask.class));
     }
 }

@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
@@ -18,15 +19,30 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@link AuthAutoConfiguration} 装配测试：验证 Header 解析器开关、fail-closed 与业务接管.
+ * {@link AuthAutoConfiguration} 装配测试：验证 Header 解析器开关、fail-closed、业务接管与 Web 应用类型条件.
  *
  * @author frame-me
  */
 class AuthAutoConfigurationTest {
 
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
+    private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AuthAutoConfiguration.class))
             .withUserConfiguration(StubInfraConfig.class);
+
+    /**
+     * 非 Servlet Web 应用整体退避：RequestMappingHandlerMapping 不存在，
+     * 缺此条件 authFilter 装配会失败并拖垮启动.
+     */
+    @Test
+    void backsOffInNonWebApplication() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(AuthAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean("authFilter");
+                    assertThat(context).doesNotHaveBean(IAuthUserResolver.class);
+                });
+    }
 
     /**
      * fail-closed：无任何 IAuthUserResolver 实现且未显式开启 Header 解析器时，

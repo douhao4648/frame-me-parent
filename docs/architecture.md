@@ -82,6 +82,11 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
 src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
 ```
 
+### 通用条件约定
+
+- 依赖 Servlet MVC 的自动配置（注册 Filter、`WebMvcConfigurer`、`RequestMappingHandlerMapping` 相关 bean 的）必须在类级声明 `@ConditionalOnWebApplication(type = SERVLET)`：非 Web 应用（`spring.main.web-application-type=none`）下 MVC 基础设施不存在，缺此条件会导致装配失败拖垮启动。已遵守：`frame-me-starter-base`（`CorsAutoConfiguration`）、`frame-me-starter-auth`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-sse-mvc`。
+- 使用 `@ConditionalOnBean` 的自动配置必须同时用 `@AutoConfigureAfter` 显式声明与被依赖配置类的排序，不能依赖类名字典序。
+
 ### 现有配置
 
 - `frame-me-starter-base` 注册 `com.frame.me.base.config.BaseAutoConfiguration`
@@ -211,4 +216,4 @@ Result2ResponseAdvice.beforeBodyWrite()
 - `RetryException` 已定义，但 `GlobalExceptionHandler` 未对其单独处理，当前会落入通用 `Exception` 处理器。
 - `frame-me-starter-cloud` 当前为空壳模块，适合作为未来 Nacos、Gateway 等微服务云组件能力的载体。
 - `frame-me-starter-auth` 已实现认证授权抽象层，`frame-me-starter-auth-jwt` 提供 JWT 实现，`frame-me-starter-auth-sa-token` 提供 sa-token 会话治理实现，`frame-me-starter-auth-rbac` 提供 RBAC 授权与数据权限；后续可继续扩展 `frame-me-starter-auth-security` 等替代实现。
-- `HealthController` 故意触发 NPE，用于验证异常处理链路是否正常工作。
+- `HealthController` 为正常健康检查端点（返回 `UP`），标注 `@Anonymous` 允许匿名访问。

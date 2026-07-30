@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 事件桥接自动配置.
@@ -38,7 +39,13 @@ public class EventBridgeAutoConfiguration {
     }
 
     /**
-     * 若用户未显式配置 me.event-bridge.service-name，则回退到 spring.application.name。
+     * 若用户未显式配置 me.event-bridge.service-name，则回退到 spring.application.name；
+     * 两者都缺失时生成实例唯一名，保证自过滤可用。
+     *
+     * <p>服务名为 {@code "unknown"} 时 {@link EventBridgeListener} 的自过滤会被跳过，
+     * 本服务发出的事件经 transport 回声后会在本地重复执行一次；
+     * 若改为固定名互判，多个未命名服务又会互吞事件。因此生成 {@code unknown-<uuid>} 唯一名：
+     * 自身回声带自身唯一名可被过滤，不同实例唯一名不同也不会互吞。</p>
      */
     @PostConstruct
     public void applyServiceNameDefault() {
@@ -47,6 +54,11 @@ public class EventBridgeAutoConfiguration {
             if (StringUtils.hasText(appName)) {
                 eventBridgeProperties.setServiceName(appName);
                 log.debug("EventBridge serviceName default to spring.application.name: {}", appName);
+            } else {
+                String generated = "unknown-" + UUID.randomUUID().toString().substring(0, 8);
+                eventBridgeProperties.setServiceName(generated);
+                log.warn("EventBridge serviceName 未配置且 spring.application.name 为空，已生成临时唯一名 {}；"
+                        + "建议显式配置 spring.application.name 或 me.event-bridge.service-name", generated);
             }
         }
     }

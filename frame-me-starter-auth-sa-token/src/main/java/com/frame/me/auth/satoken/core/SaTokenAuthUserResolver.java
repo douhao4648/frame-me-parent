@@ -20,8 +20,9 @@ import lombok.RequiredArgsConstructor;
  * {@code SaTokenContextFilter}（order = -104）执行，此时 sa-token 上下文尚未初始化。</p>
  *
  * <p>header 优先、同名 Cookie 兜底：header 缺失或空白时遍历 {@code request.getCookies()}
- * 按 tokenName 匹配取值。Cookie 兜底与 sa-token 原生 {@code is-read-cookie}
- * 读取行为对齐，消除「注解校验过、AuthFilter 却 401」的行为裂缝。</p>
+ * 按 tokenName 匹配取值。Cookie 兜底遵循原生 {@code is-read-cookie} 开关（默认 true），
+ * 业务显式关闭后本框架同样不读 Cookie，与原生读取行为完全对齐，
+ * 消除「注解校验过、AuthFilter 却 401」的行为裂缝。</p>
  *
  * @author frame-me
  */
@@ -34,27 +35,34 @@ public class SaTokenAuthUserResolver implements IAuthUserResolver {
     public User resolve(HttpServletRequest request) {
         String token = extractToken(request);
         if (token == null) {
-            token = readTokenFromCookie(request, SaManager.getConfig().getTokenName());
-        }
-        if (token == null) {
             return null;
         }
         return authService.getUser(token);
     }
 
     /**
-     * 从请求头提取 Token（头名取原生 {@code sa-token.token-name} 配置，trim 后判空）.
+     * 从请求中提取 Token：header 优先、同名 Cookie 兜底（头名取原生
+     * {@code sa-token.token-name} 配置，trim 后判空）.
      *
-     * <p>Controller 与 Resolver 共用的唯一提取入口，避免两处独立演进产生行为分叉。</p>
+     * <p>Controller 与 Resolver 共用的唯一提取入口，避免两处独立演进产生行为分叉。
+     * Cookie 兜底与 sa-token 原生 {@code is-read-cookie} 读取行为对齐，
+     * 消除「注解校验过、AuthFilter 却 401」以及「Cookie-only 客户端
+     * logout/refresh 拿不到 token」的行为裂缝。</p>
      */
     public static String extractToken(HttpServletRequest request) {
-        return trimToNull(request.getHeader(SaManager.getConfig().getTokenName()));
+        String token = trimToNull(request.getHeader(SaManager.getConfig().getTokenName()));
+        // Cookie 兜底对齐原生 sa-token.is-read-cookie 开关：
+        // 业务显式关闭后原生不再读 Cookie，本框架也不读，避免开关被架空
+        if (token == null && SaManager.getConfig().getIsReadCookie()) {
+            token = readTokenFromCookie(request, SaManager.getConfig().getTokenName());
+        }
+        return token;
     }
 
     /**
      * 从 Cookie 中按 tokenName 匹配读取 Token（trim 后判空）.
      */
-    private String readTokenFromCookie(HttpServletRequest request, String tokenName) {
+    private static String readTokenFromCookie(HttpServletRequest request, String tokenName) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
             return null;

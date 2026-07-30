@@ -1,6 +1,7 @@
 package com.frame.me.doc.openapi.config;
 
 import com.frame.me.doc.openapi.config.DocOpenApiProperties.GroupProperties;
+import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -12,13 +13,18 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.type.AnnotationMetadata;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 根据 {@link DocOpenApiProperties} 动态注册 {@link GroupedOpenApi} bean.
  *
- * <p>未配置分组时，默认注册一个名为 {@code default}、匹配所有路径的分组。
+ * <p>未配置分组时，默认注册一个名为 {@code default}、匹配所有路径的分组.
+ * 同名分组会在 SpringDoc 运行时按 group 名路由冲突（后注册覆盖前者），
+ * 启动时检测到重复 group 名会 warn 提示配置修正.
  */
+@Slf4j
 public class GroupedOpenApiRegistrar implements ImportBeanDefinitionRegistrar, EnvironmentAware {
 
     /**
@@ -36,6 +42,7 @@ public class GroupedOpenApiRegistrar implements ImportBeanDefinitionRegistrar, E
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
         List<GroupProperties> groups = loadGroups();
+        warnOnDuplicateGroupNames(groups);
         for (int i = 0; i < groups.size(); i++) {
             GroupProperties group = groups.get(i);
             String beanName = "groupedOpenApi_" + group.getName();
@@ -45,6 +52,20 @@ public class GroupedOpenApiRegistrar implements ImportBeanDefinitionRegistrar, E
             }
             BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(GroupedOpenApi.class, () -> GroupedOpenApi.builder().group(group.getName()).pathsToMatch(group.getPathsToMatch().toArray(new String[0])).build());
             registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
+        }
+    }
+
+    /**
+     * 检测重复的 group 名并 warn：同名 group 在 SpringDoc 运行时按 group 名路由会冲突，
+     * bean 名后缀只能避免启动期 BeanDefinition 冲突，不能解决运行时覆盖.
+     */
+    private void warnOnDuplicateGroupNames(List<GroupProperties> groups) {
+        Set<String> seen = new HashSet<>();
+        for (GroupProperties group : groups) {
+            String name = group.getName();
+            if (!seen.add(name)) {
+                log.warn("检测到重复的 Swagger 分组名 '{}'：SpringDoc 运行时仅保留最后一个，请修正 me.swagger.groups 配置", name);
+            }
         }
     }
 

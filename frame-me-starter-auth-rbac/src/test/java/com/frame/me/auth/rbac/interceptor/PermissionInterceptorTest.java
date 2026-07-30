@@ -231,6 +231,19 @@ class PermissionInterceptorTest {
         assertTrue(preHandle("orderDetail", request));
     }
 
+    /**
+     * OPTIONS 预检请求即使命中 {@code @RequireAuth} 方法且未登录，也直接放行，不返回 401：
+     * 预检不应被权限校验拦截，否则浏览器跨域预检失败。
+     */
+    @Test
+    void testOptionsPreflightPassesWithoutAuth() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getMethod()).thenReturn("OPTIONS");
+
+        assertTrue(preHandle("adminOnly", request));
+        verifyNoInteractions(errorResponseWriter);
+    }
+
     private boolean preHandle(String methodName) throws Exception {
         return preHandle(methodName, mock(HttpServletRequest.class));
     }

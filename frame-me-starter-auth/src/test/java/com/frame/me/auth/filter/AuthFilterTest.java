@@ -8,6 +8,7 @@ import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.base.web.ResultFilterErrorResponseWriter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -28,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -207,6 +209,58 @@ class AuthFilterTest {
         filter.doFilter(request, response, chain);
 
         assertTrue(invoked.get());
+    }
+
+    /**
+     * ERROR dispatch（容器 /error 转发）直接放行：
+     * 不做白名单/登录校验（真实状态码不被 401 掩盖），也不触碰用户解析.
+     */
+    @Test
+    void testErrorDispatchPassesThroughWithoutAuth() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/error");
+        request.setDispatcherType(DispatcherType.ERROR);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+        verifyNoInteractions(handlerMapping, userResolver);
+    }
+
+    /**
+     * ERROR dispatch 不清理 AuthContext —— ThreadLocal 由 REQUEST dispatch 的 finally 负责.
+     */
+    @Test
+    void testErrorDispatchDoesNotClearContext() throws Exception {
+        User user = new User();
+        user.setId(1L);
+        AuthContext.setUser(user);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/error");
+        request.setDispatcherType(DispatcherType.ERROR);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(user, AuthContext.getUser());
+    }
+
+    /**
+     * OPTIONS 预检请求直接放行，不触发认证逻辑，不解析用户：
+     * 即使未登录、非白名单，预检也应穿透到后续 CorsFilter/控制器。
+     */
+    @Test
+    void testOptionsPreflightPassesWithoutAuth() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(request, chain.getRequest());
+        verifyNoInteractions(userResolver);
     }
 
     @Anonymous

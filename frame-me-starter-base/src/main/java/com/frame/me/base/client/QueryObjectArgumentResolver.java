@@ -9,6 +9,7 @@ import org.springframework.web.service.invoker.HttpRequestValues;
 import org.springframework.web.service.invoker.HttpServiceArgumentResolver;
 
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.Array;
 import java.util.Collection;
 
 /**
@@ -45,6 +46,15 @@ public class QueryObjectArgumentResolver implements HttpServiceArgumentResolver 
             // ponytail: 仅平铺一层属性（嵌套对象走 String.valueOf），对扁平查询对象足够；如需嵌套展开再扩展.
             if (value instanceof Collection<?> collection) {
                 for (Object item : collection) {
+                    if (item != null) {
+                        requestValues.addRequestParameter(name, String.valueOf(item));
+                    }
+                }
+            } else if (value.getClass().isArray()) {
+                // 数组与 Collection 同语义展开；用反射读取以兼容基本类型数组（int[] 等）。
+                int length = Array.getLength(value);
+                for (int i = 0; i < length; i++) {
+                    Object item = Array.get(value, i);
                     if (item != null) {
                         requestValues.addRequestParameter(name, String.valueOf(item));
                     }

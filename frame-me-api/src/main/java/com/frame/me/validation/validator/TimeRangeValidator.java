@@ -4,10 +4,15 @@ import com.frame.me.validation.annotation.TimeRange;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
+import java.lang.reflect.Field;
 import java.time.temporal.Temporal;
 
 /**
  * {@link TimeRange} 校验器实现.
+ *
+ * <p>字段值按以下优先级解析：JavaBean getter（{@code getXxx} / {@code isXxx}）→
+ * 同名无参方法（record / 流式访问器）→ 声明字段直读（含父类）。
+ * 字段不存在或值为空时不校验（与注解契约一致）。</p>
  */
 public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object> {
 
@@ -26,8 +31,8 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
         if (value == null) {
             return true;
         }
-        Temporal start = getField(value, startField);
-        Temporal end = getField(value, endField);
+        Temporal start = getFieldValue(value, startField);
+        Temporal end = getFieldValue(value, endField);
         if (start == null || end == null) {
             return true;
         }
@@ -44,14 +49,47 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
         return 0;
     }
 
-    private Temporal getField(Object target, String fieldName) {
-        try {
-            Object result = target.getClass().getMethod(fieldName).invoke(target);
-            if (result instanceof Temporal temporal) {
-                return temporal;
+    private Temporal getFieldValue(Object target, String fieldName) {
+        Object result = invokeAccessor(target, fieldName);
+        if (result == null) {
+            result = readDeclaredField(target, fieldName);
+        }
+        return result instanceof Temporal temporal ? temporal : null;
+    }
+
+    /**
+     * 依次尝试 getXxx / isXxx / 同名无参方法（record 访问器）.
+     */
+    private Object invokeAccessor(Object target, String fieldName) {
+        String suffix = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        String[] candidates = {"get" + suffix, "is" + suffix, fieldName};
+        for (String methodName : candidates) {
+            try {
+                return target.getClass().getMethod(methodName).invoke(target);
+            } catch (NoSuchMethodException e) {
+                // 尝试下一种访问器形态
+            } catch (Exception e) {
+                return null;
             }
-        } catch (Exception e) {
-            // 字段不存在或不可读，忽略校验
+        }
+        return null;
+    }
+
+    /**
+     * 声明字段直读，沿类层次向上查找.
+     */
+    private Object readDeclaredField(Object target, String fieldName) {
+        Class<?> type = target.getClass();
+        while (type != null && type != Object.class) {
+            try {
+                Field field = type.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return field.get(target);
+            } catch (NoSuchFieldException e) {
+                type = type.getSuperclass();
+            } catch (Exception e) {
+                return null;
+            }
         }
         return null;
     }

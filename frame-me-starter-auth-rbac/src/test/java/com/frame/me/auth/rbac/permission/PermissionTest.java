@@ -41,4 +41,18 @@ class PermissionTest {
         Permission permission = new Permission("User", "Read");
         assertTrue(permission.matches("user", "read"));
     }
+
+    /**
+     * 授权侧字段为 null（如反序列化缺字段的半成品对象）判不匹配：fail-closed，不抛 NPE.
+     */
+    @Test
+    void testNullGrantSideFailsClosed() {
+        Permission empty = new Permission();
+        assertFalse(empty.matches("user", "read"));
+        assertFalse(empty.matchesResource("user"));
+
+        Permission nullAction = new Permission("user", null);
+        assertFalse(nullAction.matches("user", "read"));
+        assertTrue(nullAction.matchesResource("user"), "resource 非 null 时资源匹配不受影响");
+    }
 }

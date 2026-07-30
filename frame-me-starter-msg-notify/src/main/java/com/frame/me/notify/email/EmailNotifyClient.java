@@ -96,6 +96,9 @@ public class EmailNotifyClient implements INotifyClient {
                 return engine.render(template, message.getTemplateParams());
             }
         }
+        // 无引擎认领（如显式指定 freemarker 但 optional 依赖缺席）：
+        // 告警后返回原文，避免"静默成功"地发出未渲染的模板
+        log.warn("No template engine supports type '{}', sending raw template via client '{}'", templateType, name);
         return template;
     }
 

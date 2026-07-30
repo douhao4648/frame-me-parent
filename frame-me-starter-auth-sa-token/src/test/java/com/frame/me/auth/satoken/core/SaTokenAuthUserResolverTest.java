@@ -152,4 +152,50 @@ class SaTokenAuthUserResolverTest {
 
         verify(authService, never()).getUser(anyString());
     }
+
+    /**
+     * 原生 {@code sa-token.is-read-cookie=false} 时 Cookie 兜底关闭：
+     * 无 header 只有 Cookie 也返回 null，与原生读取行为对齐（开关不被架空）.
+     */
+    @Test
+    void resolve_cookieFallbackDisabledWhenIsReadCookieFalse() {
+        boolean original = SaManager.getConfig().getIsReadCookie();
+        SaManager.getConfig().setIsReadCookie(false);
+        try {
+            when(request.getHeader(tokenName())).thenReturn(null);
+            when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("satoken", "cookie-token")});
+
+            assertThat(resolver.resolve(request)).isNull();
+            assertThat(SaTokenAuthUserResolver.extractToken(request)).isNull();
+            verify(authService, never()).getUser(anyString());
+        } finally {
+            SaManager.getConfig().setIsReadCookie(original);
+        }
+    }
+
+    /**
+     * extractToken（Controller logout/refresh 入口）：无 header 时同样 Cookie 兜底，
+     * Cookie-only 客户端不再拿不到 token.
+     */
+    @Test
+    void extractToken_cookieFallbackWhenNoHeader() {
+        when(request.getHeader(tokenName())).thenReturn(null);
+        when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("satoken", "cookie-token")});
+
+        assertThat(SaTokenAuthUserResolver.extractToken(request)).isEqualTo("cookie-token");
+    }
+
+    /**
+     * extractToken：header 优先于 Cookie；两者都缺失时返回 null.
+     */
+    @Test
+    void extractToken_headerTakesPrecedenceAndNullWhenAbsent() {
+        when(request.getHeader(tokenName())).thenReturn("header-token");
+        when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("satoken", "cookie-token")});
+        assertThat(SaTokenAuthUserResolver.extractToken(request)).isEqualTo("header-token");
+
+        when(request.getHeader(tokenName())).thenReturn(null);
+        when(request.getCookies()).thenReturn(null);
+        assertThat(SaTokenAuthUserResolver.extractToken(request)).isNull();
+    }
 }

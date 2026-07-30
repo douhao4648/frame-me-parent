@@ -33,7 +33,7 @@ public class Permission implements Serializable {
      *
      * <p>通配符 {@code *} 只允许出现在<b>授权侧</b>（即当前权限的 {@code resource}/{@code action}），
      * 为 {@code *} 时匹配任意对应项；被请求侧传 {@code *} 不会被当作通配。
-     * 比较时忽略大小写。</p>
+     * 比较时忽略大小写。任一侧字段为 {@code null} 均判不匹配（fail-closed）。</p>
      *
      * @param targetResource 目标资源
      * @param targetAction   目标操作
@@ -62,6 +62,7 @@ public class Permission implements Serializable {
     }
 
     private boolean matchesValue(String pattern, String value) {
-        return "*".equals(pattern) || pattern.equalsIgnoreCase(value);
+        // 授权侧为 null（如反序列化缺字段的半成品对象）判不匹配：fail-closed
+        return "*".equals(pattern) || (pattern != null && pattern.equalsIgnoreCase(value));
     }
 }

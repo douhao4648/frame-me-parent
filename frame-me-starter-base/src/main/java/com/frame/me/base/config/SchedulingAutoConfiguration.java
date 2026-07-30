@@ -124,10 +124,18 @@ public class SchedulingAutoConfiguration {
             // 优先使用 me.scheduling.exception-notify-receivers；为空时由 INotifySender 实现
             // 回退到 me.notify.global-receivers（见 frame-me-starter-msg-notify）。
             List<String> receivers = properties.getExceptionNotifyReceivers();
-            senders.ifAvailable(sender -> sender.send(
-                    "调度任务执行异常",
-                    buildExceptionContent(location, throwable),
-                    receivers));
+            senders.ifAvailable(sender -> {
+                try {
+                    sender.send(
+                            "调度任务执行异常",
+                            buildExceptionContent(location, throwable),
+                            receivers);
+                } catch (Exception notifyError) {
+                    // 通知是 best-effort 增强：原始异常已在上方记录，
+                    // 通知故障不得逃逸出异常处理器。
+                    log.warn("调度异常通知发送失败: {}", location, notifyError);
+                }
+            });
         }
     }
 }

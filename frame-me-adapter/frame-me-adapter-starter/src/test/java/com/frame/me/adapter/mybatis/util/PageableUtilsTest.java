@@ -64,6 +64,32 @@ class PageableUtilsTest {
         assertTrue(page.orders().isEmpty());
     }
 
+    /**
+     * pageSize 超过上限时强制截断，防止客户端拖垮数据库与内存.
+     */
+    @Test
+    void testPageSizeCappedToMax() {
+        PageParam param = new PageParam();
+        param.setPageSize(100000);
+
+        Page<Object> page = PageableUtils.toPage(param);
+
+        assertEquals(500, page.getSize());
+    }
+
+    /**
+     * pageSize 为正常值时不截断.
+     */
+    @Test
+    void testPageSizeNormalNotCapped() {
+        PageParam param = new PageParam();
+        param.setPageSize(50);
+
+        Page<Object> page = PageableUtils.toPage(param);
+
+        assertEquals(50, page.getSize());
+    }
+
     private PageParam.OrderItem order(String column, boolean asc) {
         PageParam.OrderItem item = new PageParam.OrderItem();
         item.setColumn(column);

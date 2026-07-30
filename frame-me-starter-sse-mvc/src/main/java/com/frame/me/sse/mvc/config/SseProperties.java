@@ -23,9 +23,21 @@ public class SseProperties {
     private long timeout = 0L;
 
     /**
-     * 客户端重连间隔（毫秒），写入 retry 字段，默认 3000.
+     * 客户端重连间隔（毫秒），默认 3000.
+     *
+     * <p>订阅建立后立即向客户端发送 SSE {@code retry:} 指令，客户端断线后按此间隔重连.
+     * 仅当客户端断线主动重连时生效；服务端探测死连接由 {@link #heartbeatInterval} 负责.</p>
      */
     private long retry = 3000L;
+
+    /**
+     * 心跳间隔（秒），默认 0 表示不发送心跳.
+     *
+     * <p>大于 0 时定时向所有存活 Emitter 发送 SSE comment（{@code :heartbeat\n\n}），
+     * 保持代理/负载均衡连接活跃；发送失败即触发 Emitter 清理，避免半关闭连接滞留.
+     * 需开启调度支持（默认开启）.</p>
+     */
+    private long heartbeatInterval = 0L;
 
     /**
      * 是否自动把 {@link com.frame.me.event.MeApplicationEvent} 广播到 SSE，默认 true.

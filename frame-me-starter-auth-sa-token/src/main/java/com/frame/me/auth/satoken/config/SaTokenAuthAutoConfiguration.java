@@ -1,5 +1,6 @@
 package com.frame.me.auth.satoken.config;
 
+import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpInterface;
@@ -115,8 +116,14 @@ public class SaTokenAuthAutoConfiguration {
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(@NonNull InterceptorRegistry registry) {
-                registry.addInterceptor(new SaInterceptor(auth -> parsedRules.forEach((pattern, rule) ->
-                        SaRouter.match(pattern).check(() -> SaTokenRuleEvaluator.check(rule)))))
+                registry.addInterceptor(new SaInterceptor(auth -> {
+                    // CORS 预检请求（OPTIONS）跳过 sa-token 规则校验，避免预检被鉴权拦截返回 401/403
+                    if ("OPTIONS".equalsIgnoreCase(SaHolder.getRequest().getMethod())) {
+                        return;
+                    }
+                    parsedRules.forEach((pattern, rule) ->
+                            SaRouter.match(pattern).check(() -> SaTokenRuleEvaluator.check(rule)));
+                }))
                         .addPathPatterns("/**");
             }
         };

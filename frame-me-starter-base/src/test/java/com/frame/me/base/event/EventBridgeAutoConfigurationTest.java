@@ -35,4 +35,16 @@ class EventBridgeAutoConfigurationTest {
                     assertThat(properties.getServiceName()).isEqualTo("custom-service");
                 });
     }
+
+    /**
+     * 两项都未配置时生成实例唯一名：保证自过滤可用（否则自身事件回声后重复执行），
+     * 且不同实例唯一名不同、不会互吞事件。
+     */
+    @Test
+    void shouldGenerateUniqueServiceNameWhenNoAppNameConfigured() {
+        contextRunner.run(context -> {
+            EventBridgeProperties properties = context.getBean(EventBridgeProperties.class);
+            assertThat(properties.getServiceName()).matches("unknown-[0-9a-f]{8}");
+        });
+    }
 }

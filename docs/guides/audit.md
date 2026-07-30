@@ -33,7 +33,9 @@ public class UserService {
 | `enabled` | `true` | 是否启用审计模块 |
 | `log-enabled` | `true` | 是否在本地打印审计日志（仅打印本服务产生的事件；其他服务广播来的事件由审计中心专用消费者处理，不在各服务重复打印） |
 | `target-service` | `""` | 为空时通过事件桥接广播；配置为审计服务名时定向发送 |
-| `max-param-length` | `0` | 参数 JSON 最大长度，0 表示不限制 |
+| `max-param-length` | `0` | 参数与返回值 JSON 的最大字节长度，0 表示不限制；超限按 UTF-8 字节截断并追加 `...`，多字节字符不会被截半 |
+
+> 与事件桥接的关系：桥接开启（`me.event-bridge.enabled=true`，默认）时审计事件经 `EventBridgePublisher` 本地发布 + 跨服务广播；桥接关闭时审计模块仍正常装配，`AuditLogAspect` 降级为仅本地发布（`AuditLogLogger` 等本进程监听器照常消费），审计中心收不到事件。`EventBridgeProperties` 在桥接关闭时由 `AuditAutoConfiguration` 兜底注册，保证自身过滤语义一致。
 
 ```yaml
 me:
@@ -57,6 +59,16 @@ me:
 @AuditLog(action = "更新订单", description = "更新订单 #orderId 状态为 #status，结果 #result.success")
 public OrderUpdateResult updateOrderStatus(Long orderId, String status) { ... }
 ```
+
+> ⚠️ **安全提示——占位符绕过 record 开关**：`description` 的 SpEL 占位符解析**不受** `recordParams`/`recordResult`/`recordError` 控制。即使设 `recordParams=false`（不记录入参），`description` 里写的 `#user.password` 仍会被解析成真实值写入 description 字段并随事件广播。**禁止在 description 中引用敏感参数字段**；脱敏应通过参数序列化层处理（见下）。
+
+## 敏感参数脱敏
+
+`@AuditLog` 的 `recordParams` 默认 `true`，会把方法入参整体 JSON 序列化进审计记录并跨服务广播。starter 不内置字段级脱敏（无法知晓哪些字段是密码/token），**脱敏由业务在序列化层负责**：
+
+- 设 `recordParams=false` 完全不记入参（最保守）。
+- 或在传入对象上用 fastjson2 的 `@JSONField(serialize = false)` 排除敏感字段。
+- 或为 `AuditLogAspect` 提供自定义参数序列化扩展点（后续可加 `excludeParamNames` 配置）。
 
 ## 跨服务持久化
 
@@ -89,6 +101,8 @@ public IAuditLogOperatorSupplier auditLogOperatorSupplier() {
     return () -> SecurityContextHolder.getContext().getAuthentication().getName();
 }
 ```
+
+> SPI 异常容错：`IAuditLogOperatorSupplier.getOperatorId()` 抛异常时，切面降级为 `anonymous` 并打 warn，**不阻断被审计的业务方法**。审计是旁路，绝不能因审计自身故障影响主流程。
 
 ## 关闭日志输出
 

@@ -53,6 +53,7 @@ graph TD
 - `frame-me-api`：只放事件契约，让业务 `xx-api` 模块能定义事件。
 - `frame-me-starter-base`：放桥接核心，不依赖 Redis/MQ。
 - `frame-me-starter-multi-redis` / `frame-me-starter-mq`：只放具体 transport 实现。
+- `RedisEventTransport` 装配条件：classpath 存在 Redisson、容器中**同时**存在 `RedissonClient` 与 `EventBridgeProperties` bean、`me.event-bridge.enabled=true`。依赖 `RedissonClient` bean（而非仅 classpath）是为了保证 `RedissonLockAutoConfiguration` 已完成 `RedissonTopic` 静态初始化——`me.redis.enabled=false` 时 transport 不装配，`EventBridgePublisher` / `EventBridgeListener` 对缺失 transport 走 WARN 降级。装配顺序由 `@AutoConfigureAfter` 显式声明，不依赖类名字典序。
 
 ## 调用关系图
 
@@ -114,6 +115,8 @@ sequenceDiagram
 ### 自身消息过滤
 
 Redis Pub/Sub 会把消息广播给所有订阅者，包括发布者自己。`EventBridgeListener` 会对比 `message.sourceService` 与当前 `me.event-bridge.service-name`：若相同则忽略，避免同服务实例重复消费。
+
+> 自过滤依赖一个非 `"unknown"` 的服务名：若 `service-name` 与 `spring.application.name` 都未配置，启动时会自动生成 `unknown-<uuid>` 实例唯一名（并打出 warn 提示），保证自身回声可被过滤、且不同实例唯一名不同不会互吞事件；仍建议显式配置 `spring.application.name` 以便事件追踪可读。
 
 ```mermaid
 graph LR
@@ -319,7 +322,8 @@ me:
   event-bridge:
     enabled: true                       # 默认 true
     # service-name 未配置时，自动取 spring.application.name；
-    # 若 spring.application.name 也未配置，则回退为 "unknown"。
+    # 若 spring.application.name 也未配置，则生成 unknown-<uuid> 实例唯一名（warn 提示），
+    # 保证自过滤可用。
     service-name:                       # 默认 spring.application.name
     topic-prefix: "me:event:"           # Redis Topic 前缀
     default-transport: redis            # 未配置 type 时的默认通道
@@ -331,7 +335,7 @@ me:
 | 配置项 | 说明 |
 |---|---|
 | `enabled` | 是否启用事件桥接 |
-| `service-name` | 当前服务名，用于追踪来源与自身消息过滤；未配置时默认取 `spring.application.name`，再未配置时回退为 `unknown` |
+| `service-name` | 当前服务名，用于追踪来源与自身消息过滤；未配置时默认取 `spring.application.name`，再未配置时生成 `unknown-<uuid>` 实例唯一名（warn 提示，保证自过滤可用） |
 | `topic-prefix` | Redis Topic 前缀 |
 | `default-transport` | 默认 transport 名称，对应 Bean 名或去掉 `IEventTransport` 后缀的名称 |
 | `transports.{type}` | 按事件类型指定 transport |
