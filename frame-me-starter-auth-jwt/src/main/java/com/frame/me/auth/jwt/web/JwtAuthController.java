@@ -1,9 +1,11 @@
 package com.frame.me.auth.jwt.web;
 
+import cn.hutool.extra.servlet.JakartaServletUtil;
 import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.annotation.LoginUser;
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
@@ -19,6 +21,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -53,6 +56,7 @@ public class JwtAuthController {
     private final IAuthService authService;
     private final JwtAuthProperties properties;
     private final AuthProperties authProperties;
+    private final ObjectProvider<LoginRateLimiter> loginRateLimiter;
 
     /**
      * 用户登录.
@@ -60,7 +64,8 @@ public class JwtAuthController {
     @Operation(summary = "登录", description = "账号密码登录，返回 Access Token；若配置了 cookie-domain，Refresh Token 会写入 HttpOnly Cookie")
     @Anonymous
     @PostMapping("/login")
-    public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto, HttpServletResponse response) {
+    public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request, HttpServletResponse response) {
+        loginRateLimiter.ifAvailable(limiter -> limiter.acquire(JakartaServletUtil.getClientIP(request)));
         String tokenPair = authService.login(dto.getAccount(), dto.getPassword());
         return Result.success(buildTokenResponse(tokenPair, response));
     }
@@ -208,4 +213,5 @@ public class JwtAuthController {
         }
         return null;
     }
+
 }

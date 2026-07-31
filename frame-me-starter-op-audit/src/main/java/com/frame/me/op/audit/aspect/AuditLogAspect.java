@@ -76,8 +76,8 @@ public class AuditLogAspect {
         executor.setThreadNamePrefix("audit-publish-");
         // 队列满时丢弃审计（Discard），不阻塞业务线程
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy());
-        executor.initialize();
         this.publishExecutor = executor;
+        executor.initialize();
         log.info("AuditLogAspect 异步发布已启用: core={}, max={}, queue={}",
                 cfg.getCorePoolSize(), cfg.getMaxPoolSize(), cfg.getQueueCapacity());
     }
@@ -139,7 +139,7 @@ public class AuditLogAspect {
             if (auditLog.recordResult()) {
                 record.setResult(truncate(serialize(result)));
             }
-        } catch (Throwable t) {
+        } catch (Exception t) {
             error = t;
             success = false;
             if (auditLog.recordError()) {

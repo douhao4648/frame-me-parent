@@ -93,7 +93,13 @@ public class PermissionFilter implements Filter {
                 return;
             }
 
-            AuthPermissionHolder.ensureLoaded(user, permissionProvider);
+            try {
+                AuthPermissionHolder.ensureLoaded(user, permissionProvider);
+            } catch (Exception e) {
+                log.error("权限加载失败: {}", e.getMessage(), e);
+                writeError(httpResponse, ResultCode.ERROR);
+                return;
+            }
 
             if (AuthExpressionRoot.evaluate(expr)) {
                 chain.doFilter(request, response);

@@ -41,6 +41,8 @@ public class SseEmitterManager {
     private final Map<String, Set<SseEmitter>> targetedEmitters = new ConcurrentHashMap<>();
     private final Map<SseEmitter, String> emitterToReceiver = new ConcurrentHashMap<>();
     private final Set<SseEmitter> activeEmitters = ConcurrentHashMap.newKeySet();
+    /** 注册路径锁：消除 checkEmitterLimit → add 之间的 TOCTOU 窗口. */
+    private final Object registerLock = new Object();
 
     private static final Pattern SAFE_ID = Pattern.compile(SseConstant.SAFE_ID_PATTERN);
 
@@ -52,9 +54,11 @@ public class SseEmitterManager {
      */
     public SseEmitter registerBroadcast(String eventType) {
         validateId(eventType, "eventType");
-        checkEmitterLimit();
         SseEmitter emitter = createEmitter();
-        activeEmitters.add(emitter);
+        synchronized (registerLock) {
+            checkEmitterLimit();
+            activeEmitters.add(emitter);
+        }
         broadcastEmitters.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(emitter);
 
         emitter.onCompletion(() -> removeEmitter(emitter));
@@ -73,9 +77,11 @@ public class SseEmitterManager {
     public SseEmitter registerTargeted(String receiverId) {
         validateId(receiverId, "receiverId");
         authorizeReceiverId(receiverId);
-        checkEmitterLimit();
         SseEmitter emitter = createEmitter();
-        activeEmitters.add(emitter);
+        synchronized (registerLock) {
+            checkEmitterLimit();
+            activeEmitters.add(emitter);
+        }
         targetedEmitters.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(emitter);
         emitterToReceiver.put(emitter, receiverId);
 

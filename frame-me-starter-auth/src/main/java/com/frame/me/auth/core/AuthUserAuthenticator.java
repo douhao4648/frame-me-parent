@@ -48,6 +48,9 @@ public final class AuthUserAuthenticator {
         if (user == null || !matched) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "账号或密码错误");
         }
+        if (!User.STATUS_ENABLED.equals(user.getStatus())) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "账号已被禁用");
+        }
         return user;
     }
 }

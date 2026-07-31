@@ -23,6 +23,9 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class Response<T> implements Serializable, IResult<T> {
 
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
     /**
      * 编号.
      */

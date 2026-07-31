@@ -87,7 +87,10 @@ public class JwtTokenService implements IAuthService {
         // 惰性兜底：测试不经 Spring 生命周期（直接 new、未触发 @PostConstruct）时派生；
         // 生产环境由 validateSecret() 在启动期派生并缓存，此处直接命中缓存
         if (secretKey == null) {
-            secretKey = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
+            validateSecret();
+            if (secretKey == null) {
+                throw new IllegalStateException("JWT secret 未配置或密钥强度不足，拒绝派生");
+            }
         }
         return secretKey;
     }
@@ -139,7 +142,11 @@ public class JwtTokenService implements IAuthService {
             if (!TOKEN_TYPE_REFRESH.equals(claims.get(CLAIM_TOKEN_TYPE))) {
                 throw new BusinessException(ResultCode.UNAUTHORIZED, "Token 类型错误");
             }
-            Long userId = Long.valueOf(claims.get(CLAIM_USER_ID).toString());
+            Object userIdClaim = claims.get(CLAIM_USER_ID);
+            if (userIdClaim == null) {
+                throw new BusinessException(ResultCode.UNAUTHORIZED, "Token 缺少用户标识");
+            }
+            Long userId = Long.valueOf(userIdClaim.toString());
             String cached = refreshTokenStore.get(userId);
             if (cached == null || !cached.equals(refreshToken)) {
                 throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 已失效");
@@ -147,6 +154,9 @@ public class JwtTokenService implements IAuthService {
             User user = userDetailsService.loadUserById(userId);
             if (user == null) {
                 throw new BusinessException(ResultCode.UNAUTHORIZED, "用户不存在");
+            }
+            if (!User.STATUS_ENABLED.equals(user.getStatus())) {
+                throw new BusinessException(ResultCode.UNAUTHORIZED, "账号已被禁用");
             }
             return buildTokenPair(user);
         } catch (ExpiredJwtException e) {
@@ -173,7 +183,11 @@ public class JwtTokenService implements IAuthService {
         if (userId == null) {
             return null;
         }
-        return userDetailsService.loadUserById(userId);
+        User user = userDetailsService.loadUserById(userId);
+        if (user != null && !User.STATUS_ENABLED.equals(user.getStatus())) {
+            return null;
+        }
+        return user;
     }
 
     /**

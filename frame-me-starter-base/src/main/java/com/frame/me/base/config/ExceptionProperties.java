@@ -29,5 +29,5 @@ public class ExceptionProperties {
      * <p>开启时，兜底 {@code Exception} 处理器对外固定返回通用文案（"系统错误"），真实 message
      * 只进服务端日志，避免 SQL、类路径、内网地址等内部细节随响应体泄漏；对外服务建议开启。</p>
      */
-    private boolean maskUnknownMessage = false;
+    private boolean maskUnknownMessage = true;
 }

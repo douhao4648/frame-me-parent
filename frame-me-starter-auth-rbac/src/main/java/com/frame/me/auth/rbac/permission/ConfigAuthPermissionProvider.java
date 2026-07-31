@@ -78,8 +78,13 @@ public class ConfigAuthPermissionProvider implements IAuthPermissionProvider {
         if (rolesStr == null || rolesStr.isBlank()) {
             if (users != null && !users.isEmpty()) {
                 String uid = String.valueOf(user.getId());
-                if (warnedNoRoleUsers.size() < MAX_WARNED_USERS && warnedNoRoleUsers.add(uid)) {
+                int currentSize = warnedNoRoleUsers.size();
+                if (currentSize < MAX_WARNED_USERS && warnedNoRoleUsers.add(uid)) {
+                    int newSize = currentSize + 1;
                     log.warn("未在 me.auth.permission.users 中找到用户 {} 的角色配置，按无角色处理（该用户后续不再重复告警）", user.getId());
+                    if (newSize >= MAX_WARNED_USERS) {
+                        log.warn("无角色用户告警已达上限 {}，后续无角色用户不再单独告警，建议排查权限配置", MAX_WARNED_USERS);
+                    }
                 }
             }
             return Collections.emptyList();

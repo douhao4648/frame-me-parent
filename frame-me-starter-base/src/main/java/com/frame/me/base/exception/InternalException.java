@@ -5,7 +5,7 @@ import com.frame.me.base.result.ResultCode;
 import lombok.Getter;
 
 /**
- * 业务异常
+ * 内部异常
  */
 @Getter
 public class InternalException extends RuntimeException {

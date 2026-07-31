@@ -187,7 +187,7 @@ class WsMvcSessionManagerTest {
         manager.registerBroadcast(mockSession("s1"), "user:created");
 
         assertThat(manager.findSession("s1")).isInstanceOf(ConcurrentWebSocketSessionDecorator.class);
-        assertThat(manager.getAllSessions()).allMatch(s -> s instanceof ConcurrentWebSocketSessionDecorator);
+        assertThat(manager.getAllSessionsSnapshot()).allMatch(s -> s instanceof ConcurrentWebSocketSessionDecorator);
     }
 
     @Test

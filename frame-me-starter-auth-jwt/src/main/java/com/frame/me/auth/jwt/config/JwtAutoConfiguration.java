@@ -86,7 +86,8 @@ public class JwtAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public JwtAuthController jwtAuthController(IAuthService authService, JwtAuthProperties properties,
-                                               AuthProperties authProperties) {
-        return new JwtAuthController(authService, properties, authProperties);
+                                               AuthProperties authProperties,
+                                               org.springframework.beans.factory.ObjectProvider<com.frame.me.base.limit.LoginRateLimiter> loginRateLimiter) {
+        return new JwtAuthController(authService, properties, authProperties, loginRateLimiter);
     }
 }

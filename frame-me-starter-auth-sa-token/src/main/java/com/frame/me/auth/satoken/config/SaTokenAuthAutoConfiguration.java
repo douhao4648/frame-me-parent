@@ -74,8 +74,9 @@ public class SaTokenAuthAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SaTokenAuthController saTokenAuthController(IAuthService authService,
-                                                       com.frame.me.auth.config.AuthProperties authProperties) {
-        return new SaTokenAuthController(authService, authProperties);
+                                                       com.frame.me.auth.config.AuthProperties authProperties,
+                                                       org.springframework.beans.factory.ObjectProvider<com.frame.me.base.limit.LoginRateLimiter> loginRateLimiter) {
+        return new SaTokenAuthController(authService, authProperties, loginRateLimiter);
     }
 
     /**

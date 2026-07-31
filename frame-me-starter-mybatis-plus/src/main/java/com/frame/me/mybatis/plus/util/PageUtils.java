@@ -40,9 +40,12 @@ public final class PageUtils {
      * @param <T>            业务数据类型
      * @return MyBatis-Plus 分页对象
      */
+    /** 分页最大条数，防止单次查询撑爆内存/数据库. */
+    private static final long MAX_PAGE_SIZE = 1000;
+
     public static <T> Page<T> toPage(PageQuery query, String defaultOrderBy) {
         long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1 : query.getCurrent();
-        long size = query.getSize() == null || query.getSize() < 1 ? 10 : query.getSize();
+        long size = query.getSize() == null || query.getSize() < 1 ? 10 : Math.min(query.getSize(), MAX_PAGE_SIZE);
         Page<T> page = new Page<>(current, size);
 
         if (query.getOrderBy() != null && !query.getOrderBy().isEmpty()) {
@@ -177,6 +180,10 @@ public final class PageUtils {
         }
         if (safe.isEmpty()) {
             safe = parseOrderBy(defaultOrderBy);
+        }
+        // ponytail: defaultOrderBy 本身字段非法时回退到原始串，避免 ORDER BY 后为空
+        if (safe.isEmpty() && defaultOrderBy != null && !defaultOrderBy.isBlank()) {
+            return defaultOrderBy;
         }
         return String.join(", ", safe);
     }

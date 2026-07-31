@@ -59,6 +59,8 @@ public class BaseAutoConfiguration {
             HttpServletResponse res = (HttpServletResponse) servletResponse;
             res.setHeader("X-Content-Type-Options", "nosniff");
             res.setHeader("X-Frame-Options", "DENY");
+            res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+            res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
             chain.doFilter(servletRequest, servletResponse);
         });
         // ponytail: CorsFilter 也是 HIGHEST_PRECEDENCE，安全头 filter 比它晚一个位置，

@@ -2,6 +2,8 @@ package com.frame.me.auth.config;
 
 import com.frame.me.auth.audit.AuditAuthOperatorSupplier;
 import com.frame.me.auth.core.HeaderAuthUserResolver;
+import com.frame.me.base.limit.InMemoryLoginRateLimiter;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.auth.filter.AuthFilter;
 import com.frame.me.auth.propagation.AuthContextTaskDecorator;
 import com.frame.me.auth.propagation.AuthPropagationInterceptor;
@@ -62,6 +64,17 @@ public class AuthAutoConfiguration {
     void initPasswordUtils() {
         PasswordUtils.setBcryptStrength(properties.getBcryptStrength());
         log.debug("BCrypt strength initialized: {}", properties.getBcryptStrength());
+    }
+
+    /**
+     * 登录速率限制器（按客户端 IP）.
+     */
+    @Bean
+    @ConditionalOnMissingBean(LoginRateLimiter.class)
+    @ConditionalOnProperty(prefix = "me.auth.login-rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public LoginRateLimiter loginRateLimiter() {
+        AuthProperties.LoginRateLimit config = properties.getLoginRateLimit();
+        return new InMemoryLoginRateLimiter(config.getMaxAttempts(), config.getWindow());
     }
 
     /**

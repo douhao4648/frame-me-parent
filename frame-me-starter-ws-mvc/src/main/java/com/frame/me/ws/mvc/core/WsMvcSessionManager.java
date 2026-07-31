@@ -41,6 +41,8 @@ public class WsMvcSessionManager {
     private final Map<String, Set<WebSocketSession>> targetedSessions = new ConcurrentHashMap<>();
     private final Map<String, SessionMetadata> sessionMetadata = new ConcurrentHashMap<>();
     private final Set<WebSocketSession> allSessions = ConcurrentHashMap.newKeySet();
+    /** 注册路径锁：消除 checkSessionLimit → add 之间的 TOCTOU 窗口. */
+    private final Object registerLock = new Object();
 
     private static final Pattern SAFE_ID = Pattern.compile(WsMvcConstant.SAFE_ID_PATTERN);
 
@@ -56,9 +58,11 @@ public class WsMvcSessionManager {
      */
     public void registerBroadcast(WebSocketSession session, String eventType) {
         validateId(eventType, "eventType");
-        checkSessionLimit();
         WebSocketSession decorated = decorate(session);
-        allSessions.add(decorated);
+        synchronized (registerLock) {
+            checkSessionLimit();
+            allSessions.add(decorated);
+        }
         broadcastSessions.computeIfAbsent(eventType, k -> ConcurrentHashMap.newKeySet()).add(decorated);
         sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
                 WsMvcConstant.SUBSCRIBE_BROADCAST, eventType, null));
@@ -73,9 +77,11 @@ public class WsMvcSessionManager {
     public void registerTargeted(WebSocketSession session, String receiverId) {
         validateId(receiverId, "receiverId");
         authorizeReceiverId(receiverId);
-        checkSessionLimit();
         WebSocketSession decorated = decorate(session);
-        allSessions.add(decorated);
+        synchronized (registerLock) {
+            checkSessionLimit();
+            allSessions.add(decorated);
+        }
         targetedSessions.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(decorated);
         sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
                 WsMvcConstant.SUBSCRIBE_TARGETED, null, receiverId));

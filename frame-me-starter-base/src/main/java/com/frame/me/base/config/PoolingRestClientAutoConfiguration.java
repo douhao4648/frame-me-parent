@@ -48,6 +48,21 @@ public class PoolingRestClientAutoConfiguration {
                         .setValidateAfterInactivity(org.apache.hc.core5.util.TimeValue.ofMilliseconds(properties.getValidateAfterInactivity()))
                         .build();
         connectionManager.setDefaultConnectionConfig(connectionConfig);
+        // 后台驱逐空闲/过期连接，避免长期运行时累积僵尸连接
+        Thread evictor = new Thread(() -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(30_000);
+                    connectionManager.closeExpired();
+                    connectionManager.closeIdle(org.apache.hc.core5.util.TimeValue.ofSeconds(30));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }, "hc-pool-evictor");
+        evictor.setDaemon(true);
+        evictor.start();
         // 请求级超时（HttpClient5 用 org.apache.hc.core5.util.Timeout，非 java.time.Duration）
         org.apache.hc.core5.util.Timeout responseTimeout = org.apache.hc.core5.util.Timeout.ofMilliseconds(properties.getResponseTimeout().toMillis());
         org.apache.hc.core5.util.Timeout requestTimeout = org.apache.hc.core5.util.Timeout.ofMilliseconds(properties.getConnectionRequestTimeout().toMillis());

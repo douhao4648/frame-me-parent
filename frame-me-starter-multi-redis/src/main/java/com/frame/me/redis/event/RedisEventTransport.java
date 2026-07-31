@@ -42,9 +42,9 @@ public class RedisEventTransport implements IEventTransport, MessageListener<Eve
 
     @Override
     public void subscribe(String type, Consumer<EventBridgeMessage> dispatcher) {
-        dispatchers.put(type, dispatcher);
         String topic = topicPrefix + type;
         RedissonTopic.topicSubscribe(topic, EventBridgeMessage.class, this);
+        dispatchers.put(type, dispatcher);
         log.debug("Redis event subscribed: type={}, topic={}", type, topic);
     }
 

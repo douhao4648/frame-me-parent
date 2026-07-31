@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,6 +55,11 @@ public class AuthProperties {
     private int bcryptStrength = 12;
 
     /**
+     * 登录速率限制配置.
+     */
+    private LoginRateLimit loginRateLimit = new LoginRateLimit();
+
+    /**
      * 管理员接口开关配置.
      */
     private Admin admin = new Admin();
@@ -97,6 +103,28 @@ public class AuthProperties {
         }
     }
 
+
+    /**
+     * 登录速率限制配置.
+     */
+    @Data
+    public static class LoginRateLimit {
+
+        /**
+         * 是否启用登录速率限制，默认启用（防暴力破解）.
+         */
+        private boolean enabled = true;
+
+        /**
+         * 时间窗口内最大登录尝试次数，默认 5.
+         */
+        private int maxAttempts = 5;
+
+        /**
+         * 速率限制窗口，默认 60 秒.
+         */
+        private Duration window = Duration.ofSeconds(60);
+    }
 
     /**
      * 管理员接口开关配置.

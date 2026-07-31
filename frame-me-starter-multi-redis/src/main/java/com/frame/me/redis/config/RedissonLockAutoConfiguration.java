@@ -1,7 +1,9 @@
 package com.frame.me.redis.config;
 
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.redis.util.RedissonLock;
 import com.frame.me.redis.util.RedissonLimiter;
+import com.frame.me.redis.util.RedissonLoginRateLimiter;
 import com.frame.me.redis.util.RedissonSync;
 import com.frame.me.redis.util.RedissonTopic;
 import jakarta.annotation.PreDestroy;
@@ -16,12 +18,15 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.data.redis.autoconfigure.DataRedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -155,5 +160,19 @@ public class RedissonLockAutoConfiguration {
         if (redissonClient != null && !redissonClient.isShutdown()) {
             redissonClient.shutdown();
         }
+    }
+
+    /**
+     * 基于 Redisson 的分布式登录限流器，覆盖 {@code InMemoryLoginRateLimiter}.
+     *
+     * <p>配置复用 {@code me.auth.login-rate-limit.*}，与内存版参数一致.</p>
+     */
+    @Bean
+    @Primary
+    @ConditionalOnProperty(prefix = "me.auth.login-rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public LoginRateLimiter redissonLoginRateLimiter(Environment env) {
+        int maxAttempts = Integer.parseInt(env.getProperty("me.auth.login-rate-limit.max-attempts", "5"));
+        Duration window = env.getProperty("me.auth.login-rate-limit.window", Duration.class, Duration.ofSeconds(60));
+        return new RedissonLoginRateLimiter(maxAttempts, window);
     }
 }

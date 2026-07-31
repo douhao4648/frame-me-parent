@@ -107,6 +107,8 @@ public class SaTokenAuthService implements IAuthService {
         // 续期对象与校验对象统一为传入 credential：无参重载作用于请求上下文 token，
         // 非请求线程的 SPI 调用方会出现「校验 A 续期 B」或上下文无 token 抛 NotLoginException。
         // timeout 秒数取原生配置；token 值不变，Cookie 客户端无需重写 Cookie
+        // ponytail: 两步非原子（sa-token API 限制），Redis 中断可致超时已续但活跃时间未更新；
+        // 影响面小——结果仅空闲冻结窗口略微偏差，下次请求即可自我修复
         StpUtil.renewTimeout(credential, SaManager.getConfig().getTimeout());
         StpUtil.stpLogic.updateLastActiveToNow(credential);
         return credential;
@@ -146,6 +148,10 @@ public class SaTokenAuthService implements IAuthService {
             }
         }
         User user = userDetailsService.loadUserById(Long.valueOf(String.valueOf(loginId)));
+        if (user != null && !User.STATUS_ENABLED.equals(user.getStatus())) {
+            log.debug("用户已禁用，拒绝加载: userId={}", user.getId());
+            return null;
+        }
         if (user != null) {
             // ponytail: 复用已获取的 session，避免重复 Redis getSessionByLoginId 查询
             cacheUser(loginId, user, session);

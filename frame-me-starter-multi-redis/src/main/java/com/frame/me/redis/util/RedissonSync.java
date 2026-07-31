@@ -3,6 +3,8 @@ package com.frame.me.redis.util;
 import org.redisson.RedissonMultiLock;
 import org.redisson.RedissonRedLock;
 import org.redisson.api.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -19,6 +21,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class RedissonSync {
 
+    private static final Logger log = LoggerFactory.getLogger(RedissonSync.class);
     private static volatile RedissonClient redissonClient;
 
     private RedissonSync() {
@@ -275,13 +278,14 @@ public final class RedissonSync {
      * 等待门闩归零.
      *
      * @param key    键
-     * @param waitMs 最长等待时间（毫秒），{@code <=0} 表示一直等待
+     * @param waitMs 最长等待时间（毫秒），{@code <=0} 表示一直等待（仅在有明确倒计时保证时使用）
      * @return 是否归零
      */
     public static boolean await(String key, long waitMs) {
         try {
             RCountDownLatch latch = getCountDownLatch(key);
             if (waitMs <= 0) {
+                log.warn("{} 永久等待——waitMs={}, 线程将阻塞直到 countDown", key, waitMs);
                 latch.await();
                 return true;
             }

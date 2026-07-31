@@ -1,9 +1,11 @@
 package com.frame.me.auth.satoken.web;
 
+import cn.hutool.extra.servlet.JakartaServletUtil;
 import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.annotation.LoginUser;
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.auth.satoken.core.SaTokenAuthUserResolver;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -55,6 +58,7 @@ public class SaTokenAuthController {
 
     private final IAuthService authService;
     private final AuthProperties authProperties;
+    private final ObjectProvider<LoginRateLimiter> loginRateLimiter;
 
     /**
      * 用户登录.
@@ -62,7 +66,8 @@ public class SaTokenAuthController {
     @Operation(summary = "登录", description = "账号密码登录，返回 Sa-Token 会话 Token；开启 sa-token 原生 Cookie（sa-token.is-read-cookie=true，默认）后自动写入 Cookie")
     @Anonymous
     @PostMapping("/login")
-    public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto) {
+    public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {
+        loginRateLimiter.ifAvailable(limiter -> limiter.acquire(JakartaServletUtil.getClientIP(request)));
         String token = authService.login(dto.getAccount(), dto.getPassword());
         return Result.success(new TokenVO(token, null));
     }

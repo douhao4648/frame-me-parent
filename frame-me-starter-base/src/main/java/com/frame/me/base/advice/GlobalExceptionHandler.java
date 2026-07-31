@@ -125,7 +125,7 @@ public class GlobalExceptionHandler {
         log.error("系统异常: {}", e.getMessage(), e);
         String message = exceptionProperties.isMaskUnknownMessage()
                 ? ResultCode.ERROR.getMsg()
-                : e.getMessage();
+                : (e.getMessage() != null ? e.getMessage() : e.getClass().getName());
         return errorResult(ResultCode.ERROR.getCode(), message, e);
     }
 

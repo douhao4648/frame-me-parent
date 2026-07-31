@@ -121,7 +121,7 @@ public class EmailNotifyClient implements INotifyClient {
         } else if (html) {
             mimeMessage.setContent(content, "text/html;charset=UTF-8");
         } else {
-            mimeMessage.setText(content);
+            mimeMessage.setText(content, "UTF-8");
         }
 
         return mimeMessage;
@@ -163,6 +163,11 @@ public class EmailNotifyClient implements INotifyClient {
                 continue;
             }
             File file = new File(path);
+            // 拒绝绝对路径，防止 JVM 工作目录为 / 时绕过后续前缀检查
+            if (file.isAbsolute()) {
+                log.warn("Skip attachment with absolute path: {}", path);
+                continue;
+            }
             String canonical = file.getCanonicalPath();
             // 补分隔符再比较，防前缀绕过：workdir=/opt/app 时 ../app-backup/x 规范化后
             // 仍以 /opt/app 开头，纯 startsWith(workdir) 会误放行兄弟目录

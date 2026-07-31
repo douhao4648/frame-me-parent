@@ -71,7 +71,14 @@ public class PermissionInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        AuthPermissionHolder.ensureLoaded(user, permissionProvider);
+        try {
+            AuthPermissionHolder.ensureLoaded(user, permissionProvider);
+        } catch (Exception e) {
+            log.error("权限加载失败: {}", e.getMessage(), e);
+            AuthPermissionHolder.clear();
+            writeError(response, ResultCode.ERROR);
+            return false;
+        }
 
         if (AuthExpressionRoot.evaluate(annotation.value(), spelVariables(request))) {
             return true;

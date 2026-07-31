@@ -90,8 +90,11 @@ public final class PageUtils {
      * @param query 分页查询参数
      * @return 每页条数
      */
+    /** 分页最大条数，防止单次查询撑爆内存/数据库. */
+    private static final long MAX_PAGE_SIZE = 1000;
+
     public static int pageSize(PageQuery query) {
-        long size = query.getSize() == null || query.getSize() < 1 ? 10 : query.getSize();
+        long size = query.getSize() == null || query.getSize() < 1 ? 10 : Math.min(query.getSize(), MAX_PAGE_SIZE);
         return (int) size;
     }
 
@@ -134,6 +137,10 @@ public final class PageUtils {
         }
         if (safe.isEmpty()) {
             safe = parseOrderBy(defaultOrderBy);
+        }
+        // ponytail: defaultOrderBy 本身字段非法时回退到原始串，避免 ORDER BY 后为空
+        if (safe.isEmpty() && defaultOrderBy != null && !defaultOrderBy.isBlank()) {
+            return new String[]{defaultOrderBy};
         }
         return safe.toArray(String[]::new);
     }

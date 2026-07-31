@@ -21,7 +21,9 @@ class GlobalExceptionHandlerTest {
 
     {
         enabled.setIncludeStacktrace(true);
+        enabled.setMaskUnknownMessage(false);
         disabled.setIncludeStacktrace(false);
+        disabled.setMaskUnknownMessage(false);
     }
 
     @Test
@@ -64,13 +66,13 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * 兜底异常默认对外返回真实 message（兼容原行为）.
+     * 兜底异常默认返回通用文案（maskUnknownMessage 默认开启），真实异常信息只进服务端日志.
      */
     @Test
-    void genericException_returnsMessageByDefault() {
+    void genericException_masksMessageByDefault() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler(new ExceptionProperties());
         IResult<Void> result = handler.handleException(new RuntimeException("系统挂了"));
-        assertThat(result.getMsg()).isEqualTo("系统挂了");
+        assertThat(result.getMsg()).isEqualTo(ResultCode.ERROR.getMsg());
     }
 
     /**
@@ -97,10 +99,10 @@ class GlobalExceptionHandlerTest {
     }
 
     /**
-     * maskUnknownMessage 默认关闭，保持返回 message 的原行为.
+     * maskUnknownMessage 默认开启，防止内部异常信息泄漏.
      */
     @Test
-    void maskUnknownMessage_defaultsToFalse() {
-        assertThat(new ExceptionProperties().isMaskUnknownMessage()).isFalse();
+    void maskUnknownMessage_defaultsToTrue() {
+        assertThat(new ExceptionProperties().isMaskUnknownMessage()).isTrue();
     }
 }
