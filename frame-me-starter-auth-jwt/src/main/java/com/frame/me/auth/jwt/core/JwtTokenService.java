@@ -57,6 +57,15 @@ public class JwtTokenService implements IAuthService {
      * 并派生一次 {@link #secretKey} 把密钥强度问题（如 HS 系列弱密钥
      * {@code WeakKeyException}）从「首次请求才炸」提前到启动期暴露，同时缓存供后续签名/验签复用.
      */
+    /**
+     * HMAC 密钥最低字节数（256 位），低于此值视为弱密钥拒绝启动.
+     *
+     * <p>HS256 的安全强度等于密钥长度，256 位（32 字节）为标准最低要求；
+     * HS384/HS512 需更高，但绝大部分场景统一按 256 位 floor 校验即可，
+     * 业务有更高要求时自行为 jjwt 传入自定义 {@code SecretKey}。</p>
+     */
+    private static final int MIN_KEY_BYTES = 32;
+
     @PostConstruct
     public void validateSecret() {
         String secret = properties.getSecret();
@@ -64,7 +73,14 @@ public class JwtTokenService implements IAuthService {
             throw new IllegalStateException(
                     "me.auth.jwt.secret 未配置：JWT 签名密钥为必填项，请配置不少于 256 位的随机密钥");
         }
-        secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < MIN_KEY_BYTES) {
+            throw new IllegalStateException(
+                    "me.auth.jwt.secret 强度不足：当前 " + keyBytes.length + " 字节（"
+                    + (keyBytes.length * 8) + " 位），HS256 要求不少于 256 位（32 字节），"
+                    + "请用 openssl rand -base64 32 生成随机密钥");
+        }
+        secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
     private SecretKey getSecretKey() {

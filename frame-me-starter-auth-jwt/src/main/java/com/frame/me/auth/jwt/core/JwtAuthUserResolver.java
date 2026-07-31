@@ -21,10 +21,13 @@ public class JwtAuthUserResolver implements IAuthUserResolver {
     @Override
     public User resolve(HttpServletRequest request) {
         String header = request.getHeader(properties.getTokenHeader());
-        if (header == null || !header.startsWith(properties.getTokenPrefix())) {
+        String prefix = properties.getTokenPrefix();
+        if (header == null || prefix == null || prefix.isEmpty()
+                || header.length() < prefix.length()
+                || !header.regionMatches(true, 0, prefix, 0, prefix.length())) {
             return null;
         }
-        String token = header.substring(properties.getTokenPrefix().length()).trim();
+        String token = header.substring(prefix.length()).trim();
         return authService.getUser(token);
     }
 }

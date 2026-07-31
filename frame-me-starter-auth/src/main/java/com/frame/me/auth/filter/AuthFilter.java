@@ -82,7 +82,11 @@ public class AuthFilter implements Filter {
         // 要求 Origin 头：无 Origin 的 OPTIONS 非真预检，仍走正常鉴权链，防绕过
         if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())
                 && httpRequest.getHeader("Origin") != null) {
-            chain.doFilter(request, response);
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                AuthContext.clear();
+            }
             return;
         }
 
@@ -136,7 +140,7 @@ public class AuthFilter implements Filter {
      * </ol>
      * </p>
      */
-    private boolean isAnonymous(HttpServletRequest request) {
+    private boolean isAnonymous(HttpServletRequest request) throws ServletException {
         // 使用应用内路径匹配：getRequestURI() 含 context-path，
         // 配置 server.servlet.context-path 后会导致白名单全部失配
         String uri = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
@@ -163,6 +167,9 @@ public class AuthFilter implements Filter {
             }
             return AnnotatedElementUtils.hasAnnotation(handlerMethod.getBeanType(), Anonymous.class)
                     || AnnotatedElementUtils.hasAnnotation(handlerMethod.getMethod(), Anonymous.class);
+        } catch (ServletException e) {
+            // HandlerMapping 框架级异常（如请求分发失败），上抛由容器处理，不吞成 false
+            throw e;
         } catch (Exception e) {
             log.warn("判断匿名接口时发生异常: {}", e.getMessage());
             return false;

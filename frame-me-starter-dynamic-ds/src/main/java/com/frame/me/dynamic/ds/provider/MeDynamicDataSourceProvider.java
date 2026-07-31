@@ -97,21 +97,6 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
     }
 
     private void loadDruidProperties(DataSourceProperty property) {
-        Map<String, Object> druidProps = new HashMap<>();
-        for (PropertySource<?> source : environment.getPropertySources()) {
-            if (!(source instanceof EnumerablePropertySource<?> enumerable)) {
-                continue;
-            }
-            for (String name : enumerable.getPropertyNames()) {
-                if (name.startsWith(DRUID_SOURCE_PREFIX)) {
-                    String key = name.substring(DRUID_SOURCE_PREFIX.length());
-                    druidProps.putIfAbsent(key, source.getProperty(name));
-                }
-            }
-        }
-        if (druidProps.isEmpty()) {
-            return;
-        }
         try {
             Binder binder = Binder.get(environment);
             binder.bind(DRUID_BIND_PREFIX, Bindable.of(DruidConfig.class))

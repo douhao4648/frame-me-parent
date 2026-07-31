@@ -100,14 +100,19 @@ class JwtTokenServiceTest {
     }
 
     /**
-     * 弱密钥（长度不足 HS 系列要求）在启动期校验即抛出，而不是首次签名才暴露.
+     * 弱密钥（长度不足 256 位/32 字节）在启动期校验即抛出，而不是首次签名才暴露.
+     *
+     * <p>新版校验在 {@code Keys.hmacShaKeyFor} 之前先做字节数下限校验，
+     * 抛 {@link IllegalStateException}（而非 {@code WeakKeyException}），
+     * 同时覆盖 jjwt 原生弱密钥检查和更短密钥的场景.</p>
      */
     @Test
     void testWeakSecretFailsFast() {
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret("too-short");
         JwtTokenService weakSecret = new JwtTokenService(properties, null, null);
-        assertThrows(io.jsonwebtoken.security.WeakKeyException.class, weakSecret::validateSecret);
+        IllegalStateException ex = assertThrows(IllegalStateException.class, weakSecret::validateSecret);
+        assertTrue(ex.getMessage().contains("强度不足"), ex.getMessage());
     }
 
     @Test

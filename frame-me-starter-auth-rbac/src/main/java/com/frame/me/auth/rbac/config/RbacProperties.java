@@ -90,9 +90,10 @@ public class RbacProperties {
     void validateRuleKeys() {
         for (String key : rules.keySet()) {
             if (!key.startsWith("/")) {
-                log.warn("权限规则 key [{}] 不是以 '/' 开头的有效路径，该规则不会生效。"
+                throw new IllegalStateException(
+                        "权限规则 key [" + key + "] 不是以 '/' 开头的有效路径，规则不会生效。"
                         + "YAML 中 Map key 含 '/' 或 '*' 时会被 Spring Boot relaxed binding 剥离字符，"
-                        + "请改用方括号记法：\"[/api/xxx/**]\"", key);
+                        + "请改用方括号记法：\"[/api/xxx/**]\"");
             }
         }
     }

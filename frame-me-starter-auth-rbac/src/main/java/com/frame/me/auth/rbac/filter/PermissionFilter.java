@@ -9,6 +9,7 @@ import com.frame.me.auth.util.ContextPathUtils;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -50,11 +51,26 @@ public class PermissionFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
+        // ERROR dispatch（容器 /error 转发）直接放行——与 AuthFilter 对齐，
+        // 避免 404/servlet 级异常的真实状态码被 403 掩盖
+        if (request.getDispatcherType() == DispatcherType.ERROR) {
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                AuthPermissionHolder.clear();
+            }
+            return;
+        }
+
         // CORS 预检请求（OPTIONS）带 Origin 头时直接放行，不参与权限校验。
         // 与 AuthFilter 对齐：无 Origin 的 OPTIONS 非真预检，仍走正常权限链，防绕过。
         if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())
                 && httpRequest.getHeader("Origin") != null) {
-            chain.doFilter(request, response);
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                AuthPermissionHolder.clear();
+            }
             return;
         }
 

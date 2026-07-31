@@ -9,10 +9,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import com.alibaba.fastjson2.JSON;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -97,15 +100,10 @@ public class WebhookNotifyClient implements INotifyClient {
     private String buildBody(NotifyMessage message) {
         String content = message.getContent() == null ? "" : message.getContent();
         String title = message.getTitle() == null ? "" : message.getTitle();
-        return "{\"title\":\"" + escapeJson(title) + "\",\"content\":\"" + escapeJson(content) + "\"}";
-    }
-
-    private String escapeJson(String value) {
-        return value.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        Map<String, String> body = new LinkedHashMap<>();
+        body.put("title", title);
+        body.put("content", content);
+        return JSON.toJSONString(body);
     }
 
     private String sign(String body, String secret) {

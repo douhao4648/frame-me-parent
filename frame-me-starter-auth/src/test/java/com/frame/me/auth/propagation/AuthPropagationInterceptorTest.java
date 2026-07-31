@@ -37,6 +37,7 @@ class AuthPropagationInterceptorTest {
     @BeforeEach
     void setUp() {
         properties = new AuthProperties();
+        properties.getPropagate().setAllowedHosts(List.of("downstream"));
         interceptor = new AuthPropagationInterceptor(properties);
         outboundRequest = new MockClientHttpRequest(HttpMethod.GET, URI.create("http://downstream/api/demo"));
         execution = (request, body) -> new MockClientHttpResponse(new byte[0], 200);
@@ -237,9 +238,11 @@ class AuthPropagationInterceptorTest {
     }
 
     @Test
-    void testServiceDiscoveryDisabledBlocksSingleLabelHost() throws IOException {
-        // 关闭服务名豁免后，单标签主机名也不再放行（严格白名单模式）
-        properties.getPropagate().getServiceDiscovery().setEnabled(false);
+    void testSingleLabelHostBlockedWithoutProbe() throws IOException {
+        // 无探针注册时，单标签主机名（非白名单）不再无条件放行，防止 SSRF 泄漏认证头
+        properties.getPropagate().setAllowedHosts(null);
+        outboundRequest = new MockClientHttpRequest(HttpMethod.GET,
+                URI.create("http://order-service/api/demo"));
         bindRequestWithHeader("Authorization", "Bearer token123");
 
         interceptor.intercept(outboundRequest, new byte[0], execution);

@@ -19,10 +19,28 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
 
+    /** 最大存储条目数，防止 DDoS 登录攻击撑爆内存. */
+    private static final int MAX_SIZE = 10_000;
+
     private final Map<Long, Entry> store = new ConcurrentHashMap<>();
 
     @Override
     public void save(Long userId, String refreshToken, Duration expires) {
+        if (store.size() >= MAX_SIZE) {
+            // 容量满时淘汰最旧条目（近似 LRU，不保证严格顺序），
+            // ponytail: 扫一遍 ConcurrentHashMap 找到最早过期项，O(N) 但 N≤10k 可接受
+            Long oldest = null;
+            long minExpire = Long.MAX_VALUE;
+            for (Map.Entry<Long, Entry> e : store.entrySet()) {
+                if (e.getValue().expireAtMillis() < minExpire) {
+                    minExpire = e.getValue().expireAtMillis();
+                    oldest = e.getKey();
+                }
+            }
+            if (oldest != null) {
+                store.remove(oldest);
+            }
+        }
         store.put(userId, new Entry(refreshToken, System.currentTimeMillis() + expires.toMillis()));
     }
 

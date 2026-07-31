@@ -142,7 +142,10 @@ class EncryptablePropertyEnvironmentPostProcessorTest {
     }
 
     /**
-     * 频繁轮换密文时，同 key 的旧密文缓存项被清理，缓存不无限增长.
+     * 频繁轮换密文时，每次读取均返回当期明文，旧密文条目自然留存.
+     *
+     * <p>旧版实现走 stale cleanup（removeIf），由于与 computeIfAbsent 无原子性保证已移除；
+     * 新版各密文条目由 name@cipher 自然隔离，缓存保留所有版本，配置轮换频率极低，量级可忽略.</p>
      */
     @Test
     void rotatedCipherEvictsStaleCacheEntries() throws Exception {
@@ -159,11 +162,11 @@ class EncryptablePropertyEnvironmentPostProcessorTest {
             assertThat(env.getProperty("db.password")).isEqualTo("pass-" + i);
         }
 
-        // 该 key 的缓存只剩最新密文一项（旧密文缓存项已被清理）
+        // 缓存保留所有轮换版本的密文条目（name@cipher 自然隔离，不冲突）
         Object wrapped = env.getPropertySources().get("app");
         java.lang.reflect.Field cacheField = wrapped.getClass().getDeclaredField("decryptedCache");
         cacheField.setAccessible(true);
         Map<?, ?> cache = (Map<?, ?>) cacheField.get(wrapped);
-        assertThat(cache).hasSize(1);
+        assertThat(cache).hasSize(5);
     }
 }

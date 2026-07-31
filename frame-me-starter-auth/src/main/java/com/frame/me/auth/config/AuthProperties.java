@@ -46,6 +46,14 @@ public class AuthProperties {
     private List<String> whitelist = new ArrayList<>();
 
     /**
+     * BCrypt 密码加密强度（log rounds），默认 12（OWASP 当前推荐），范围 4-31.
+     *
+     * <p>值越大越安全，但加密耗时呈指数增长。12 轮在 2024 年硬件上约 250ms，
+     * 业务可按需调整（如 10 轮约 60ms，14 轮约 1s）。</p>
+     */
+    private int bcryptStrength = 12;
+
+    /**
      * 管理员接口开关配置.
      */
     private Admin admin = new Admin();
@@ -76,15 +84,16 @@ public class AuthProperties {
                     + "或 RBAC 权限规则或自定义拦截器，否则任意已登录用户可强制登出他人。"
                     + "已配好规则可设 me.auth.admin.warn-if-enabled-without-protection=false 关闭此提醒");
         }
-        // service-discovery 开启：单标签主机名短路独立于 allowed-hosts 白名单生效，
-        // 真服务名天然可信，但 SSRF / DNS 重绑定场景下恶意单标签也会被误判可信
+        // service-discovery 开启但未注册探针：所有非白名单主机均不传播认证头，
+        // 服务间调用将缺少认证头导致下游 401，提醒注册 IServiceInstanceProbe
         if (Boolean.TRUE.equals(propagate.getEnabled())
                 && Boolean.TRUE.equals(propagate.getServiceDiscovery().getEnabled())
                 && Boolean.TRUE.equals(propagate.getWarnOnOpenServiceDiscovery())) {
-            log.warn("[me.auth.propagate.service-discovery.enabled=true] 认证头会对所有单标签主机名无条件传播，"
-                    + "含 localhost / order-service 等真服务名，也含 evil / attacker 等恶意单标签（SSRF / DNS 重绑定风险）。"
-                    + "建议关闭 me.auth.propagate.service-discovery.enabled 收紧到仅白名单放行，"
-                    + "或确认环境可控后设 me.auth.propagate.warn-on-open-service-discovery=false 关闭此提醒");
+            log.warn("[me.auth.propagate.service-discovery.enabled=true] 已启用服务名甄别，"
+                    + "但未注册 IServiceInstanceProbe 时所有非白名单主机均不传播认证头（fail-closed），"
+                    + "服务间调用将缺少认证头导致下游 401。"
+                    + "请注册 IServiceInstanceProbe Bean 或显式配置 allowed-hosts 白名单，"
+                    + "确认环境可控后设 me.auth.propagate.warn-on-open-service-discovery=false 关闭此提醒");
         }
     }
 

@@ -19,26 +19,22 @@ import java.util.concurrent.TimeUnit;
  */
 public final class RedissonSync {
 
-    private static volatile RedissonClient redissonClient;
-
     private RedissonSync() {
     }
 
     /**
-     * 初始化 Redisson 客户端.
+     * 初始化 Redisson 客户端（与 {@link RedissonLock} 共享同一 client）.
      *
      * <p>由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration} 调用。</p>
      *
      * @param client 默认实例的 Redisson 客户端
      */
     public static synchronized void init(RedissonClient client) {
-        RedissonSync.redissonClient = client;
+        RedissonLock.init(client);
     }
 
-    private static void checkInit() {
-        if (redissonClient == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
-        }
+    private static RedissonClient client() {
+        return RedissonLock.getClient();
     }
 
     // ============================ 读写锁 ============================
@@ -50,8 +46,7 @@ public final class RedissonSync {
      * @return RReadWriteLock
      */
     public static RReadWriteLock getReadWriteLock(String key) {
-        checkInit();
-        return redissonClient.getReadWriteLock(key);
+        return client().getReadWriteLock(key);
     }
 
     /**
@@ -141,8 +136,7 @@ public final class RedissonSync {
      * @return RLock（公平锁）
      */
     public static RLock getFairLock(String key) {
-        checkInit();
-        return redissonClient.getFairLock(key);
+        return client().getFairLock(key);
     }
 
     /**
@@ -190,9 +184,8 @@ public final class RedissonSync {
      */
     @Deprecated
     public static RedissonRedLock getRedLock(String... keys) {
-        checkInit();
         RLock[] locks = Arrays.stream(keys)
-                .map(redissonClient::getLock)
+                .map(client()::getLock)
                 .toArray(RLock[]::new);
         return new RedissonRedLock(locks);
     }
@@ -204,9 +197,8 @@ public final class RedissonSync {
      * @return RedissonMultiLock
      */
     public static RedissonMultiLock getMultiLock(String... keys) {
-        checkInit();
         RLock[] locks = Arrays.stream(keys)
-                .map(redissonClient::getLock)
+                .map(client()::getLock)
                 .toArray(RLock[]::new);
         return new RedissonMultiLock(locks);
     }
@@ -220,8 +212,7 @@ public final class RedissonSync {
      * @return RSemaphore
      */
     public static RSemaphore getSemaphore(String key) {
-        checkInit();
-        return redissonClient.getSemaphore(key);
+        return client().getSemaphore(key);
     }
 
     /**
@@ -260,8 +251,7 @@ public final class RedissonSync {
      * @return RCountDownLatch
      */
     public static RCountDownLatch getCountDownLatch(String key) {
-        checkInit();
-        return redissonClient.getCountDownLatch(key);
+        return client().getCountDownLatch(key);
     }
 
     /**
@@ -314,8 +304,7 @@ public final class RedissonSync {
      * @return RPermitExpirableSemaphore
      */
     public static RPermitExpirableSemaphore getPermitExpirableSemaphore(String key) {
-        checkInit();
-        return redissonClient.getPermitExpirableSemaphore(key);
+        return client().getPermitExpirableSemaphore(key);
     }
 
     /**

@@ -14,11 +14,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -94,17 +94,14 @@ public class PermissionInterceptor implements HandlerInterceptor {
     }
 
     private boolean isAnonymous(HandlerMethod handlerMethod) {
-        Method method = handlerMethod.getMethod();
-        Class<?> beanType = handlerMethod.getBeanType();
-        return method.getAnnotation(Anonymous.class) != null
-                || beanType.getAnnotation(Anonymous.class) != null;
+        return AnnotatedElementUtils.hasAnnotation(handlerMethod.getBeanType(), Anonymous.class)
+                || AnnotatedElementUtils.hasAnnotation(handlerMethod.getMethod(), Anonymous.class);
     }
 
     private RequireAuth resolveAnnotation(HandlerMethod handlerMethod) {
-        Method method = handlerMethod.getMethod();
-        RequireAuth annotation = method.getAnnotation(RequireAuth.class);
+        RequireAuth annotation = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getMethod(), RequireAuth.class);
         if (annotation == null) {
-            annotation = handlerMethod.getBeanType().getAnnotation(RequireAuth.class);
+            annotation = AnnotatedElementUtils.findMergedAnnotation(handlerMethod.getBeanType(), RequireAuth.class);
         }
         return annotation;
     }

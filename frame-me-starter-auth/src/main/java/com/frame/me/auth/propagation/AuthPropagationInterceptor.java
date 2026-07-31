@@ -27,9 +27,8 @@ import java.util.List;
  * header-auth 下游时也能被识别。</p>
  *
  * <p>传播目标控制：命中 {@code me.auth.propagate.allowed-hosts} 白名单的主机放行；
- * 未命中时，若目标被甄别为注册中心服务名调用（LoadBalancer 可解析）或单标签内网主机名，
- * 默认同样放行（可用 {@code me.auth.propagate.service-discovery.enabled=false} 关闭）；
- * 其余外部域名/IP 一律不传播，防止凭证泄漏给第三方。</p>
+ * 未命中时委托注册中心探针（{@link IServiceInstanceProbe}）判定；
+ * 未注册探针时所有非白名单主机均不传播，防止凭证泄漏给第三方。</p>
  *
  * @author frame-me
  */
@@ -76,8 +75,8 @@ public class AuthPropagationInterceptor implements ClientHttpRequestInterceptor 
      * 判断出站请求目标主机是否允许传播认证头.
      *
      * <p>命中 {@code allowed-hosts} 白名单（精确主机名不区分大小写、{@code *.example.com}
-     * 后缀通配、{@code *} 全匹配）直接放行；未命中时按服务名调用甄别：
-     * 单标签主机名（不含 {@code .}）视为内网服务名放行，或注册中心探针可解析的服务名放行。</p>
+     * 后缀通配、{@code *} 全匹配）直接放行；未命中时交由注册中心探针判定
+     * （需注册 {@link IServiceInstanceProbe}，未注册时所有非白名单主机均不传播）。
      */
     private boolean isHostAllowed(HttpRequest request) {
         String host = request.getURI().getHost();
@@ -121,16 +120,13 @@ public class AuthPropagationInterceptor implements ClientHttpRequestInterceptor 
     /**
      * 甄别目标是否为内部服务名调用.
      *
-     * <p>单标签主机名（如 {@code order-service}、{@code localhost}）天然属于内网；
+     * <p>统一通过注册中心探针判定：单标签（如 {@code order-service}）与多标签
      * 多标签主机名交由注册中心探针判定（覆盖 {@code order.default.svc.cluster.local} 等
-     * K8s 全限定服务名场景）。</p>
+     * 已注册的服务名放行，未注册的拒绝。</p>
      */
     private boolean isServiceDiscoveryTarget(String host) {
         if (Boolean.FALSE.equals(properties.getPropagate().getServiceDiscovery().getEnabled())) {
             return false;
-        }
-        if (!host.contains(".")) {
-            return true;
         }
         if (serviceInstanceProbe != null) {
             try {

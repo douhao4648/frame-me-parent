@@ -53,10 +53,9 @@ class DecryptedPropertySource extends EnumerablePropertySource<Object> {
             if (cached != null) {
                 return cached;
             }
-            // miss = 新密文首次读取：清掉同 name 的旧密文缓存项，防频繁轮换时缓存只增不减。
-            // 仅 miss 路径扫描（每轮一次），热路径 get 命中零开销
-            String stalePrefix = name + "@";
-            decryptedCache.keySet().removeIf(k -> k.startsWith(stalePrefix));
+            // ponytail: 不做 stale cleanup（removeIf 与 computeIfAbsent 之间无原子性保证，
+            // 极端并发下可能误删新放入的缓存项）。旧密文条目由 @ 后缀自然隔离不会冲突，
+            // 配置轮换频率极低，驻留的旧条目量可忽略，定量大再加显式清理接口
             return decryptedCache.computeIfAbsent(cacheKey,
                     k -> encryptor.decrypt(text.substring(prefix.length(), text.length() - suffix.length())));
         }

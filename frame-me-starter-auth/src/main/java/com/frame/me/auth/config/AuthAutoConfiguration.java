@@ -8,10 +8,12 @@ import com.frame.me.auth.propagation.AuthPropagationInterceptor;
 import com.frame.me.auth.resolver.LoginUserArgumentResolver;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.auth.spi.IServiceInstanceProbe;
+import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.config.AsyncAutoConfiguration;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.op.audit.config.AuditAutoConfiguration;
 import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -49,6 +51,18 @@ import java.util.List;
 @EnableConfigurationProperties(AuthProperties.class)
 @AutoConfigureBefore({AuditAutoConfiguration.class, AsyncAutoConfiguration.class})
 public class AuthAutoConfiguration {
+
+    private final AuthProperties properties;
+
+    public AuthAutoConfiguration(AuthProperties properties) {
+        this.properties = properties;
+    }
+
+    @PostConstruct
+    void initPasswordUtils() {
+        PasswordUtils.setBcryptStrength(properties.getBcryptStrength());
+        log.debug("BCrypt strength initialized: {}", properties.getBcryptStrength());
+    }
 
     /**
      * 默认用户解析器：从请求头读取用户 ID 和账号.
@@ -122,7 +136,6 @@ public class AuthAutoConfiguration {
     @ConditionalOnClass(RestClientHttpServiceGroupConfigurer.class)
     @ConditionalOnProperty(prefix = "me.auth.propagate", name = "enabled", havingValue = "true", matchIfMissing = true)
     public AuthPropagationInterceptor authPropagationInterceptor(
-            AuthProperties properties,
             ObjectProvider<IServiceInstanceProbe> serviceInstanceProbeProvider) {
         if (properties.getPropagate().getAllowedHosts().isEmpty()) {
             log.info("认证信息传播未配置目标主机白名单（me.auth.propagate.allowed-hosts）："
