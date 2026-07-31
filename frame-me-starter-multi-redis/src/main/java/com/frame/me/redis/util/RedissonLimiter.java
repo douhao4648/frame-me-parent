@@ -29,10 +29,12 @@ public final class RedissonLimiter {
         RedissonLimiter.redissonClient = client;
     }
 
-    private static void checkInit() {
-        if (redissonClient == null) {
+    private static RedissonClient getClient() {
+        RedissonClient client = redissonClient;
+        if (client == null) {
             throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
         }
+        return client;
     }
 
     /**
@@ -42,8 +44,7 @@ public final class RedissonLimiter {
      * @return RRateLimiter
      */
     public static RRateLimiter getRateLimiter(String key) {
-        checkInit();
-        return redissonClient.getRateLimiter(key);
+        return getClient().getRateLimiter(key);
     }
 
     /**

@@ -42,7 +42,7 @@ public final class ClasspathTemplateLoader {
                 try {
                     return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
                 } catch (IOException e) {
-                    log.warn("Failed to load classpath template '{}': {}", path, e.getMessage());
+                    log.warn("Failed to load classpath template '{}', fallback to raw value", path, e);
                 }
             }
         }

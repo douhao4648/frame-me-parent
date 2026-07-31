@@ -36,4 +36,19 @@ public class BusinessException extends RuntimeException {
         super(StrUtil.format(message, args));
         this.code = resultCode.getCode();
     }
+
+    public BusinessException(Integer code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
+
+    public BusinessException(ResultCode resultCode, Throwable cause) {
+        super(resultCode.getMsg(), cause);
+        this.code = resultCode.getCode();
+    }
+
+    public BusinessException(ResultCode resultCode, String message, Throwable cause) {
+        super(message, cause);
+        this.code = resultCode.getCode();
+    }
 }

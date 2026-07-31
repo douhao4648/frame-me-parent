@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -197,11 +198,14 @@ public class SseEmitterManager {
      * <p>由 {@link com.frame.me.sse.mvc.config.SseHeartbeatTask} 定时调用，
      * 用于探测半关闭连接、保持代理/负载均衡活跃.</p>
      *
+     * <p>快照遍历：避免在 {@link ConcurrentHashMap#newKeySet()} 的弱一致性迭代器里
+     * 调用 {@link #removeEmitter} 导致漏检或重复发送。</p>
+     *
      * @return 心跳发送成功的 Emitter 数
      */
     public int heartbeat() {
         int success = 0;
-        for (SseEmitter emitter : activeEmitters) {
+        for (SseEmitter emitter : new ArrayList<>(activeEmitters)) {
             try {
                 // SSE comment：以 ':' 开头的行是注释，客户端忽略，仅用于保活与探测.
                 emitter.send(SseEmitter.event().comment("heartbeat"));

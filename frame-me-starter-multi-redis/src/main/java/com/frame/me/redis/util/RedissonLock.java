@@ -35,10 +35,11 @@ public final class RedissonLock {
      * 获取已初始化的 Redisson 客户端（供 {@link RedissonSync} 等内部使用）.
      */
     static RedissonClient getClient() {
-        if (redissonClient == null) {
+        RedissonClient client = redissonClient;
+        if (client == null) {
             throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
         }
-        return redissonClient;
+        return client;
     }
 
     /**
@@ -48,10 +49,7 @@ public final class RedissonLock {
      * @return RLock
      */
     public static RLock getLock(String key) {
-        if (redissonClient == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
-        }
-        return redissonClient.getLock(key);
+        return getClient().getLock(key);
     }
 
     /**

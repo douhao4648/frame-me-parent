@@ -86,6 +86,14 @@ public class AuditLogAspect {
     void shutdownPublishExecutor() {
         if (publishExecutor instanceof ThreadPoolTaskExecutor tpte) {
             tpte.shutdown();
+            try {
+                if (!tpte.getThreadPoolExecutor().awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    log.warn("审计异步线程池等待超时，部分审计事件可能未发布");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("审计异步线程池关闭被中断");
+            }
         }
     }
 

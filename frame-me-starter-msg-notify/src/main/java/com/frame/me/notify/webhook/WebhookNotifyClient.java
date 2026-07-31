@@ -14,6 +14,8 @@ import com.alibaba.fastjson2.JSON;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -112,7 +114,7 @@ public class WebhookNotifyClient implements INotifyClient {
             mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] signature = mac.doFinal(body.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(signature);
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException("Failed to sign webhook request body", e);
         }
     }

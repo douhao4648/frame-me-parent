@@ -28,10 +28,12 @@ public final class RedissonTopic {
         RedissonTopic.redissonClient = client;
     }
 
-    private static void checkInit() {
-        if (redissonClient == null) {
+    private static RedissonClient getClient() {
+        RedissonClient client = redissonClient;
+        if (client == null) {
             throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
         }
+        return client;
     }
 
     // ============================ Topic ============================
@@ -43,8 +45,7 @@ public final class RedissonTopic {
      * @return RTopic
      */
     public static RTopic getTopic(String key) {
-        checkInit();
-        return redissonClient.getTopic(key);
+        return getClient().getTopic(key);
     }
 
     /**
@@ -90,8 +91,7 @@ public final class RedissonTopic {
      * @return RPatternTopic
      */
     public static RPatternTopic getPatternTopic(String pattern) {
-        checkInit();
-        return redissonClient.getPatternTopic(pattern);
+        return getClient().getPatternTopic(pattern);
     }
 
     /**
@@ -117,8 +117,7 @@ public final class RedissonTopic {
      * @return RReliableTopic
      */
     public static RReliableTopic getReliableTopic(String key) {
-        checkInit();
-        return redissonClient.getReliableTopic(key);
+        return getClient().getReliableTopic(key);
     }
 
     /**
@@ -158,7 +157,6 @@ public final class RedissonTopic {
      * @return RStream
      */
     public static RStream<Object, Object> getStream(String key) {
-        checkInit();
-        return redissonClient.getStream(key);
+        return getClient().getStream(key);
     }
 }

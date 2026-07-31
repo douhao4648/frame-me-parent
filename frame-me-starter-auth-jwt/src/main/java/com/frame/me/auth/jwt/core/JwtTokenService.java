@@ -150,13 +150,13 @@ public class JwtTokenService implements IAuthService {
             }
             return buildTokenPair(user);
         } catch (ExpiredJwtException e) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 已过期");
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 已过期", e);
         } catch (BusinessException e) {
             throw e;
         } catch (JwtException | IllegalArgumentException e) {
             // 凭证本身的问题（格式非法/签名不符/类型错误）→ 401
             log.warn("Refresh Token 解析失败: {}", e.getMessage());
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 无效");
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 无效", e);
         }
         // 其余异常（如 refreshTokenStore 的 Redis 故障）属基础设施问题，
         // 不吞成 401（客户端会误以为凭证失效而走重新登录），直接上抛由全局异常处理映射 5xx

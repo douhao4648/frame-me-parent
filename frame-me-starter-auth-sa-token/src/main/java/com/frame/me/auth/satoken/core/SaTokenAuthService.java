@@ -94,7 +94,7 @@ public class SaTokenAuthService implements IAuthService {
             log.debug("用户未登录或不存在，跳过强制登出: userId={}", userId);
         } catch (Exception e) {
             log.warn("Sa-Token 强制登出失败: userId={}", userId, e);
-            throw new BusinessException(ResultCode.ERROR, "强制登出失败");
+            throw new BusinessException(ResultCode.ERROR, "强制登出失败", e);
         }
     }
 

@@ -9,13 +9,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import cn.hutool.json.JSONUtil;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 短信通知客户端实现.
@@ -103,27 +107,13 @@ public class SmsNotifyClient implements INotifyClient {
     }
 
     private String buildBody(NotifyMessage message, List<String> phones) {
-        String phoneList = phones.stream()
-                .map(this::escapeJson)
-                .collect(Collectors.joining("\",\"", "\"", "\""));
-        String templateCode = escapeJson(message.getTitle() == null ? "" : message.getTitle());
-        String templateParam = escapeJson(message.getContent() == null ? "" : message.getContent());
-        String signName = escapeJson(properties.getSignName() == null ? "" : properties.getSignName());
-        String appKey = escapeJson(properties.getAppKey() == null ? "" : properties.getAppKey());
-
-        return "{\"appKey\":\"" + appKey + "\","
-                + "\"signName\":\"" + signName + "\","
-                + "\"templateCode\":\"" + templateCode + "\","
-                + "\"templateParam\":\"" + templateParam + "\","
-                + "\"phones\":[" + phoneList + "]}";
-    }
-
-    private String escapeJson(String value) {
-        return value.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("appKey", properties.getAppKey() == null ? "" : properties.getAppKey());
+        body.put("signName", properties.getSignName() == null ? "" : properties.getSignName());
+        body.put("templateCode", message.getTitle() == null ? "" : message.getTitle());
+        body.put("templateParam", message.getContent() == null ? "" : message.getContent());
+        body.put("phones", phones);
+        return JSONUtil.toJsonStr(body);
     }
 
     private String sign(String body, String secret) {
@@ -132,7 +122,7 @@ public class SmsNotifyClient implements INotifyClient {
             mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] signature = mac.doFinal(body.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(signature);
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new RuntimeException("Failed to sign sms request body", e);
         }
     }

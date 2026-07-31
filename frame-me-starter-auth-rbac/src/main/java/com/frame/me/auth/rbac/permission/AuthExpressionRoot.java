@@ -81,17 +81,15 @@ public class AuthExpressionRoot {
 
     /**
      * 获取缓存的表达式，未命中时解析并按上限缓存.
+     *
+     * <p>上限为近似值：{@link ConcurrentHashMap#computeIfAbsent} 保证单 key 的原子性，
+     * 但 size 检查与写入非全局原子，缓存可能略超上限——SpEL 表达式数量有限，可接受。</p>
      */
     private static Expression cachedExpression(String expression) {
-        Expression exp = EXPRESSION_CACHE.get(expression);
-        if (exp != null) {
-            return exp;
+        if (EXPRESSION_CACHE.size() >= MAX_CACHE_SIZE) {
+            return PARSER.parseExpression(expression);
         }
-        exp = PARSER.parseExpression(expression);
-        if (EXPRESSION_CACHE.size() < MAX_CACHE_SIZE) {
-            EXPRESSION_CACHE.put(expression, exp);
-        }
-        return exp;
+        return EXPRESSION_CACHE.computeIfAbsent(expression, PARSER::parseExpression);
     }
 
     @SuppressWarnings("unused")
