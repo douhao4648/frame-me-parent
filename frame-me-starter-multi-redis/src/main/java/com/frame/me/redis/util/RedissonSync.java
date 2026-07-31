@@ -19,22 +19,28 @@ import java.util.concurrent.TimeUnit;
  */
 public final class RedissonSync {
 
+    private static volatile RedissonClient redissonClient;
+
     private RedissonSync() {
     }
 
     /**
-     * 初始化 Redisson 客户端（与 {@link RedissonLock} 共享同一 client）.
+     * 初始化 Redisson 客户端.
      *
      * <p>由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration} 调用。</p>
      *
      * @param client 默认实例的 Redisson 客户端
      */
     public static synchronized void init(RedissonClient client) {
-        RedissonLock.init(client);
+        RedissonSync.redissonClient = client;
     }
 
     private static RedissonClient client() {
-        return RedissonLock.getClient();
+        RedissonClient client = redissonClient;
+        if (client == null) {
+            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
+        }
+        return client;
     }
 
     // ============================ 读写锁 ============================
