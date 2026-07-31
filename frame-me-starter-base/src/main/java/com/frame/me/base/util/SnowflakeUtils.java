@@ -3,6 +3,8 @@ package com.frame.me.base.util;
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * 雪花 ID 生成工具类.
  *
@@ -25,7 +27,8 @@ import cn.hutool.core.util.IdUtil;
  */
 public class SnowflakeUtils {
 
-    private static volatile Snowflake snowflake = IdUtil.getSnowflake();
+    private static final AtomicReference<Snowflake> snowflakeRef =
+            new AtomicReference<>(IdUtil.getSnowflake());
 
     private SnowflakeUtils() {
     }
@@ -34,18 +37,22 @@ public class SnowflakeUtils {
      * 生成下一个雪花 ID.
      *
      * <p>Hutool 内置 {@code timeOffset} 容忍 ≤5ms 时钟回拨（等待到 lastTimestamp），
-     * 大幅回拨（NTP 大跳变）抛 {@link IllegalStateException}. 本方法捕获后短暂 sleep
-     * 重试一次（赌瞬时回拨恢复），仍失败则上抛——让调用方感知而非静默生成重复 ID.</p>
+     * 大幅回拨（NTP 大跳变）抛 {@link IllegalStateException}. 本方法指数退避重试
+     * 最多 3 次，仍失败则上抛——让调用方感知而非静默生成重复 ID.</p>
      *
      * @return 长整型 ID
      */
     public static long nextId() {
-        try {
-            return snowflake.nextId();
-        } catch (IllegalStateException e) {
-            // 时钟回拨超过 timeOffset：短暂等待让时钟追上，重试一次
-            sleepMillis(1);
-            return snowflake.nextId();
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return snowflakeRef.get().nextId();
+            } catch (IllegalStateException e) {
+                if (attempt >= 2) {
+                    throw e;
+                }
+                // 指数退避：1ms → 2ms → 4ms，赌时钟回拨瞬时恢复
+                sleepMillis(1L << attempt);
+            }
         }
     }
 
@@ -63,6 +70,7 @@ public class SnowflakeUtils {
             Thread.sleep(ms);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new RuntimeException("Snowflake ID 生成被中断", e);
         }
     }
 
@@ -73,7 +81,7 @@ public class SnowflakeUtils {
      * @param datacenterId 数据中心 ID（0~31）
      */
     public static void configure(long workerId, long datacenterId) {
-        snowflake = IdUtil.getSnowflake(workerId, datacenterId);
+        snowflakeRef.set(IdUtil.getSnowflake(workerId, datacenterId));
     }
 
 }

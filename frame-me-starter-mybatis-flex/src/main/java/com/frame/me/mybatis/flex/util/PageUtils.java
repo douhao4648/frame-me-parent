@@ -24,7 +24,7 @@ public final class PageUtils {
     /**
      * 合法排序字段名的白名单模式：仅允许字母、数字、下划线以及点（table.column）.
      */
-    private static final Pattern SAFE_COLUMN = Pattern.compile("^[A-Za-z0-9_.]+$");
+    private static final Pattern SAFE_COLUMN = Pattern.compile("^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*$");
 
     /**
      * 将单个排序段解析为安全的 ORDER BY SQL 片段.

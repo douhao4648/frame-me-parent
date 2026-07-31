@@ -39,7 +39,7 @@ public class FreemarkerTemplateEngine implements INotifyTemplateEngine {
     @Override
     public String render(String template, Map<String, Object> params) {
         if (template == null || template.isEmpty()) {
-            return template;
+            return "";
         }
         try {
             Template freeMarkerTemplate = resolveTemplate(template);

@@ -62,7 +62,7 @@ import java.util.List;
 @EnableConfigurationProperties(RedissonProperties.class)
 public class RedissonLockAutoConfiguration {
 
-    private RedissonClient redissonClient;
+    private volatile RedissonClient redissonClient;
 
     @Bean(destroyMethod = "")
     @ConditionalOnMissingBean(RedissonClient.class)

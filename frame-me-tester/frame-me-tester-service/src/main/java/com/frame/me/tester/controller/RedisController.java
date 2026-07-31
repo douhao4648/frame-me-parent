@@ -103,7 +103,8 @@ public class RedisController implements IRedisApi {
 
         // 互斥性：在另一个线程尝试获取同一把锁，应失败
         boolean[] otherThreadAcquired = {false};
-        Thread t = new Thread(() -> otherThreadAcquired[0] = RedissonLock.tryLock(key, 100, 100));
+        Thread t = new Thread(() -> otherThreadAcquired[0] = RedissonLock.tryLock(key, 100, 100),
+                "redis-lock-test");
         t.start();
         try {
             t.join();

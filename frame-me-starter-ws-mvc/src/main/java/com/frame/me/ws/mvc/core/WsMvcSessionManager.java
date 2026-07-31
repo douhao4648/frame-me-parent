@@ -6,7 +6,6 @@ import com.frame.me.ws.mvc.WsMvcConstant;
 import com.frame.me.ws.mvc.config.WsMvcProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.TextMessage;
@@ -14,6 +13,8 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -39,7 +40,6 @@ public class WsMvcSessionManager {
     private final Map<String, Set<WebSocketSession>> broadcastSessions = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocketSession>> targetedSessions = new ConcurrentHashMap<>();
     private final Map<String, SessionMetadata> sessionMetadata = new ConcurrentHashMap<>();
-    @Getter
     private final Set<WebSocketSession> allSessions = ConcurrentHashMap.newKeySet();
 
     private static final Pattern SAFE_ID = Pattern.compile(WsMvcConstant.SAFE_ID_PATTERN);
@@ -170,6 +170,15 @@ public class WsMvcSessionManager {
 
     public int activeSessionCount() {
         return allSessions.size();
+    }
+
+    /**
+     * 返回所有会话的快照，供心跳/监控等只读遍历使用.
+     *
+     * <p>返回的列表独立于内部并发集合，调用方可安全遍历而不受并发修改影响。</p>
+     */
+    public List<WebSocketSession> getAllSessionsSnapshot() {
+        return List.copyOf(allSessions);
     }
 
     private void checkSessionLimit() {

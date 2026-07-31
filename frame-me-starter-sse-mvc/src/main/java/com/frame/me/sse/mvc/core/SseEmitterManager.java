@@ -183,11 +183,13 @@ public class SseEmitterManager {
 
     private SseEmitter createEmitter() {
         SseEmitter emitter = new SseEmitter(properties.getTimeout());
-        // 立即发送 retry 指令：让 me.sse.retry 配置生效，客户端断线后按此间隔重连.
         try {
             emitter.send(SseEmitter.event().reconnectTime(properties.getRetry()));
         } catch (IOException e) {
             log.debug("SSE initial retry directive failed for emitter: {}", e.getMessage());
+            emitter.completeWithError(e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "SSE emitter initialization failed");
         }
         return emitter;
     }

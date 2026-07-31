@@ -2,6 +2,7 @@ package com.frame.me.base.config;
 
 import cn.hutool.core.util.IdUtil;
 import com.frame.me.base.util.SnowflakeUtils;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -25,7 +26,14 @@ public class SnowflakeAutoConfiguration {
      */
     private static final long MAX_ID = 31L;
 
+    private final SnowflakeProperties properties;
+
     public SnowflakeAutoConfiguration(SnowflakeProperties properties) {
+        this.properties = properties;
+    }
+
+    @PostConstruct
+    void configureSnowflake() {
         long datacenterId = properties.getDatacenterId() != null ? properties.getDatacenterId() : IdUtil.getDataCenterId(MAX_ID);
         long workerId = properties.getWorkerId() != null ? properties.getWorkerId() : IdUtil.getWorkerId(datacenterId, MAX_ID);
         SnowflakeUtils.configure(workerId, datacenterId);

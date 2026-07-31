@@ -3,7 +3,7 @@ package com.frame.me.base.event;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
 /**
@@ -45,7 +45,7 @@ public class EventBridgeProperties {
      * 按事件类型指定传输通道，key 为 type，value 为 transport Bean 名称（去掉 EventTransport 后缀后的简称）。
      * 例如 {@code user:created -> redis}。
      */
-    private Map<String, String> transports = new HashMap<>();
+    private Map<String, String> transports = new ConcurrentHashMap<>();
 
     /**
      * 获取指定事件类型应使用的 transport 名称.

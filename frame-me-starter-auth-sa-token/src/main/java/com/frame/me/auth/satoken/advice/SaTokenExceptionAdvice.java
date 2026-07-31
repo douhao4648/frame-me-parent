@@ -36,7 +36,7 @@ public class SaTokenExceptionAdvice {
      */
     @ExceptionHandler(NotLoginException.class)
     public IResult<Void> handleNotLoginException(NotLoginException e) {
-        log.warn("Sa-Token 未登录: {}", e.getMessage());
+        log.warn("Sa-Token 未登录: type={}", e.getType());
         return Result.error(ResultCode.UNAUTHORIZED);
     }
 

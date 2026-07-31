@@ -24,6 +24,9 @@ public class SseHeartbeatTask {
      */
     @Scheduled(fixedRateString = "#{${me.sse.heartbeat-interval:0} * 1000}")
     public void heartbeat() {
+        if (emitterManager.activeEmitterCount() == 0) {
+            return;
+        }
         int alive = emitterManager.heartbeat();
         log.debug("SSE heartbeat sent to {} emitters", alive);
     }

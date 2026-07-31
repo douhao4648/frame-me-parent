@@ -18,6 +18,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import com.frame.me.notify.exception.NotifyException;
 import java.util.List;
 import java.util.Map;
 
@@ -123,7 +124,7 @@ public class SmsNotifyClient implements INotifyClient {
             byte[] signature = mac.doFinal(body.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(signature);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-            throw new RuntimeException("Failed to sign sms request body", e);
+            throw new NotifyException("Failed to sign sms request body", e);
         }
     }
 

@@ -28,9 +28,9 @@ public class AuditProperties {
     private String targetService = "";
 
     /**
-     * 参数 JSON 最大长度，0 表示不限制.
+     * 参数 JSON 最大长度，默认 8192（8KB），0 表示不限制.
      */
-    private int maxParamLength = 0;
+    private int maxParamLength = 8192;
 
     /**
      * 异步发布配置：审计事件的 publish 提交到专用线程池，避免阻塞业务线程.

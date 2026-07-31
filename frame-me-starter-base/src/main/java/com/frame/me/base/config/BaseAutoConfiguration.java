@@ -6,12 +6,21 @@ import com.frame.me.base.env.EnvironmentHelper;
 import com.frame.me.base.result.ResultJacksonModule;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.base.web.ResultFilterErrorResponseWriter;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
+
+import java.io.IOException;
 
 /**
  * frame-me-starter-base 自动配置.
@@ -35,6 +44,28 @@ public class BaseAutoConfiguration {
     @ConditionalOnMissingBean(ResultJacksonModule.class)
     ResultJacksonModule resultJacksonModule() {
         return new ResultJacksonModule();
+    }
+
+    /**
+     * 安全响应头 Filter：添加基础浏览器安全头，防 XSS/clickjacking/MIME-sniffing.
+     *
+     * <p>HSTS（Strict-Transport-Security）不在此设置，应交由网关/反向代理（TLS 终结点）统一处理，
+     * 避免应用层因开发环境无 HTTPS 导致浏览器永久拒绝 HTTP 连接。</p>
+     */
+    @Bean
+    public FilterRegistrationBean<Filter> securityHeadersFilter() {
+        FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
+        registration.setFilter((servletRequest, servletResponse, chain) -> {
+            HttpServletResponse res = (HttpServletResponse) servletResponse;
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            res.setHeader("X-Frame-Options", "DENY");
+            chain.doFilter(servletRequest, servletResponse);
+        });
+        // ponytail: CorsFilter 也是 HIGHEST_PRECEDENCE，安全头 filter 比它晚一个位置，
+        // 确保 CorsFilter 对 OPTIONS 预检短路后安全头仍能由 CorsFilter 自身 headers 覆盖
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+        registration.addUrlPatterns("/*");
+        return registration;
     }
 
     /**

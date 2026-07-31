@@ -98,6 +98,6 @@ public class MsgNotifySender implements INotifySender {
             return receivers;
         }
         List<String> global = notifyProperties.getGlobalReceivers();
-        return global != null ? global : List.of();
+        return global != null ? List.copyOf(global) : List.of();
     }
 }

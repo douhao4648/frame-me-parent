@@ -20,8 +20,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
-
 /**
  * 全局异常处理.
  */
@@ -109,10 +107,10 @@ public class GlobalExceptionHandler {
      * 而不是被下面的 {@code Exception} 兜底处理器包装成 200 body。</p>
      */
     @ExceptionHandler(ResponseStatusException.class)
-    public void handleResponseStatusException(ResponseStatusException e, HttpServletResponse response)
-            throws IOException {
+    public IResult<Void> handleResponseStatusException(ResponseStatusException e, HttpServletResponse response) {
         log.warn("响应状态异常: {} - {}", e.getStatusCode(), e.getReason());
-        response.sendError(e.getStatusCode().value(), e.getReason());
+        response.setStatus(e.getStatusCode().value());
+        return Result.error(e.getStatusCode().value(), e.getReason());
     }
 
     /**

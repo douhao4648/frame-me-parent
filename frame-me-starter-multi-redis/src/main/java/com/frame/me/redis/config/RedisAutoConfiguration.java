@@ -81,6 +81,7 @@ public class RedisAutoConfiguration implements DisposableBean {
             extraConnectionFactories.add(connectionFactory);
 
             StringRedisTemplate extraStringTemplate = new StringRedisTemplate(connectionFactory);
+            extraStringTemplate.afterPropertiesSet();
             RedisTemplate<Object, Object> extraTemplate = new RedisTemplate<>();
             extraTemplate.setConnectionFactory(connectionFactory);
             // ponytail: 额外实例用默认 JdkSerializationRedisSerializer，与 Boot 自动配置的默认实例一致

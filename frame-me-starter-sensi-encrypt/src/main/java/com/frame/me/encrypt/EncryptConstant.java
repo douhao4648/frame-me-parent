@@ -28,11 +28,10 @@ public final class EncryptConstant {
 
     /** 默认密钥迭代次数.
      *
-     * <p>取值 100,000 为性能与安全的折中：远高于 Jasypt 默认 1000，
-     * 又低于 OWASP 对 PBKDF2-HMAC-SHA512 当前推荐值 210,000，避免启动时大量密文解密明显变慢。
+     * <p>取值 210,000 符合 OWASP 2023 对 PBKDF2-HMAC-SHA512 的推荐值。
      * 可通过 {@code me.encrypt.iterations} 覆盖。</p>
      */
-    public static final int DEFAULT_ITERATIONS = 100_000;
+    public static final int DEFAULT_ITERATIONS = 210_000;
 
     /** 默认密文前缀. */
     public static final String DEFAULT_PREFIX = "ME(";

@@ -24,7 +24,10 @@ public class WsMvcHeartbeatTask {
      */
     @Scheduled(fixedRateString = "#{${me.ws.mvc.heartbeat-interval:0} * 1000}")
     public void heartbeat() {
-        for (WebSocketSession session : sessionManager.getAllSessions()) {
+        if (sessionManager.activeSessionCount() == 0) {
+            return;
+        }
+        for (WebSocketSession session : sessionManager.getAllSessionsSnapshot()) {
             if (!session.isOpen()) {
                 sessionManager.removeSession(session);
                 continue;

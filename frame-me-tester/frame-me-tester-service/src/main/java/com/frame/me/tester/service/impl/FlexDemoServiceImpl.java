@@ -9,6 +9,7 @@ import com.frame.me.tester.api.dto.FlexDemoDTO;
 import com.frame.me.tester.api.query.FlexDemoQuery;
 import com.frame.me.tester.api.vo.FlexDemoVO;
 import com.frame.me.tester.entity.FlexDemoEntity;
+import com.frame.me.tester.entity.table.FlexDemoEntityTableDef;
 import com.frame.me.tester.mapper.FlexDemoMapper;
 import com.frame.me.tester.service.IFlexDemoService;
 import com.frame.me.tester.service.convert.FlexDemoConvert;
@@ -124,7 +125,7 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
         QueryWrapper wrapper = QueryWrapper.create();
         // 用 TableDef 类型安全列名（APT 生成），替代裸字符串列名，
         // 列名重构时编译期报错而非运行期 SQL 失败
-        com.frame.me.tester.entity.table.FlexDemoEntityTableDef t = com.frame.me.tester.entity.table.FlexDemoEntityTableDef.FLEX_DEMO_ENTITY;
+        FlexDemoEntityTableDef t = FlexDemoEntityTableDef.FLEX_DEMO_ENTITY;
         if (StrUtil.isNotBlank(query.getName())) {
             wrapper.and(t.NAME.like(query.getName()));
         }

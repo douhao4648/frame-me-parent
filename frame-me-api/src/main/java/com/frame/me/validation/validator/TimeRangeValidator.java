@@ -79,6 +79,9 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
      * 依次尝试 getXxx / isXxx / 同名无参方法（record 访问器），反射结果按 Class+field 缓存.
      */
     private Object invokeAccessor(Object target, String fieldName) {
+        if (fieldName == null || fieldName.isEmpty()) {
+            return null;
+        }
         CacheKey cacheKey = new CacheKey(target.getClass(), fieldName);
         Method cached = ACCESSOR_CACHE.get(cacheKey);
         if (cached != null) {
