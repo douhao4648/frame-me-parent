@@ -182,7 +182,9 @@ class AuditLogAspectTest {
         ArgumentCaptor<AuditLogEvent> captor = ArgumentCaptor.forClass(AuditLogEvent.class);
         verify(publisher).publish(captor.capture());
 
-        assertThat(captor.getValue().getRecord().getParams()).contains("[serialize-error]");
+        // IgnoreErrorGetter：坏 getter 被跳过而非整体失败，序列化返回空对象 JSON（而非 [serialize-error]）
+        // 循环引用 / 栈溢出等极端场景才降级为占位符
+        assertThat(captor.getValue().getRecord().getParams()).contains("{}");
     }
 
     @Test

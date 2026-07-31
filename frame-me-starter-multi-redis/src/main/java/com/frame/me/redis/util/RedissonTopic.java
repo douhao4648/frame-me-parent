@@ -12,7 +12,7 @@ import org.redisson.api.listener.PatternMessageListener;
  */
 public final class RedissonTopic {
 
-    private static RedissonClient redissonClient;
+    private static volatile RedissonClient redissonClient;
 
     private RedissonTopic() {
     }
@@ -24,7 +24,7 @@ public final class RedissonTopic {
      *
      * @param client 默认实例的 Redisson 客户端
      */
-    public static void init(RedissonClient client) {
+    public static synchronized void init(RedissonClient client) {
         RedissonTopic.redissonClient = client;
     }
 

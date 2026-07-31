@@ -1,6 +1,7 @@
 package com.frame.me.op.audit.aspect;
 
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import com.frame.me.op.audit.annotation.AuditLog;
 import com.frame.me.op.audit.config.AuditProperties;
 import com.frame.me.op.audit.core.AuditLogEvent;
@@ -8,6 +9,8 @@ import com.frame.me.op.audit.core.AuditLogRecord;
 import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import com.frame.me.base.event.EventBridgePublisher;
 import com.frame.me.base.event.EventBridgeProperties;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -16,8 +19,10 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -25,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,12 +49,45 @@ public class AuditLogAspect {
 
     private static final SpelExpressionParser SPEL_PARSER = new SpelExpressionParser();
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\#([a-zA-Z_][\\w.]*)");
+    /** 标记已 warn 过参数名缺失，避免刷屏. */
+    private static final java.util.concurrent.atomic.AtomicBoolean WARNED_MISSING_PARAMETERS = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     private final ApplicationEventPublisher localPublisher;
     private final ObjectProvider<EventBridgePublisher> bridgePublisherProvider;
     private final IAuditLogOperatorSupplier operatorSupplier;
     private final AuditProperties properties;
     private final EventBridgeProperties eventBridgeProperties;
+
+    /**
+     * 异步发布执行器：同步模式为 null（直接 publish），异步模式为有界线程池.
+     */
+    private TaskExecutor publishExecutor;
+
+    @PostConstruct
+    void initPublishExecutor() {
+        if (!properties.getAsync().isEnabled()) {
+            return;
+        }
+        AuditProperties.Async cfg = properties.getAsync();
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(cfg.getCorePoolSize());
+        executor.setMaxPoolSize(cfg.getMaxPoolSize());
+        executor.setQueueCapacity(cfg.getQueueCapacity());
+        executor.setThreadNamePrefix("audit-publish-");
+        // 队列满时丢弃审计（Discard），不阻塞业务线程
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy());
+        executor.initialize();
+        this.publishExecutor = executor;
+        log.info("AuditLogAspect 异步发布已启用: core={}, max={}, queue={}",
+                cfg.getCorePoolSize(), cfg.getMaxPoolSize(), cfg.getQueueCapacity());
+    }
+
+    @PreDestroy
+    void shutdownPublishExecutor() {
+        if (publishExecutor instanceof ThreadPoolTaskExecutor tpte) {
+            tpte.shutdown();
+        }
+    }
 
     /**
      * 拦截 {@link AuditLog} 注解方法.
@@ -166,10 +205,31 @@ public class AuditLogAspect {
         for (int i = 0; i < parameters.length; i++) {
             names[i] = parameters[i].getName();
         }
+        // 检测未编译 -parameters：参数名回退为 arg0/arg1，审计日志参数名无意义，warn 一次提示
+        if (parameters.length > 0 && !parameters[0].isNamePresent() && WARNED_MISSING_PARAMETERS.compareAndSet(false, true)) {
+            log.warn("审计日志参数名缺失（编译未启用 -parameters），审计日志参数将显示为 arg0/arg1。"
+                    + "请在 maven-compiler-plugin 配置 <parameters>true</parameters> 启用参数名");
+        }
         return names;
     }
 
     private void publish(AuditLogRecord record) {
+        // 异步模式：提交到专用线程池，序列化已在业务线程完成（args/result 在方法返回后失效），
+        // 仅 publish（含 HTTP transport）异步化，队列满时丢弃审计（不阻塞业务）.
+        if (publishExecutor != null) {
+            try {
+                publishExecutor.execute(() -> doPublish(record));
+            } catch (RejectedExecutionException e) {
+                // DiscardPolicy 不抛 RejectedExecutionException，但兜底防御
+                log.warn("审计事件队列满，丢弃: action={}", record.getAction());
+            }
+            return;
+        }
+        // 同步模式：直接 publish（阻塞业务线程，但审计不丢）
+        doPublish(record);
+    }
+
+    private void doPublish(AuditLogRecord record) {
         try {
             AuditLogEvent event = new AuditLogEvent(record.getSourceService(), record, record.getTargetService());
             EventBridgePublisher bridge = bridgePublisherProvider.getIfAvailable();
@@ -201,7 +261,15 @@ public class AuditLogAspect {
             return null;
         }
         try {
-            return JSON.toJSONString(value);
+            // ReferenceDetection：处理循环引用（自引用实体），避免递归遍历至 StackOverflowError
+            // IgnoreErrorGetter：getter 抛异常时跳过该字段而非整体失败（如 Hibernate 懒加载代理）
+            return JSON.toJSONString(value,
+                    JSONWriter.Feature.ReferenceDetection,
+                    JSONWriter.Feature.IgnoreErrorGetter);
+        } catch (StackOverflowError e) {
+            // 极端循环引用即便 ReferenceDetection 也兜不住（如自定义反序列化），降级而非逃逸
+            log.warn("审计日志序列化栈溢出（疑似深层循环引用），降级为占位符");
+            return "[serialize-overflow]";
         } catch (Exception e) {
             log.warn("审计日志序列化失败", e);
             return "[serialize-error]";

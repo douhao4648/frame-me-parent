@@ -109,11 +109,11 @@ public class SaTokenAuthController {
      * <p>默认不做权限校验，业务方应通过路径规则自行保护（如
      * {@code "[/api/auth/admin/**]": "role:admin"}）。</p>
      */
-    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 强制踢出该用户的所有 Sa-Token 会话；默认关闭，需通过 me.auth.admin.logout.enabled=true 开启，开启后必须自行配置路径规则保护")
+    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 强制踢出该用户的所有 Sa-Token 会话；默认关闭，需通过 me.auth.admin.logout-enabled=true 开启，开启后必须自行配置路径规则保护")
     @PostMapping("/admin/logout/{userId}")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)
-            @PathVariable Long userId) {
+            @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties.Admin admin = authProperties.getAdmin();
         if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");

@@ -21,9 +21,12 @@ public final class AuthUserAuthenticator {
     /**
      * 哑 BCrypt hash：用户不存在时用于执行同等耗时的密码校验，
      * 消除「账号不存在快速 401 / 账号存在慢速 401」的响应时间差（账号枚举 oracle）。
-     * 对齐 Spring Security {@code DaoAuthenticationProvider} 的 userNotFoundPassword 机制。
+     * 对齐 Spring Security {@code DaoAuthenticationProvider} 的 userNotFoundPassword 机制.
+     *
+     * <p>每次 JVM 启动生成随机盐的哑 hash（而非固定公开字符串），
+     * 消除「固定 hash 被识别即判断账号不存在」的理论风险.</p>
      */
-    private static final String DUMMY_BCRYPT_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+    private static final String DUMMY_BCRYPT_HASH = com.frame.me.auth.util.PasswordUtils.encode("dummy-" + java.util.UUID.randomUUID());
 
     private AuthUserAuthenticator() {
     }

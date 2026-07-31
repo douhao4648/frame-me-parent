@@ -115,13 +115,20 @@ public class AuthPermissionHolder {
         if (isLoaded()) {
             return;
         }
-        var roles = provider.getRoles(user);
-        var permissions = provider.getPermissions(user);
-        var dataPermissions = provider.getDataPermissions(user);
-        setRoles(roles);
-        setPermissions(permissions);
-        setDataPermissions(dataPermissions);
-        LOADED.set(Boolean.TRUE);
+        try {
+            var roles = provider.getRoles(user);
+            var permissions = provider.getPermissions(user);
+            var dataPermissions = provider.getDataPermissions(user);
+            setRoles(roles);
+            setPermissions(permissions);
+            setDataPermissions(dataPermissions);
+            LOADED.set(Boolean.TRUE);
+        } catch (RuntimeException e) {
+            // 防御性 clear：provider 失败（DB/Redis 故障）时主动清理，防御未来调用方
+            // 遗漏 clear 导致 ThreadLocal 残留（半加载状态被 Tomcat 线程复用读到）
+            clear();
+            throw e;
+        }
     }
 
     /**

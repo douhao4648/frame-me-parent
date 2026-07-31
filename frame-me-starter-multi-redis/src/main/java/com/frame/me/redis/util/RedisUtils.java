@@ -14,7 +14,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RedisUtils {
 
     private static final Map<String, RedisClient> CLIENT_MAP = new ConcurrentHashMap<>();
-    private static String defaultClientName = "default";
+    // volatile：init 由启动线程写、请求线程读，保证可见性
+    private static volatile String defaultClientName = "default";
 
     private RedisUtils() {
     }
@@ -22,15 +23,16 @@ public final class RedisUtils {
     /**
      * 初始化工具类客户端映射.
      *
-     * <p>由 {@link com.frame.me.redis.config.RedisAutoConfiguration} 调用。</p>
+     * <p>由 {@link com.frame.me.redis.config.RedisAutoConfiguration} 调用.
+     * 同步防止并发 init 时 clear 与 putAll 交错导致瞬时读到空 Map.</p>
      *
      * @param defaultClientName 默认实例名称
      * @param stringTemplates   所有 StringRedisTemplate 实例
      * @param templates         所有 RedisTemplate 实例
      */
-    public static void init(String defaultClientName,
-                            Map<String, StringRedisTemplate> stringTemplates,
-                            Map<String, RedisTemplate<Object, Object>> templates) {
+    public static synchronized void init(String defaultClientName,
+                                          Map<String, StringRedisTemplate> stringTemplates,
+                                          Map<String, RedisTemplate<Object, Object>> templates) {
         RedisUtils.defaultClientName = defaultClientName;
         CLIENT_MAP.clear();
         stringTemplates.forEach((name, stringTemplate) -> {

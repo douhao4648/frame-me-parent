@@ -20,6 +20,11 @@
             <artifactId>frame-me-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-base</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>

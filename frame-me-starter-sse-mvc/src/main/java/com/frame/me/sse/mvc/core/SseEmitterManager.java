@@ -1,18 +1,24 @@
 package com.frame.me.sse.mvc.core;
 
 import com.alibaba.fastjson2.JSON;
+import com.frame.me.base.event.IReceiverIdAuthorizer;
+import com.frame.me.sse.mvc.SseConstant;
 import com.frame.me.sse.mvc.config.SseProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 
 /**
  * SSE Emitter 生命周期与路由管理.
@@ -24,11 +30,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class SseEmitterManager {
 
     private final SseProperties properties;
+    /**
+     * 可选的 receiverId 授权器：业务方注册 {@link IReceiverIdAuthorizer} Bean 后，
+     * 定向订阅时会校验 receiverId 与当前登录身份的归属，未注册则不校验（保持兼容）.
+     */
+    private final Optional<IReceiverIdAuthorizer> receiverIdAuthorizer;
 
     private final Map<String, List<SseEmitter>> broadcastEmitters = new ConcurrentHashMap<>();
     private final Map<String, Set<SseEmitter>> targetedEmitters = new ConcurrentHashMap<>();
     private final Map<SseEmitter, String> emitterToReceiver = new ConcurrentHashMap<>();
     private final Set<SseEmitter> activeEmitters = ConcurrentHashMap.newKeySet();
+
+    private static final Pattern SAFE_ID = Pattern.compile(SseConstant.SAFE_ID_PATTERN);
 
     /**
      * 注册广播订阅 Emitter.
@@ -37,6 +50,7 @@ public class SseEmitterManager {
      * @return SseEmitter
      */
     public SseEmitter registerBroadcast(String eventType) {
+        validateId(eventType, "eventType");
         checkEmitterLimit();
         SseEmitter emitter = createEmitter();
         activeEmitters.add(emitter);
@@ -56,6 +70,8 @@ public class SseEmitterManager {
      * @return SseEmitter
      */
     public SseEmitter registerTargeted(String receiverId) {
+        validateId(receiverId, "receiverId");
+        authorizeReceiverId(receiverId);
         checkEmitterLimit();
         SseEmitter emitter = createEmitter();
         activeEmitters.add(emitter);
@@ -129,7 +145,38 @@ public class SseEmitterManager {
     private void checkEmitterLimit() {
         int max = properties.getMaxEmitters();
         if (max > 0 && activeEmitters.size() >= max) {
-            throw new IllegalStateException("SSE emitter limit reached: " + max);
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "SSE emitter limit reached: " + max);
+        }
+    }
+
+    /**
+     * 校验 eventType / receiverId：非空、长度 ≤ {@link SseConstant#MAX_ID_LENGTH}、
+     * 仅含安全字符，防恶意超长或非法 key 撑爆 ConcurrentHashMap / 触发异常.
+     */
+    private void validateId(String id, String name) {
+        if (id == null || id.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, name + " 不能为空");
+        }
+        if (id.length() > SseConstant.MAX_ID_LENGTH) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    name + " 长度超过 " + SseConstant.MAX_ID_LENGTH);
+        }
+        if (!SAFE_ID.matcher(id).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    name + " 含非法字符，仅允许字母数字、冒号、下划线、短横");
+        }
+    }
+
+    /**
+     * 业务方注册了 {@link IReceiverIdAuthorizer} 时，校验当前请求是否有权订阅该 receiverId，
+     * 失败返回 403（fail-closed，防越权订阅他人事件）；未注册则跳过（由业务方自行保护）.
+     */
+    private void authorizeReceiverId(String receiverId) {
+        if (receiverIdAuthorizer.isPresent()
+                && !receiverIdAuthorizer.get().authorize(receiverId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "无权订阅 receiverId: " + receiverId);
         }
     }
 

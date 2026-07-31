@@ -138,7 +138,6 @@ class WebhookNotifyClientTest {
         WebhookChannelProperties properties = new WebhookChannelProperties();
         properties.setUrl(url);
         properties.setSecret(secret);
-        properties.setTimeout(2000);
         return new WebhookNotifyClient("test", properties, RestClient.builder(), includeErrorDetail);
     }
 }

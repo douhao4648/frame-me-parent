@@ -479,4 +479,31 @@ public class RedisClient {
         return result != null && result > 0;
     }
 
+    // ============================ Script / Misc ============================
+
+    /**
+     * 通过 String 通道执行 Lua 脚本.
+     *
+     * <p>与 {@link #set} / {@link #get} 同一 StringRedisSerializer 通道——不要改用 {@link #obj()}
+     * 执行脚本：其默认 JDK 序列化会把 key 编成不同字节，脚本操作的就不是同一个 key.</p>
+     *
+     * @param script Lua 脚本
+     * @param keys   脚本 KEYS
+     * @param args   脚本 ARGV
+     * @return 脚本返回值
+     */
+    public <T> T executeScript(RedisScript<T> script, List<String> keys, Object... args) {
+        return str().execute(script, keys, args);
+    }
+
+    /**
+     * 移除 key 的过期时间（PERSIST）.
+     *
+     * @param key 键
+     * @return 是否移除了过期时间（key 不存在或本就无 TTL 时为 false）
+     */
+    public Boolean persist(String key) {
+        return str().persist(key);
+    }
+
 }

@@ -50,9 +50,12 @@ public class WsMvcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public WsMvcSessionManager wsMvcSessionManager(WsMvcProperties properties) {
-        log.info("WsMvcSessionManager initialized, maxSessions={}, heartbeat={}", properties.getMaxSessions(), properties.getHeartbeatInterval());
-        return new WsMvcSessionManager(properties);
+    public WsMvcSessionManager wsMvcSessionManager(WsMvcProperties properties,
+                                                    org.springframework.beans.factory.ObjectProvider<com.frame.me.base.event.IReceiverIdAuthorizer> authorizerProvider) {
+        log.info("WsMvcSessionManager initialized, maxSessions={}, heartbeat={}, receiverIdAuthorizer={}",
+                properties.getMaxSessions(), properties.getHeartbeatInterval(),
+                authorizerProvider.getIfAvailable() != null);
+        return new WsMvcSessionManager(properties, java.util.Optional.ofNullable(authorizerProvider.getIfAvailable()));
     }
 
     @Bean
@@ -117,8 +120,13 @@ public class WsMvcAutoConfiguration {
             List<String> origins = properties.getAllowedOrigins();
             if (origins != null && !origins.isEmpty()) {
                 registration.setAllowedOrigins(origins.toArray(new String[0]));
+                if (origins.contains("*")) {
+                    log.warn("[me.ws.mvc.allowed-origins=*] WebSocket 已放开全部 Origin 限制，"
+                            + "存在跨站 WebSocket 劫持（CSWSH）风险，仅限开发环境，生产必须配置可信 Origin 白名单");
+                }
             } else {
-                registration.setAllowedOrigins("*");
+                // 空时不放宽跨域：不调 setAllowedOrigins("*")，仅允许同源连接，防 CSWSH
+                log.info("WebSocket MVC allowed-origins 未配置，仅允许同源连接（如需跨域请显式配置白名单）");
             }
             log.info("WebSocket MVC endpoint registered: {}", path);
         }

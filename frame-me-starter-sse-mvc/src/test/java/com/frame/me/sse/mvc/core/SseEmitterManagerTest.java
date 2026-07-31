@@ -21,12 +21,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SseEmitterManagerTest {
 
     private SseEmitterManager manager;
+    private SseProperties properties;
 
     @BeforeEach
     void setUp() {
-        SseProperties properties = new SseProperties();
+        properties = new SseProperties();
         properties.setTimeout(60000L);
-        manager = new SseEmitterManager(properties);
+        manager = new SseEmitterManager(properties, java.util.Optional.empty());
     }
 
     @Test
@@ -87,14 +88,89 @@ class SseEmitterManagerTest {
     void shouldEnforceMaxEmitters() {
         SseProperties props = new SseProperties();
         props.setMaxEmitters(2);
-        SseEmitterManager limited = new SseEmitterManager(props);
+        SseEmitterManager limited = new SseEmitterManager(props, java.util.Optional.empty());
 
         limited.registerBroadcast("a");
         limited.registerBroadcast("b");
 
+        // 超限返回 429（Too Many Requests），而非 500
         assertThatThrownBy(() -> limited.registerBroadcast("c"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("limit reached");
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .satisfies(ex -> {
+                    int status = ((org.springframework.web.server.ResponseStatusException) ex).getStatusCode().value();
+                    assertThat(status).isEqualTo(429);
+                });
+    }
+
+    @Test
+    void shouldRejectBlankEventType() {
+        assertThatThrownBy(() -> manager.registerBroadcast(""))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((org.springframework.web.server.ResponseStatusException) ex)
+                        .getStatusCode().value()).isEqualTo(400));
+    }
+
+    @Test
+    void shouldRejectIllegalEventType() {
+        // 含空格 / 斜杠等非法字符
+        assertThatThrownBy(() -> manager.registerBroadcast("user created"))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        assertThatThrownBy(() -> manager.registerBroadcast("user/created"))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+
+    @Test
+    void shouldRejectOverlongId() {
+        String tooLong = "a".repeat(129);
+        assertThatThrownBy(() -> manager.registerTargeted(tooLong))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((org.springframework.web.server.ResponseStatusException) ex)
+                        .getStatusCode().value()).isEqualTo(400));
+    }
+
+    @Test
+    void shouldRejectBlankReceiverId() {
+        assertThatThrownBy(() -> manager.registerTargeted(null))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+
+    /**
+     * 业务方注册了 IReceiverIdAuthorizer 且返回 false：拒绝订阅，403（fail-closed）.
+     */
+    @Test
+    void shouldRejectTargetedWhenAuthorizerDenies() {
+        com.frame.me.base.event.IReceiverIdAuthorizer denyAll = (String rid) -> false;
+        SseEmitterManager guarded = new SseEmitterManager(properties, java.util.Optional.of(denyAll));
+
+        assertThatThrownBy(() -> guarded.registerTargeted("user:123"))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .satisfies(ex -> assertThat(((org.springframework.web.server.ResponseStatusException) ex)
+                        .getStatusCode().value()).isEqualTo(403));
+        assertThat(guarded.activeEmitterCount()).isEqualTo(0);
+    }
+
+    /**
+     * 业务方注册了 IReceiverIdAuthorizer 且返回 true：放行订阅.
+     */
+    @Test
+    void shouldAllowTargetedWhenAuthorizerApproves() {
+        com.frame.me.base.event.IReceiverIdAuthorizer allowAll = (String rid) -> true;
+        SseEmitterManager guarded = new SseEmitterManager(properties, java.util.Optional.of(allowAll));
+
+        SseEmitter emitter = guarded.registerTargeted("user:123");
+        assertThat(emitter).isNotNull();
+        assertThat(guarded.activeEmitterCount()).isEqualTo(1);
+    }
+
+    /**
+     * 未注册 authorizer（Optional.empty）：不校验，保持兼容，正常订阅.
+     */
+    @Test
+    void shouldSkipAuthorizationWhenNoAuthorizer() {
+        // manager（Optional.empty()）已能正常订阅——覆盖一次确认
+        SseEmitter emitter = manager.registerTargeted("user:456");
+        assertThat(emitter).isNotNull();
+        assertThat(manager.targetedReceiverCount()).isEqualTo(1);
     }
 
     /**

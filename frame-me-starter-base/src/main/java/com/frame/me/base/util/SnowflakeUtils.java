@@ -33,10 +33,20 @@ public class SnowflakeUtils {
     /**
      * 生成下一个雪花 ID.
      *
+     * <p>Hutool 内置 {@code timeOffset} 容忍 ≤5ms 时钟回拨（等待到 lastTimestamp），
+     * 大幅回拨（NTP 大跳变）抛 {@link IllegalStateException}. 本方法捕获后短暂 sleep
+     * 重试一次（赌瞬时回拨恢复），仍失败则上抛——让调用方感知而非静默生成重复 ID.</p>
+     *
      * @return 长整型 ID
      */
     public static long nextId() {
-        return snowflake.nextId();
+        try {
+            return snowflake.nextId();
+        } catch (IllegalStateException e) {
+            // 时钟回拨超过 timeOffset：短暂等待让时钟追上，重试一次
+            sleepMillis(1);
+            return snowflake.nextId();
+        }
     }
 
     /**
@@ -45,7 +55,15 @@ public class SnowflakeUtils {
      * @return ID 字符串
      */
     public static String nextIdStr() {
-        return snowflake.nextIdStr();
+        return Long.toString(nextId());
+    }
+
+    private static void sleepMillis(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**

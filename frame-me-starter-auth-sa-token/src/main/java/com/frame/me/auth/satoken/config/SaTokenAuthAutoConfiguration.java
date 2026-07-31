@@ -117,8 +117,10 @@ public class SaTokenAuthAutoConfiguration {
             @Override
             public void addInterceptors(@NonNull InterceptorRegistry registry) {
                 registry.addInterceptor(new SaInterceptor(auth -> {
-                    // CORS 预检请求（OPTIONS）跳过 sa-token 规则校验，避免预检被鉴权拦截返回 401/403
-                    if ("OPTIONS".equalsIgnoreCase(SaHolder.getRequest().getMethod())) {
+                    // CORS 预检请求（OPTIONS）带 Origin 头时跳过 sa-token 规则校验，避免预检被鉴权拦截返回 401/403。
+                    // 与 AuthFilter 对齐：无 Origin 的 OPTIONS 非真预检，仍走正常鉴权链，防绕过。
+                    if ("OPTIONS".equalsIgnoreCase(SaHolder.getRequest().getMethod())
+                            && SaHolder.getRequest().getHeader("Origin") != null) {
                         return;
                     }
                     parsedRules.forEach((pattern, rule) ->

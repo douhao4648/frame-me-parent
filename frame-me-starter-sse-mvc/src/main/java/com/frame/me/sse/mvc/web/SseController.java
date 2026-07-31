@@ -18,6 +18,14 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 /**
  * SSE 订阅端点.
  *
+ * <p><b>鉴权由业务方叠加</b>：本 starter 是纯传输层，不依赖认证模块（避免传输层耦合认证）。
+ * 生产部署应通过 {@code frame-me-starter-auth-sa-token} 的 {@code me.auth.sa-token.rules}
+ * 或 {@code frame-me-starter-auth-rbac} 的 {@code me.auth.permission.rules} 配置路径规则保护
+ * {@code /api/sse/subscribe/**}，或自定义 {@code HandlerInterceptor} 做登录校验。</p>
+ *
+ * <p>DoS 防护：单实例最大并发 Emitter 数受 {@code me.sse.max-emitters}（默认 1000）限制，
+ * 超限返回 429；{@code eventType}/{@code receiverId} 做长度与字符白名单校验，非法返回 400.</p>
+ *
  * @author frame-me
  */
 @Tag(name = "SSE 订阅", description = "广播订阅、定向订阅")

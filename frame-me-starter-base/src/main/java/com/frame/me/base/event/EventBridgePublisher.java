@@ -1,7 +1,7 @@
 package com.frame.me.base.event;
 
 import com.alibaba.fastjson2.JSON;
-import com.frame.me.event.EventBridgeMessage;
+import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.event.MeApplicationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +14,11 @@ import java.util.Map;
  *
  * <p>统一入口：先发布本地事件，再按事件类型选择 transport 广播到跨服务通道。
  * 订阅了同一通道的其他服务实例会收到消息并还原为本地事件。</p>
+ *
+ * <p><b>本地发布与远程发送非原子</b>：{@link #publish} 先同步执行本地 {@code @EventListener}
+ * （可能已写库、发通知），再 {@code transport.send} 广播。远程发送失败时本地副作用已产生、
+ * 无法回滚——这是事件驱动的固有局限，真正原子需事务消息（本地消息表 + 轮询补偿）基础设施.
+ * 消费方必须幂等（跨服务事件「至少一次」语义），payload 应携带业务幂等键.</p>
  *
  * @author frame-me
  */

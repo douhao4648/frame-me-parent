@@ -32,10 +32,12 @@ public class SseAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SseEmitterManager sseEmitterManager(SseProperties properties) {
-        log.info("SseEmitterManager initialized, timeout={}, maxEmitters={}",
-                properties.getTimeout(), properties.getMaxEmitters());
-        return new SseEmitterManager(properties);
+    public SseEmitterManager sseEmitterManager(SseProperties properties,
+                                              org.springframework.beans.factory.ObjectProvider<com.frame.me.base.event.IReceiverIdAuthorizer> authorizerProvider) {
+        log.info("SseEmitterManager initialized, timeout={}, maxEmitters={}, receiverIdAuthorizer={}",
+                properties.getTimeout(), properties.getMaxEmitters(),
+                authorizerProvider.getIfAvailable() != null);
+        return new SseEmitterManager(properties, java.util.Optional.ofNullable(authorizerProvider.getIfAvailable()));
     }
 
     @Bean

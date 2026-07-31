@@ -6,7 +6,6 @@ import com.frame.me.notify.model.NotifyMessage;
 import com.frame.me.notify.model.NotifyResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -47,11 +46,9 @@ public class SmsNotifyClient implements INotifyClient {
         this.name = name;
         this.properties = properties;
         this.includeErrorDetail = includeErrorDetail;
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.getTimeout());
-        factory.setReadTimeout(properties.getTimeout());
+        // 复用注入的 RestClient.Builder（base 的 PoolingRestClientAutoConfiguration 提供连接池），
+        // 超时由 me.restclient.pool.* 统一配置（connect 5s / response 30s），不支持 per-client 超时
         this.restClient = restClientBuilder
-                .requestFactory(factory)
                 .defaultHeader("Content-Type", "application/json; charset=UTF-8")
                 .build();
     }

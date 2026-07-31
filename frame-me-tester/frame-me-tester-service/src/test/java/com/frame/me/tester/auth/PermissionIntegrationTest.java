@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 import java.util.Map;
 
@@ -37,7 +38,15 @@ class PermissionIntegrationTest {
     @LocalServerPort
     private int port;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = buildRestTemplate();
+
+    private static RestTemplate buildRestTemplate() {
+        // 设超时防 CI 卡死（连接 5s、读取 10s）
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5_000);
+        factory.setReadTimeout(10_000);
+        return new RestTemplate(factory);
+    }
 
     private String baseUrl() {
         return "http://localhost:" + port;

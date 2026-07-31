@@ -1,6 +1,7 @@
 package com.frame.me.ws.mvc.core;
 
 import com.alibaba.fastjson2.JSON;
+import com.frame.me.base.event.IReceiverIdAuthorizer;
 import com.frame.me.ws.mvc.WsMvcConstant;
 import com.frame.me.ws.mvc.config.WsMvcProperties;
 import lombok.AllArgsConstructor;
@@ -14,8 +15,10 @@ import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorato
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 /**
  * WebSocket Session 生命周期与路由管理.
@@ -27,12 +30,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WsMvcSessionManager {
 
     private final WsMvcProperties properties;
+    /**
+     * 可选的 receiverId 授权器：业务方注册 {@link IReceiverIdAuthorizer} Bean 后，
+     * 定向订阅时会校验 receiverId 与当前登录身份的归属，未注册则不校验（保持兼容）.
+     */
+    private final Optional<IReceiverIdAuthorizer> receiverIdAuthorizer;
 
     private final Map<String, Set<WebSocketSession>> broadcastSessions = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocketSession>> targetedSessions = new ConcurrentHashMap<>();
     private final Map<String, SessionMetadata> sessionMetadata = new ConcurrentHashMap<>();
     @Getter
     private final Set<WebSocketSession> allSessions = ConcurrentHashMap.newKeySet();
+
+    private static final Pattern SAFE_ID = Pattern.compile(WsMvcConstant.SAFE_ID_PATTERN);
 
     /**
      * 注册广播订阅 Session.
@@ -45,6 +55,7 @@ public class WsMvcSessionManager {
      * @param eventType 事件类型
      */
     public void registerBroadcast(WebSocketSession session, String eventType) {
+        validateId(eventType, "eventType");
         checkSessionLimit();
         WebSocketSession decorated = decorate(session);
         allSessions.add(decorated);
@@ -60,6 +71,8 @@ public class WsMvcSessionManager {
      * @param receiverId 接收者标识
      */
     public void registerTargeted(WebSocketSession session, String receiverId) {
+        validateId(receiverId, "receiverId");
+        authorizeReceiverId(receiverId);
         checkSessionLimit();
         WebSocketSession decorated = decorate(session);
         allSessions.add(decorated);
@@ -162,7 +175,38 @@ public class WsMvcSessionManager {
     private void checkSessionLimit() {
         int max = properties.getMaxSessions();
         if (max > 0 && allSessions.size() >= max) {
-            throw new IllegalStateException("WebSocket session limit reached: " + max);
+            // Handler 捕获后以 CloseStatus.TRY_AGAIN_LATER 优雅关闭，而非抛异常导致连接异常断开
+            throw new IllegalStateException("session-limit-reached:" + max);
+        }
+    }
+
+    /**
+     * 校验 eventType / receiverId：非空、长度 ≤ {@link WsMvcConstant#MAX_ID_LENGTH}、
+     * 仅含安全字符，防恶意超长或非法 key 撑爆 ConcurrentHashMap / 触发异常.
+     *
+     * @throws IllegalArgumentException 校验失败，Handler 捕获后以 CloseStatus.BAD_DATA 关闭连接
+     */
+    private void validateId(String id, String name) {
+        if (id == null || id.isEmpty()) {
+            throw new IllegalArgumentException(name + " 不能为空");
+        }
+        if (id.length() > WsMvcConstant.MAX_ID_LENGTH) {
+            throw new IllegalArgumentException(name + " 长度超过 " + WsMvcConstant.MAX_ID_LENGTH);
+        }
+        if (!SAFE_ID.matcher(id).matches()) {
+            throw new IllegalArgumentException(name + " 含非法字符，仅允许字母数字、冒号、下划线、短横");
+        }
+    }
+
+    /**
+     * 业务方注册了 {@link IReceiverIdAuthorizer} 时，校验当前请求是否有权订阅该 receiverId，
+     * 失败抛 {@link IllegalArgumentException}（Handler 捕获后以 BAD_DATA 关闭连接），
+     * 防越权订阅他人事件；未注册则跳过（由业务方自行保护）.
+     */
+    private void authorizeReceiverId(String receiverId) {
+        if (receiverIdAuthorizer.isPresent()
+                && !receiverIdAuthorizer.get().authorize(receiverId)) {
+            throw new IllegalArgumentException("无权订阅 receiverId: " + receiverId);
         }
     }
 

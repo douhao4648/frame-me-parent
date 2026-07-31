@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -116,6 +117,9 @@ class RedissonLockTest {
         CountDownLatch startLatch = new CountDownLatch(1);
         CountDownLatch doneLatch = new CountDownLatch(threadCount);
         AtomicInteger successCount = new AtomicInteger(0);
+        // 记录临界区内并发峰值：互斥锁应保证同一时刻最多 1 个线程在临界区
+        AtomicInteger inCriticalSection = new AtomicInteger(0);
+        AtomicInteger peak = new AtomicInteger(0);
 
         for (int i = 0; i < threadCount; i++) {
             executor.submit(() -> {
@@ -124,9 +128,13 @@ class RedissonLockTest {
                     if (RedissonLock.tryLock(key, 5000, 30000)) {
                         try {
                             successCount.incrementAndGet();
+                            int current = inCriticalSection.incrementAndGet();
+                            // 更新峰值
+                            peak.accumulateAndGet(current, Math::max);
                             // 模拟临界区耗时
                             Thread.sleep(50);
                         } finally {
+                            inCriticalSection.decrementAndGet();
                             RedissonLock.unlock(key);
                         }
                     }
@@ -142,8 +150,11 @@ class RedissonLockTest {
         assertTrue(doneLatch.await(30, TimeUnit.SECONDS), "所有线程应在超时前完成");
         executor.shutdown();
 
+        // 串行获取：所有线程最终都能拿到锁（5s 等待足够覆盖 10×50ms）
         assertTrue(successCount.get() >= 1, "至少应有一个线程获取到锁");
         assertTrue(successCount.get() <= threadCount, "成功次数不应超过线程数");
+        // 互斥性：临界区同一时刻最多 1 个线程（锁失效时并发峰值会 >1）
+        assertEquals(1, peak.get(), "临界区并发峰值应为 1（互斥锁）");
     }
 
     /**

@@ -80,16 +80,53 @@ class SaTokenAuthAutoConfigurationTest {
 
     /**
      * JWT Token 模式开启：StpLogic 被替换为 StpLogicJwtForSimple，但认证 Bean 仍保留.
+     *
+     * <p>必须同时配置 {@code sa-token.jwt-secret-key}，否则 {@link SaTokenJwtAutoConfiguration}
+     * 启动期 fail-fast 阻止上下文启动（见 {@link #jwtEnabled_withoutSecret_failsToStart}）.</p>
      */
     @Test
     void jwtEnabled_stpLogicIsJwt() {
-        runner.withPropertyValues("me.auth.sa-token.jwt.enabled=true")
+        runner.withPropertyValues(
+                        "me.auth.sa-token.jwt.enabled=true",
+                        "sa-token.jwt-secret-key=this-is-a-test-secret-key-at-least-32-bytes-long")
                 .run(context -> {
                     assertThat(context.getBean(cn.dev33.satoken.stp.StpLogic.class))
                             .isInstanceOf(StpLogicJwtForSimple.class);
                     assertThat(context).hasSingleBean(IAuthService.class);
                     assertThat(context).hasSingleBean(IAuthUserResolver.class);
                     assertThat(context).hasSingleBean(SaTokenAuthController.class);
+                });
+    }
+
+    /**
+     * JWT 模式开启但 jwt-secret-key 缺失：启动期 fail-fast，上下文启动失败.
+     */
+    @Test
+    void jwtEnabled_withoutSecret_failsToStart() {
+        runner.withPropertyValues("me.auth.sa-token.jwt.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .rootCause()
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("sa-token.jwt-secret-key");
+                });
+    }
+
+    /**
+     * JWT 模式开启但 jwt-secret-key 过短（&lt;32 字节）：启动期 fail-fast.
+     */
+    @Test
+    void jwtEnabled_shortSecret_failsToStart() {
+        runner.withPropertyValues(
+                        "me.auth.sa-token.jwt.enabled=true",
+                        "sa-token.jwt-secret-key=too-short")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .rootCause()
+                            .isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("长度不足");
                 });
     }
 

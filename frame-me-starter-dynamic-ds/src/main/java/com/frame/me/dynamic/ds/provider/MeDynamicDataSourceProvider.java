@@ -42,7 +42,9 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
     private static final String SPRING_DATASOURCE_PASSWORD = "spring.datasource.password";
     private static final String SPRING_DATASOURCE_DRIVER = "spring.datasource.driver-class-name";
     private static final String HIKARI_SOURCE_PREFIX = "spring.datasource.hikari.";
-    private static final String DRUID_SOURCE_PREFIX = "spring.datasource.druid.";
+    /** Druid 配置绑定前缀（不带末尾点），用于 Binder.bind，避免脆弱的 substring 截取. */
+    private static final String DRUID_BIND_PREFIX = "spring.datasource.druid";
+    private static final String DRUID_SOURCE_PREFIX = DRUID_BIND_PREFIX + ".";
 
     private final DefaultDataSourceCreator dataSourceCreator;
     private final ConfigurableEnvironment environment;
@@ -112,7 +114,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
         }
         try {
             Binder binder = Binder.get(environment);
-            binder.bind(DRUID_SOURCE_PREFIX.substring(0, DRUID_SOURCE_PREFIX.length() - 1), Bindable.of(DruidConfig.class))
+            binder.bind(DRUID_BIND_PREFIX, Bindable.of(DruidConfig.class))
                     .ifBound(property::setDruid);
         } catch (Exception e) {
             log.warn("Failed to bind Druid connection pool properties: {}", e.getMessage());
@@ -181,6 +183,11 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
         }
         if (targetType == Boolean.class || targetType == boolean.class) {
             return Boolean.parseBoolean(str);
+        }
+        // HikariCP 的 connectionTimeout / maxLifetime / idleTimeout 是 Duration 类型，
+        // 用 Spring Boot 的 DurationStyle 解析（支持 30000=30000ms、30s、2m 等格式）
+        if (targetType == java.time.Duration.class) {
+            return org.springframework.boot.convert.DurationStyle.detect(str).parse(str);
         }
         return value;
     }

@@ -49,7 +49,9 @@ public class AuthPropagationHolder {
      */
     public static Map<String, String> getHeaders() {
         Map<String, String> headers = HEADERS.get();
-        return headers == null ? Collections.emptyMap() : Collections.unmodifiableMap(new HashMap<>(headers));
+        // 直接包装原 Map 视图（无需拷贝）：ThreadLocal 的 Map 仅在 setHeaders/clear 时整体替换或移除，
+        // 返回的视图绑定当前那份 Map 引用，后续 set/clear 不影响本视图
+        return headers == null ? Collections.emptyMap() : Collections.unmodifiableMap(headers);
     }
 
     /**

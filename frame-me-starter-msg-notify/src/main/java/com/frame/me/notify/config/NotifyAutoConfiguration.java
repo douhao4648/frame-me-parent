@@ -12,7 +12,7 @@ import com.frame.me.notify.util.NotifyClientFactory;
 import com.frame.me.notify.webhook.WebhookNotifyClient;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -47,15 +47,23 @@ public class NotifyAutoConfiguration {
 
     private final List<INotifyTemplateEngine> templateEngines;
 
-    private final RestClient.Builder restClientBuilder;
+    private final ObjectProvider<RestClient.Builder> restClientBuilderProvider;
 
     public NotifyAutoConfiguration(NotifyProperties notifyProperties,
-                                   @Autowired(required = false) RestClient.Builder restClientBuilder) {
+                                   ObjectProvider<RestClient.Builder> restClientBuilderProvider) {
         this.notifyProperties = notifyProperties;
         this.templateEngines = new ArrayList<>();
         loadFreemarkerEngine();
         this.templateEngines.add(new PlaceholderTemplateEngine());
-        this.restClientBuilder = restClientBuilder != null ? restClientBuilder : RestClient.builder();
+        this.restClientBuilderProvider = restClientBuilderProvider;
+    }
+
+    /**
+     * 每个客户端取独立 Builder 实例（base 的 Builder Bean 为 prototype 作用域）：
+     * Builder 是可变对象，各客户端会叠加自己的 defaultHeader，共享同一实例会互相污染.
+     */
+    private RestClient.Builder newBuilder() {
+        return restClientBuilderProvider.getIfAvailable(RestClient::builder);
     }
 
     private void loadFreemarkerEngine() {
@@ -103,7 +111,7 @@ public class NotifyAutoConfiguration {
         // 注册默认 webhook 客户端
         WebhookChannelProperties webhook = notifyProperties.getWebhook();
         if (isWebhookConfigured(webhook)) {
-            clients.put("webhook", new WebhookNotifyClient("webhook", webhook, restClientBuilder, includeErrorDetail));
+            clients.put("webhook", new WebhookNotifyClient("webhook", webhook, newBuilder(), includeErrorDetail));
             channelDefaults.put("webhook", "webhook");
             log.info("Notify default client registered: name=webhook, type={}", "webhook");
         }
@@ -114,7 +122,7 @@ public class NotifyAutoConfiguration {
                 .orElse(Collections.emptyMap())
                 .forEach((name, props) -> {
                     if (isWebhookConfigured(props)) {
-                        clients.put("webhook:" + name, new WebhookNotifyClient(name, props, restClientBuilder, includeErrorDetail));
+                        clients.put("webhook:" + name, new WebhookNotifyClient(name, props, newBuilder(), includeErrorDetail));
                         log.info("Notify client registered: name=webhook:{}, type={}", name, "webhook");
                     }
                 });
@@ -122,7 +130,7 @@ public class NotifyAutoConfiguration {
         // 注册默认 sms 客户端
         SmsChannelProperties sms = notifyProperties.getSms();
         if (isSmsConfigured(sms)) {
-            clients.put("sms", new SmsNotifyClient("sms", sms, restClientBuilder, includeErrorDetail));
+            clients.put("sms", new SmsNotifyClient("sms", sms, newBuilder(), includeErrorDetail));
             channelDefaults.put("sms", "sms");
             log.info("Notify default client registered: name=sms, type={}", NotifyChannelType.SMS.getCode());
         }
@@ -133,7 +141,7 @@ public class NotifyAutoConfiguration {
                 .orElse(Collections.emptyMap())
                 .forEach((name, props) -> {
                     if (isSmsConfigured(props)) {
-                        clients.put("sms:" + name, new SmsNotifyClient(name, props, restClientBuilder, includeErrorDetail));
+                        clients.put("sms:" + name, new SmsNotifyClient(name, props, newBuilder(), includeErrorDetail));
                         log.info("Notify client registered: name=sms:{}, type={}", name, NotifyChannelType.SMS.getCode());
                     }
                 });

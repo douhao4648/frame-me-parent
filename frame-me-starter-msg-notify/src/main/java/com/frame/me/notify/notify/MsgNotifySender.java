@@ -55,7 +55,10 @@ public class MsgNotifySender implements INotifySender {
                 case "sms" -> NotifyUtils.sms();
                 default -> throw new IllegalArgumentException("Unsupported notify channel: " + channel);
             };
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            // IllegalStateException：该通道未配置默认客户端（如 NotifyClientFactory.getClient 抛）
+            // IllegalArgumentException：channel 不在 email/webhook/sms 支持范围内
+            // 两者都按「未配置」语义返回 false，不抛异常（符合类 Javadoc 契约）
             log.debug("Skip channel notify: {}", e.getMessage());
             return false;
         }

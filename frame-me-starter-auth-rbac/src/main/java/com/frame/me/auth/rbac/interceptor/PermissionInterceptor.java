@@ -43,8 +43,10 @@ public class PermissionInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
-        // CORS 预检请求（OPTIONS）直接放行，不参与权限校验
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        // CORS 预检请求（OPTIONS）带 Origin 头时直接放行，不参与权限校验。
+        // 与 AuthFilter 对齐：无 Origin 的 OPTIONS 非真预检，仍走正常权限链，防绕过。
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())
+                && request.getHeader("Origin") != null) {
             return true;
         }
         if (!isPermissionEnabled() || !(handler instanceof HandlerMethod handlerMethod)) {

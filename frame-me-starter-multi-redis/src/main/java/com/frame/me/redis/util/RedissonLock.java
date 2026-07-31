@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  */
 public final class RedissonLock {
 
-    private static RedissonClient redissonClient;
+    private static volatile RedissonClient redissonClient;
 
     private RedissonLock() {
     }
@@ -27,7 +27,7 @@ public final class RedissonLock {
      *
      * @param client 默认实例的 Redisson 客户端
      */
-    public static void init(RedissonClient client) {
+    public static synchronized void init(RedissonClient client) {
         RedissonLock.redissonClient = client;
     }
 

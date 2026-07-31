@@ -1,7 +1,7 @@
 package com.frame.me.redis.event;
 
 import com.frame.me.base.event.IEventTransport;
-import com.frame.me.event.EventBridgeMessage;
+import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.redis.util.RedissonTopic;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.listener.MessageListener;

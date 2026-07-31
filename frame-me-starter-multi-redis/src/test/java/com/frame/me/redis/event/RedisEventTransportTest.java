@@ -1,6 +1,6 @@
 package com.frame.me.redis.event;
 
-import com.frame.me.event.EventBridgeMessage;
+import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.redis.util.RedissonTopic;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

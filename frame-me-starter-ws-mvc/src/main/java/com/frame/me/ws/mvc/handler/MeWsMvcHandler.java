@@ -41,7 +41,17 @@ public class MeWsMvcHandler extends TextWebSocketHandler {
                 session.close(CloseStatus.POLICY_VIOLATION);
                 return;
             }
-            sessionManager.registerBroadcast(session, eventType);
+            try {
+                sessionManager.registerBroadcast(session, eventType);
+            } catch (IllegalStateException e) {
+                // 超过 maxSessions：1013 TRY_AGAIN_LATER（服务器过载），客户端应稍后重试
+                session.close(CloseStatus.SERVICE_OVERLOAD);
+                return;
+            } catch (IllegalArgumentException e) {
+                log.debug("WS broadcast rejected bad eventType: {}", e.getMessage());
+                session.close(CloseStatus.BAD_DATA);
+                return;
+            }
             log.debug("WS broadcast subscribe: session={}, eventType={}", session.getId(), eventType);
         } else if (WsMvcConstant.SUBSCRIBE_TARGETED.equalsIgnoreCase(subscribeType)) {
             String receiverId = params.get(WsMvcConstant.FIELD_RECEIVER_ID);
@@ -53,7 +63,17 @@ public class MeWsMvcHandler extends TextWebSocketHandler {
                 session.close(CloseStatus.POLICY_VIOLATION);
                 return;
             }
-            sessionManager.registerTargeted(session, receiverId);
+            try {
+                sessionManager.registerTargeted(session, receiverId);
+            } catch (IllegalStateException e) {
+                // 超过 maxSessions：1013 TRY_AGAIN_LATER（服务器过载），客户端应稍后重试
+                session.close(CloseStatus.SERVICE_OVERLOAD);
+                return;
+            } catch (IllegalArgumentException e) {
+                log.debug("WS targeted rejected bad receiverId: {}", e.getMessage());
+                session.close(CloseStatus.BAD_DATA);
+                return;
+            }
             log.debug("WS targeted subscribe: session={}, receiverId={}", session.getId(), receiverId);
         } else {
             session.close(CloseStatus.BAD_DATA);

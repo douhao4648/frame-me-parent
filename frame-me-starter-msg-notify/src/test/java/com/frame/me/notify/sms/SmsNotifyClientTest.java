@@ -143,7 +143,6 @@ class SmsNotifyClientTest {
         properties.setUrl(url);
         properties.setAppSecret(secret);
         properties.setSignName("FrameMe");
-        properties.setTimeout(2000);
         return new SmsNotifyClient("test", properties, RestClient.builder(), includeErrorDetail);
     }
 }

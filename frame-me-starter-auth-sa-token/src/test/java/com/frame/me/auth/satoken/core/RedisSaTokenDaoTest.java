@@ -12,19 +12,23 @@ import org.mockito.MockedStatic;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisKeyCommands;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -106,43 +110,32 @@ class RedisSaTokenDaoTest {
     }
 
     /**
-     * 更新：key 不存在（-2）→ 不写入.
+     * 更新：委托 Lua 脚本原子完成「读 PTTL → 按原 TTL 重写」，消除 TOCTOU 竞态.
+     *
+     * <p>脚本内部按 PTTL 分支（-2 跳过 / -1 永久重写 / >0 按原 TTL 重写），
+     * 单元测试验证委托调用，分支语义由 Lua 保证.
+     * 必须走 String 通道（{@link RedisClient#executeScript}，与 set 同一序列化），
+     * obj() 的 JDK 序列化会让脚本读到另一个 key（pttl 恒 -2 静默不写）.</p>
      */
     @Test
-    void update_keyMissing_skips() {
-        when(client.obj()).thenReturn(redisTemplate);
-        when(redisTemplate.getExpire(KEY, TimeUnit.MILLISECONDS)).thenReturn(SaTokenDao.NOT_VALUE_EXPIRE);
+    void update_delegatesToAtomicScriptViaStringChannel() {
+        when(client.executeScript(any(), anyList(), any())).thenReturn(1L);
 
         dao.update(KEY, "v1");
 
-        verify(client, never()).set(anyString(), anyString());
-        verify(client, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+        verify(client).executeScript(any(), anyList(), eq("v1"));
     }
 
     /**
-     * 更新：key 永不过期（-1）→ 无过期重写.
+     * 更新：key 不存在时脚本返回 0，不抛异常.
      */
     @Test
-    void update_neverExpire_rewritesWithoutExpire() {
-        when(client.obj()).thenReturn(redisTemplate);
-        when(redisTemplate.getExpire(KEY, TimeUnit.MILLISECONDS)).thenReturn(SaTokenDao.NEVER_EXPIRE);
+    void update_keyMissing_returnsSilently() {
+        when(client.executeScript(any(), anyList(), any())).thenReturn(0L);
 
         dao.update(KEY, "v1");
 
-        verify(client).set(KEY, "v1");
-    }
-
-    /**
-     * 更新：限时 key → 以剩余毫秒数重写（过期时间不变语义）.
-     */
-    @Test
-    void update_limitedKey_rewritesWithRemainingMs() {
-        when(client.obj()).thenReturn(redisTemplate);
-        when(redisTemplate.getExpire(KEY, TimeUnit.MILLISECONDS)).thenReturn(5000L);
-
-        dao.update(KEY, "v1");
-
-        verify(client).set(KEY, "v1", 5000L, TimeUnit.MILLISECONDS);
+        verify(client).executeScript(any(), anyList(), eq("v1"));
     }
 
     /**
@@ -171,11 +164,10 @@ class RedisSaTokenDaoTest {
      */
     @Test
     void updateTimeout_neverExpire_persistsKey() {
-        when(client.obj()).thenReturn(redisTemplate);
-
         dao.updateTimeout(KEY, SaTokenDao.NEVER_EXPIRE);
 
-        verify(redisTemplate).persist(KEY);
+        // 走 String 通道（client.persist），obj() 的 JDK 序列化会 PERSIST 到另一个 key
+        verify(client).persist(KEY);
         verify(client, never()).set(anyString(), anyString());
         verify(client, never()).expire(anyString(), any(Duration.class));
     }
@@ -190,11 +182,12 @@ class RedisSaTokenDaoTest {
     }
 
     /**
-     * 搜索：经原生连接 KEYS，pattern 组成为 prefix + "*" + keyword + "*"（prefix 即
+     * 搜索：经原生连接 SCAN 游标迭代，pattern 组成为 prefix + "*" + keyword + "*"（prefix 即
      * sa-token 传入的原样前缀），结果按 sa-token 语义分页.
      */
     @Test
-    void searchData_viaRawConnectionKeys() {
+    @SuppressWarnings("unchecked")
+    void searchData_viaScanCursor() {
         RedisConnectionFactory factory = mock(RedisConnectionFactory.class);
         RedisConnection connection = mock(RedisConnection.class);
         RedisKeyCommands keyCommands = mock(RedisKeyCommands.class);
@@ -203,20 +196,31 @@ class RedisSaTokenDaoTest {
         when(factory.getConnection()).thenReturn(connection);
         when(connection.keyCommands()).thenReturn(keyCommands);
 
-        Set<byte[]> rawKeys = new LinkedHashSet<>();
+        List<byte[]> rawKeys = new ArrayList<>();
         rawKeys.add("satoken:login:token:aaa".getBytes(StandardCharsets.UTF_8));
         rawKeys.add("satoken:login:token:aab".getBytes(StandardCharsets.UTF_8));
-        when(keyCommands.keys(any(byte[].class))).thenReturn(rawKeys);
+        Iterator<byte[]> it = rawKeys.iterator();
+        Cursor<byte[]> cursor = mock(Cursor.class);
+        when(cursor.hasNext()).thenAnswer(inv -> it.hasNext());
+        when(cursor.next()).thenAnswer(inv -> it.next());
+        when(keyCommands.scan(any(ScanOptions.class))).thenReturn(cursor);
 
         List<String> result = dao.searchData("satoken:login:token:", "aa", 0, 10, true);
 
-        ArgumentCaptor<byte[]> patternCaptor = ArgumentCaptor.forClass(byte[].class);
-        verify(keyCommands).keys(patternCaptor.capture());
-        assertThat(new String(patternCaptor.getValue(), StandardCharsets.UTF_8))
-                .isEqualTo("satoken:login:token:*aa*");
+        ArgumentCaptor<ScanOptions> optionsCaptor = ArgumentCaptor.forClass(ScanOptions.class);
+        verify(keyCommands).scan(optionsCaptor.capture());
         assertThat(result).containsExactly("satoken:login:token:aaa", "satoken:login:token:aab");
 
         // 分页语义与官方一致：start/size 截取
+        // 重新构造一个 cursor（上一个已迭代完）
+        Iterator<byte[]> it2 = List.of(
+                "satoken:login:token:aaa".getBytes(StandardCharsets.UTF_8),
+                "satoken:login:token:aab".getBytes(StandardCharsets.UTF_8)).iterator();
+        Cursor<byte[]> cursor2 = mock(Cursor.class);
+        when(cursor2.hasNext()).thenAnswer(inv -> it2.hasNext());
+        when(cursor2.next()).thenAnswer(inv -> it2.next());
+        when(keyCommands.scan(any(ScanOptions.class))).thenReturn(cursor2);
+
         assertThat(dao.searchData("satoken:login:token:", "aa", 1, 1, true))
                 .containsExactly("satoken:login:token:aab");
     }

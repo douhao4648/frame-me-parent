@@ -31,21 +31,15 @@ import org.springframework.context.annotation.Import;
 public class DocOpenApiAutoConfiguration {
 
     /**
-     * 缓存 OpenAPI 单例，避免在某些场景下被重复构建.
-     */
-    private OpenAPI cachedOpenAPI;
-
-    /**
      * 注册 OpenAPI 文档信息.
+     *
+     * <p>Spring {@code @Bean} 已保证单例，无需额外缓存字段.</p>
      *
      * @param properties OpenAPI 配置属性
      * @return OpenAPI
      */
     @Bean
     public OpenAPI openAPI(DocOpenApiProperties properties) {
-        if (cachedOpenAPI != null) {
-            return cachedOpenAPI;
-        }
         log.info("register OpenAPI doc：{}", properties.getTitle());
         Contact contact = new Contact();
         contact.setName(properties.getContact().getName());
@@ -58,7 +52,6 @@ public class DocOpenApiAutoConfiguration {
                 .version(properties.getVersion())
                 .contact(contact);
 
-        cachedOpenAPI = new OpenAPI().info(info);
-        return cachedOpenAPI;
+        return new OpenAPI().info(info);
     }
 }

@@ -1,6 +1,7 @@
 package com.frame.me.base.event;
 
 import com.frame.me.base.env.EnvironmentHelper;
+import com.frame.me.base.event.IEventErrorHandler;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -73,8 +74,10 @@ public class EventBridgeAutoConfiguration {
     @Bean
     public EventBridgeListener eventBridgeListener(ApplicationEventPublisher publisher,
                                                    EventBridgeProperties properties,
-                                                   Map<String, IEventTransport> transports) {
-        return new EventBridgeListener(publisher, properties, normalizeTransports(transports));
+                                                   Map<String, IEventTransport> transports,
+                                                   org.springframework.beans.factory.ObjectProvider<IEventErrorHandler> errorHandlerProvider) {
+        return new EventBridgeListener(publisher, properties, normalizeTransports(transports),
+                java.util.Optional.ofNullable(errorHandlerProvider.getIfAvailable()));
     }
 
     /**

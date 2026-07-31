@@ -46,7 +46,18 @@ class DecryptedPropertySource extends EnumerablePropertySource<Object> {
     public Object getProperty(String name) {
         Object value = delegate.getProperty(name);
         if (value instanceof String text && isEncrypted(text)) {
-            return decryptedCache.computeIfAbsent(name,
+            // 缓存键用 name + 密文：配置中心动态刷新密文后，同一 name 的 text 变化，
+            // 缓存自然失效重新解密，避免读到旧明文（密钥轮换不生效）
+            String cacheKey = name + "@" + text;
+            Object cached = decryptedCache.get(cacheKey);
+            if (cached != null) {
+                return cached;
+            }
+            // miss = 新密文首次读取：清掉同 name 的旧密文缓存项，防频繁轮换时缓存只增不减。
+            // 仅 miss 路径扫描（每轮一次），热路径 get 命中零开销
+            String stalePrefix = name + "@";
+            decryptedCache.keySet().removeIf(k -> k.startsWith(stalePrefix));
+            return decryptedCache.computeIfAbsent(cacheKey,
                     k -> encryptor.decrypt(text.substring(prefix.length(), text.length() - suffix.length())));
         }
         return value;

@@ -151,7 +151,8 @@ me:
     enabled: true
     jwt:
       enabled: true
-      secret: me-jwt-secret-key-at-least-32-characters-long-ksndifkwenkfj
+      # JWT 签名密钥：演示默认值仅供本地开发，生产环境必须通过环境变量 JWT_SECRET 配置强密钥
+      secret: ${JWT_SECRET:me-jwt-secret-key-at-least-32-characters-long-ksndifkwenkfj}
       issuer: me-tester
       access-token-expires: PT2H
       refresh-token-expires: P7D

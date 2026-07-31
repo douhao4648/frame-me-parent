@@ -1,18 +1,30 @@
 package com.frame.me.auth.jwt.web;
 
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
+import com.frame.me.auth.resolver.LoginUserArgumentResolver;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.base.user.User;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.List;
+
+import java.util.Set;
 
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -25,8 +37,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author frame-me
  */
 @WebMvcTest(JwtAuthController.class)
-@Import(JwtAuthProperties.class)
+@Import({JwtAuthProperties.class, JwtAuthControllerTest.LoginUserResolverConfig.class})
 class JwtAuthControllerTest {
+
+    /**
+     * 注册 {@link LoginUserArgumentResolver}，使 {@code @LoginUser} 参数能从 {@link AuthContext} 解析.
+     */
+    @Configuration(proxyBeanMethods = false)
+    static class LoginUserResolverConfig implements WebMvcConfigurer {
+        @Override
+        public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+            resolvers.add(new LoginUserArgumentResolver());
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,6 +59,11 @@ class JwtAuthControllerTest {
 
     @MockitoBean
     private AuthProperties authProperties;
+
+    @AfterEach
+    void clearContext() {
+        AuthContext.clear();
+    }
 
     @Test
     void testLoginSuccess() throws Exception {
@@ -95,7 +123,7 @@ class JwtAuthControllerTest {
     }
 
     @Test
-    void testAdminLogoutByUserId() throws Exception {
+    void adminLogout_enabledCallsService() throws Exception {
         AuthProperties.Admin admin = new AuthProperties.Admin();
         admin.setLogoutEnabled(true);
         when(authProperties.getAdmin()).thenReturn(admin);

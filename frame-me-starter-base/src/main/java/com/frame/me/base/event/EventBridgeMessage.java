@@ -1,5 +1,6 @@
-package com.frame.me.event;
+package com.frame.me.base.event;
 
+import com.frame.me.event.MeApplicationEvent;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

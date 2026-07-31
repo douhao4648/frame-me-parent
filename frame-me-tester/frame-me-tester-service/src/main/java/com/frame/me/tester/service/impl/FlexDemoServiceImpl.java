@@ -13,6 +13,7 @@ import com.frame.me.tester.mapper.FlexDemoMapper;
 import com.frame.me.tester.service.IFlexDemoService;
 import com.frame.me.tester.service.convert.FlexDemoConvert;
 import com.mybatisflex.annotation.UseDataSource;
+import org.springframework.transaction.annotation.Transactional;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryColumn;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -55,12 +56,18 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long create(FlexDemoDTO dto) {
         FlexDemoEntity entity = flexDemoConvert.toEntity(dto);
         flexDemoMapper.insert(entity);
         return entity.getId();
     }
 
+    /**
+     * 跨数据源写入：MyBatis-Flex 原生多数据源不支持跨库 XA 事务，
+     * {@code @UseDataSource} 仅切换路由、不等价于 {@code @Transactional}，
+     * 此方法单库单表写入，事务由本库连接保证；跨库一致性需引入 Seata 等.
+     */
     @Override
     @UseDataSource("second")
     public Long createInSecond(FlexDemoDTO dto) {
@@ -70,6 +77,7 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean update(Long id, FlexDemoDTO dto) {
         FlexDemoEntity exist = flexDemoMapper.selectOneById(id);
         if (exist == null) {
@@ -87,6 +95,7 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean delete(Long id) {
         FlexDemoEntity exist = flexDemoMapper.selectOneById(id);
         if (exist == null) {
@@ -113,11 +122,14 @@ public class FlexDemoServiceImpl implements IFlexDemoService {
 
     private QueryWrapper buildWrapper(FlexDemoQuery query) {
         QueryWrapper wrapper = QueryWrapper.create();
+        // 用 TableDef 类型安全列名（APT 生成），替代裸字符串列名，
+        // 列名重构时编译期报错而非运行期 SQL 失败
+        com.frame.me.tester.entity.table.FlexDemoEntityTableDef t = com.frame.me.tester.entity.table.FlexDemoEntityTableDef.FLEX_DEMO_ENTITY;
         if (StrUtil.isNotBlank(query.getName())) {
-            wrapper.and(new QueryColumn("name").like(query.getName()));
+            wrapper.and(t.NAME.like(query.getName()));
         }
         if (query.getAge() != null) {
-            wrapper.and(new QueryColumn("age").eq(query.getAge()));
+            wrapper.and(t.AGE.eq(query.getAge()));
         }
         wrapper.orderBy(PageUtils.toOrderBy(query, "create_time"));
         return wrapper;

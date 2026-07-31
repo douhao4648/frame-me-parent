@@ -65,16 +65,23 @@ public class AuthFilter implements Filter {
 
         // ERROR dispatch（容器 /error 转发）直接放行：
         // 不过滤可让 404/servlet 级异常的真实状态码不被 401 掩盖。
-        // 不清理 AuthContext —— 该 ThreadLocal 由 REQUEST dispatch 的 finally 负责清理
+        // 防御性 clear：正常场景 REQUEST dispatch 的 finally 已清理 AuthContext，
+        // 但若 ERROR 路径上有其他组件调了 setUser，此处兜底防 ThreadLocal 残留（线程复用泄漏）
         if (request.getDispatcherType() == DispatcherType.ERROR) {
-            chain.doFilter(request, response);
+            try {
+                chain.doFilter(request, response);
+            } finally {
+                AuthContext.clear();
+            }
             return;
         }
 
-        // CORS 预检请求（OPTIONS）直接放行，不参与认证：
+        // CORS 预检请求（OPTIONS）带 Origin 头时直接放行，不参与认证：
         // 预检由 CorsFilter（若启用）在更早优先级处理；此处为兜底，
-        // 避免业务自定义 filter 顺序或 @CrossOrigin 场景下预检被认证拦截返回 401
-        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
+        // 避免业务自定义 filter 顺序或 @CrossOrigin 场景下预检被认证拦截返回 401。
+        // 要求 Origin 头：无 Origin 的 OPTIONS 非真预检，仍走正常鉴权链，防绕过
+        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())
+                && httpRequest.getHeader("Origin") != null) {
             chain.doFilter(request, response);
             return;
         }

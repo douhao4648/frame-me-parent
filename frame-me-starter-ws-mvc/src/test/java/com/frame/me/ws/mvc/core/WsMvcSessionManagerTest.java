@@ -34,7 +34,7 @@ class WsMvcSessionManagerTest {
     @BeforeEach
     void setUp() {
         properties = new WsMvcProperties();
-        manager = new WsMvcSessionManager(properties);
+        manager = new WsMvcSessionManager(properties, java.util.Optional.empty());
     }
 
     @Test
@@ -102,14 +102,81 @@ class WsMvcSessionManagerTest {
     @Test
     void shouldEnforceMaxSessions() {
         properties.setMaxSessions(2);
-        WsMvcSessionManager limited = new WsMvcSessionManager(properties);
+        WsMvcSessionManager limited = new WsMvcSessionManager(properties, java.util.Optional.empty());
 
         limited.registerBroadcast(mockSession("s1"), "a");
         limited.registerBroadcast(mockSession("s2"), "b");
 
+        // 超限抛 IllegalStateException（Handler 捕获后以 TRY_AGAIN_LATER 关闭）
         assertThatThrownBy(() -> limited.registerBroadcast(mockSession("s3"), "c"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("limit reached");
+                .hasMessageContaining("session-limit-reached");
+    }
+
+    @Test
+    void shouldRejectBlankEventType() {
+        assertThatThrownBy(() -> manager.registerBroadcast(mockSession("s1"), ""))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> manager.registerBroadcast(mockSession("s1"), null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectIllegalEventType() {
+        // 含空格 / 斜杠等非法字符
+        assertThatThrownBy(() -> manager.registerBroadcast(mockSession("s1"), "user created"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> manager.registerBroadcast(mockSession("s1"), "user/created"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectOverlongReceiverId() {
+        String tooLong = "a".repeat(129);
+        assertThatThrownBy(() -> manager.registerTargeted(mockSession("s1"), tooLong))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldRejectBlankReceiverId() {
+        assertThatThrownBy(() -> manager.registerTargeted(mockSession("s1"), ""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * 业务方注册了 IReceiverIdAuthorizer 且返回 false：拒绝订阅（IllegalArgumentException，
+     * Handler 捕获后以 BAD_DATA 关闭）.
+     */
+    @Test
+    void shouldRejectTargetedWhenAuthorizerDenies() {
+        com.frame.me.base.event.IReceiverIdAuthorizer denyAll = rid -> false;
+        WsMvcSessionManager guarded = new WsMvcSessionManager(properties, java.util.Optional.of(denyAll));
+
+        assertThatThrownBy(() -> guarded.registerTargeted(mockSession("s1"), "user:123"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("无权订阅");
+        assertThat(guarded.activeSessionCount()).isEqualTo(0);
+    }
+
+    /**
+     * 业务方注册了 IReceiverIdAuthorizer 且返回 true：放行订阅.
+     */
+    @Test
+    void shouldAllowTargetedWhenAuthorizerApproves() {
+        com.frame.me.base.event.IReceiverIdAuthorizer allowAll = rid -> true;
+        WsMvcSessionManager guarded = new WsMvcSessionManager(properties, java.util.Optional.of(allowAll));
+
+        guarded.registerTargeted(mockSession("s1"), "user:123");
+        assertThat(guarded.activeSessionCount()).isEqualTo(1);
+    }
+
+    /**
+     * 未注册 authorizer（Optional.empty）：不校验，保持兼容，正常订阅.
+     */
+    @Test
+    void shouldSkipAuthorizationWhenNoAuthorizer() {
+        manager.registerTargeted(mockSession("s1"), "user:456");
+        assertThat(manager.targetedReceiverCount()).isEqualTo(1);
     }
 
     /**

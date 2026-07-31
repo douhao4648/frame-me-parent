@@ -113,11 +113,11 @@ public class JwtAuthController {
      * <p>默认不做权限校验，业务方应通过路径规则自行保护（如
      * {@code "[/api/auth/admin/**]": "role('admin')"}）。</p>
      */
-    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 清除该用户的 Refresh Token；已颁发的 Access Token 仍会在自然过期前有效；默认关闭，需通过 me.auth.admin.logout.enabled=true 开启，开启后必须自行配置路径规则保护")
+    @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 清除该用户的 Refresh Token；已颁发的 Access Token 仍会在自然过期前有效；默认关闭，需通过 me.auth.admin.logout-enabled=true 开启，开启后必须自行配置路径规则保护")
     @PostMapping("/admin/logout/{userId}")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)
-            @PathVariable Long userId) {
+            @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties.Admin admin = authProperties.getAdmin();
         if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");
@@ -152,7 +152,12 @@ public class JwtAuthController {
     }
 
     private TokenVO buildTokenResponse(String tokenPair, HttpServletResponse response) {
-        String[] parts = tokenPair.split(";");
+        // split(";", 2) 限制拆分 2 段，防止 refresh token 含分号时被截断；
+        // 长度校验防数组越界（tokenPair 格式异常时不静默截断，明确报错）
+        String[] parts = tokenPair.split(";", 2);
+        if (parts.length < 2) {
+            throw new IllegalStateException("Token pair 格式异常：缺少分号分隔");
+        }
         String accessToken = parts[0];
         String refreshToken = parts[1];
         if (isCookieMode()) {

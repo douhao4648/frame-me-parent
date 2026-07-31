@@ -232,16 +232,31 @@ class PermissionInterceptorTest {
     }
 
     /**
-     * OPTIONS 预检请求即使命中 {@code @RequireAuth} 方法且未登录，也直接放行，不返回 401：
+     * OPTIONS 预检请求带 Origin 头时，即使命中 {@code @RequireAuth} 方法且未登录，也直接放行，不返回 401：
      * 预检不应被权限校验拦截，否则浏览器跨域预检失败。
+     * 与 AuthFilter 的『OPTIONS + Origin』豁免口径一致。
      */
     @Test
-    void testOptionsPreflightPassesWithoutAuth() throws Exception {
+    void testOptionsPreflightWithOriginPassesWithoutAuth() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
         when(request.getMethod()).thenReturn("OPTIONS");
+        when(request.getHeader("Origin")).thenReturn("https://app.example.com");
 
         assertTrue(preHandle("adminOnly", request));
         verifyNoInteractions(errorResponseWriter);
+    }
+
+    /**
+     * 无 Origin 的 OPTIONS 非真 CORS 预检，不豁免，走正常权限链（防绕过）.
+     * 命中 {@code @RequireAuth} 且无 AuthContext 时应被拦截（preHandle 返回 false）。
+     */
+    @Test
+    void testOptionsWithoutOriginNotSkipped() throws Exception {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getMethod()).thenReturn("OPTIONS");
+        when(request.getHeader("Origin")).thenReturn(null);
+
+        assertFalse(preHandle("adminOnly", request));
     }
 
     private boolean preHandle(String methodName) throws Exception {

@@ -2,7 +2,7 @@ package com.frame.me.tester.event;
 
 import com.frame.me.base.event.EventBridgeListener;
 import com.frame.me.base.event.EventBridgePublisher;
-import com.frame.me.event.EventBridgeMessage;
+import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.redis.util.RedissonTopic;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;

@@ -90,17 +90,16 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
         }
         String key = key(user.getId());
 
-        UserPermissionSnapshot snapshot = localCache.getIfPresent(key);
-        if (snapshot != null) {
-            return snapshot;
-        }
-
-        snapshot = cacheStore.get(key);
-        if (snapshot == null) {
-            snapshot = loadFromSource(user);
-            cacheStore.set(key, snapshot, properties.getRedisTtl());
-        }
-        localCache.put(key, snapshot);
+        // Caffeine.get(key, mappingFunction) 原子加载：同 key 多线程只执行一次 mappingFunction，
+        // 内置 single-flight 消除缓存击穿（L1 miss + L2 miss 时不会并发回源多次）
+        UserPermissionSnapshot snapshot = localCache.get(key, k -> {
+            UserPermissionSnapshot cached = cacheStore.get(k);
+            if (cached == null) {
+                cached = loadFromSource(user);
+                cacheStore.set(k, cached, properties.getRedisTtl());
+            }
+            return cached;
+        });
         return snapshot;
     }
 

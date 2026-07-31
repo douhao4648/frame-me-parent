@@ -50,8 +50,10 @@ public class PermissionFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        // CORS 预检请求（OPTIONS）直接放行，不参与权限校验
-        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
+        // CORS 预检请求（OPTIONS）带 Origin 头时直接放行，不参与权限校验。
+        // 与 AuthFilter 对齐：无 Origin 的 OPTIONS 非真预检，仍走正常权限链，防绕过。
+        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())
+                && httpRequest.getHeader("Origin") != null) {
             chain.doFilter(request, response);
             return;
         }
@@ -95,14 +97,18 @@ public class PermissionFilter implements Filter {
         // 使用应用内路径匹配：getRequestURI() 含 context-path，
         // 配置 server.servlet.context-path 后会导致规则全部失配（静默放行，fail-open）
         String uri = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
-        for (Map.Entry<String, String> entry : properties.getRules().entrySet()) {
-            // 平滑兼容误带 context-path 前缀的规则写法
-            String pattern = ContextPathUtils.stripContextPath(entry.getKey(), request.getContextPath());
-            if (pathMatcher.match(pattern, uri)) {
-                return entry.getValue();
-            }
-        }
-        return null;
+        String contextPath = request.getContextPath();
+        // 命中的多条规则取最具体的 pattern（AntPathMatcher 官方比较器：精确 > 单段通配 > **，
+        // 最具体排最前，故取 min），避免 /api/** 在前把 /api/admin/** 降级为更宽松规则（fail-open）。
+        // 不用字符串长度近似：长度相近时（如 /api/user-* 比 /api/users 更长）会选错.
+        // 不改原 Map 顺序，仅本次匹配的局部排序.
+        java.util.Comparator<String> specificity = pathMatcher.getPatternComparator(uri);
+        return properties.getRules().entrySet().stream()
+                .map(e -> Map.entry(ContextPathUtils.stripContextPath(e.getKey(), contextPath), e.getValue()))
+                .filter(e -> pathMatcher.match(e.getKey(), uri))
+                .min((a, b) -> specificity.compare(a.getKey(), b.getKey()))
+                .map(Map.Entry::getValue)
+                .orElse(null);
     }
 
     private void writeError(HttpServletResponse response, ResultCode resultCode) throws IOException {

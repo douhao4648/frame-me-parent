@@ -1,6 +1,8 @@
 package com.frame.me.auth.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
@@ -11,6 +13,7 @@ import java.util.List;
  *
  * @author frame-me
  */
+@Slf4j
 @Data
 @ConfigurationProperties(prefix = "me.auth")
 public class AuthProperties {
@@ -58,6 +61,35 @@ public class AuthProperties {
     private Propagate propagate = new Propagate();
 
     /**
+     * 启动期安全检查：对高风险配置打 WARN（防御配置遗忘，不硬编码权限，保留现有权限体系的灵活性）.
+     *
+     * <p><b>必须放在顶层配置类</b>：嵌套配置对象（{@link Admin} / {@link Propagate}）由
+     * Spring Boot Binder 实例化、不是 Spring Bean，{@code @PostConstruct} 标在嵌套类上永远不会执行.</p>
+     */
+    @PostConstruct
+    void warnOnSecurityRisks() {
+        // 启用强制登出但未确认已配保护：提醒为 /admin/** 配置路径规则
+        if (Boolean.TRUE.equals(admin.getLogoutEnabled())
+                && Boolean.TRUE.equals(admin.getWarnIfEnabledWithoutProtection())) {
+            log.warn("[me.auth.admin.logout-enabled=true] 管理员强制登出接口已启用，"
+                    + "请确保已为 /admin/** 配置 sa-token 路径规则（如 [/api/auth/admin/**]: role:admin）"
+                    + "或 RBAC 权限规则或自定义拦截器，否则任意已登录用户可强制登出他人。"
+                    + "已配好规则可设 me.auth.admin.warn-if-enabled-without-protection=false 关闭此提醒");
+        }
+        // service-discovery 开启：单标签主机名短路独立于 allowed-hosts 白名单生效，
+        // 真服务名天然可信，但 SSRF / DNS 重绑定场景下恶意单标签也会被误判可信
+        if (Boolean.TRUE.equals(propagate.getEnabled())
+                && Boolean.TRUE.equals(propagate.getServiceDiscovery().getEnabled())
+                && Boolean.TRUE.equals(propagate.getWarnOnOpenServiceDiscovery())) {
+            log.warn("[me.auth.propagate.service-discovery.enabled=true] 认证头会对所有单标签主机名无条件传播，"
+                    + "含 localhost / order-service 等真服务名，也含 evil / attacker 等恶意单标签（SSRF / DNS 重绑定风险）。"
+                    + "建议关闭 me.auth.propagate.service-discovery.enabled 收紧到仅白名单放行，"
+                    + "或确认环境可控后设 me.auth.propagate.warn-on-open-service-discovery=false 关闭此提醒");
+        }
+    }
+
+
+    /**
      * 管理员接口开关配置.
      */
     @Data
@@ -70,6 +102,14 @@ public class AuthProperties {
          * 自行保护，避免任意已登录/匿名用户可踢掉他人。</p>
          */
         private Boolean logoutEnabled = false;
+
+        /**
+         * 启用强制登出时是否打 WARN 提醒配置路径规则保护，默认 {@code true}.
+         *
+         * <p>默认开启防御配置遗忘：{@code logout-enabled=true} 时会打 WARN 提醒为 {@code /admin/**}
+         * 配置路径规则。业务方已确认配好规则后可设 {@code false} 关闭，消除启动日志噪音。</p>
+         */
+        private Boolean warnIfEnabledWithoutProtection = true;
     }
 
     /**
@@ -102,6 +142,13 @@ public class AuthProperties {
          * 是否启用认证信息传播，默认启用.
          */
         private Boolean enabled = true;
+
+        /**
+         * 是否在 service-discovery 开启且 allowed-hosts 为空时打 WARN，默认 {@code true}.
+         *
+         * <p>业务方确认部署环境可控（无 SSRF 风险）后可设 {@code false} 关闭噪音.</p>
+         */
+        private Boolean warnOnOpenServiceDiscovery = true;
 
         /**
          * 异步线程认证上下文传播配置.

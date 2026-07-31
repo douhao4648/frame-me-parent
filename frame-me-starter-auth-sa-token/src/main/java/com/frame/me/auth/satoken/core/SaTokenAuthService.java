@@ -64,8 +64,14 @@ public class SaTokenAuthService implements IAuthService {
         }
         try {
             StpUtil.logout();
+        } catch (cn.dev33.satoken.exception.NotLoginException e) {
+            // 未登录场景：登出本就无意义，静默忽略
+            log.debug("Sa-Token 登出时未登录（忽略）: {}", e.getMessage());
         } catch (Exception e) {
-            log.debug("Sa-Token 登出异常（忽略）: {}", e.getMessage());
+            // 基础设施故障（如 Redis 不可达）：会话未真正注销，token 仍可用，
+            // 不吞成成功——log.warn 提示并上抛，让调用方感知（对齐 JWT 模块 refresh 的不吞语义）
+            log.warn("Sa-Token 登出失败（会话可能未注销，token 仍有效）: {}", e.getMessage());
+            throw e;
         }
     }
 

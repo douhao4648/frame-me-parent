@@ -50,9 +50,13 @@ public class SseProperties {
     private boolean targetedEnabled = true;
 
     /**
-     * 单服务实例最大并发 Emitter 数，0 表示无限制，默认 0.
+     * 单服务实例最大并发 Emitter 数，默认 1000.
+     *
+     * <p>每个 SSE 长连接占用一个 Servlet 容器线程 + Emitter 句柄，无上限时
+     * 任意客户端可建数万连接打满线程池/堆内存（DoS）。默认 1000 兜底，
+     * 超限返回 429（Too Many Requests），业务方可按实例规格调大.</p>
      */
-    private int maxEmitters = 0;
+    private int maxEmitters = 1000;
 
     /**
      * SSE 订阅接口基础路径，默认 {@code /api/sse}.

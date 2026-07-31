@@ -91,6 +91,16 @@ class MsgNotifySenderTest {
     }
 
     /**
+     * 不支持的 channel（如 wechat）返回 false 而非抛 IllegalArgumentException（符合"不抛异常"契约）.
+     */
+    @Test
+    void sendChannelShouldReturnFalseWhenChannelUnsupported() {
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+
+        assertThat(sender.sendChannel("wechat", "title", "content", List.of("r@example.com"))).isFalse();
+    }
+
+    /**
      * channel 为 null / 空白时返回 false 而非抛 NPE（符合"不抛异常"契约）.
      */
     @Test

@@ -57,7 +57,7 @@
   - `com.frame.me.base.util.SnowflakeUtils` — 雪花 ID 生成工具，优先使用 MyBatis-Plus / MyBatis-Flex 的生成器实例，其次使用 base 的 `Snowflake` Bean，最后回退到 Hutool 默认生成器。
   - `com.frame.me.base.web.IFilterErrorResponseWriter` — Filter 层错误响应写入器 SPI，允许业务模块自定义 Filter 层错误消息体格式。
   - `com.frame.me.base.web.ResultFilterErrorResponseWriter` — 默认实现，输出 `Result` 格式 JSON。
-  - `com.frame.me.base.config.CorsAutoConfiguration` / `com.frame.me.base.config.CorsProperties` — CORS 跨域自动配置（默认关闭，`me.cors.enabled=true` 开启）；带 `@ConditionalOnWebApplication(type=SERVLET)`，非 Web 应用（纯消息/定时任务服务）不装配。开启后注册最高优先级（`HIGHEST_PRECEDENCE`）的 `CorsFilter`，早于 `AuthFilter` 处理 OPTIONS 预检并附加 CORS 响应头。认证链（`AuthFilter` / `PermissionFilter` / `PermissionInterceptor` / sa-token `SaInterceptor`）对 OPTIONS 预检亦各自豁免作兜底，避免预检被鉴权拦截返回 401/403 导致浏览器跨域失败。
+  - `com.frame.me.base.config.CorsAutoConfiguration` / `com.frame.me.base.config.CorsProperties` — CORS 跨域自动配置（默认关闭，`me.cors.enabled=true` 开启）；带 `@ConditionalOnWebApplication(type=SERVLET)`，非 Web 应用（纯消息/定时任务服务）不装配。开启后注册最高优先级（`HIGHEST_PRECEDENCE`）的 `CorsFilter`，早于 `AuthFilter` 处理 OPTIONS 预检并附加 CORS 响应头。认证链（`AuthFilter` / `PermissionFilter` / `PermissionInterceptor` / sa-token `SaInterceptor`）对 OPTIONS 预检亦各自豁免作兜底，避免预检被鉴权拦截返回 401/403 导致浏览器跨域失败；豁免口径统一为 **OPTIONS 且带 `Origin` 头**——无 `Origin` 的 OPTIONS 非真预检，仍走正常鉴权链以防绕过。
 - **自动装配**：通过 `frame-me-starter-base/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `BaseAutoConfiguration`、`CorsAutoConfiguration`、`HttpServiceClientAutoConfiguration`、`PoolingRestClientAutoConfiguration`、`AsyncAutoConfiguration`、`SchedulingAutoConfiguration`、`EventBridgeAutoConfiguration`。
 - **可配置项**：
   - `me.async.enabled` — 是否启用默认 `@Async` 线程池，默认 `true`。
@@ -324,7 +324,7 @@ me:
   - `com.frame.me.auth.util.PasswordUtils` — BCrypt 密码加解密工具。
   - `com.frame.me.auth.annotation.LoginUser` — 注入当前用户参数注解。
   - `com.frame.me.auth.annotation.Anonymous` — 匿名访问白名单注解。
-  - `com.frame.me.auth.filter.AuthFilter` — 认证过滤器，解析并写入当前用户；ERROR dispatch（容器 `/error` 转发）直接放行，不掩盖 404/servlet 级异常的真实状态码；OPTIONS 预检请求直接放行，不参与认证（预检由 `CorsFilter` 在更早优先级处理，此处为兜底）。
+  - `com.frame.me.auth.filter.AuthFilter` — 认证过滤器，解析并写入当前用户；ERROR dispatch（容器 `/error` 转发）直接放行，不掩盖 404/servlet 级异常的真实状态码；OPTIONS 预检请求带 `Origin` 头时直接放行，不参与认证（预检由 `CorsFilter` 在更早优先级处理，此处为兜底；无 `Origin` 的 OPTIONS 非真预检，走正常鉴权链防绕过）。
   - `com.frame.me.auth.resolver.LoginUserArgumentResolver` — `@LoginUser` 参数解析器。
   - `com.frame.me.auth.audit.AuditAuthOperatorSupplier` — 审计操作人提供者实现。
 - **自动装配**：通过 `frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuthAutoConfiguration`。
@@ -356,8 +356,8 @@ me:
   - `com.frame.me.auth.rbac.permission.AuthDataPermissions` — Service 层静态 Helper（`isAll`/`scopes`/`dataIds`/`check`）。
   - `com.frame.me.auth.rbac.permission.IAuthPermissionProvider` — 权限数据源 SPI。
   - `com.frame.me.auth.rbac.permission.ConfigAuthPermissionProvider` — 默认配置化权限提供者（roles/data-scopes 启动期 eager 解析，非法配置 fail-fast）。
-  - `com.frame.me.auth.rbac.filter.PermissionFilter` — 路径规则权限过滤器；OPTIONS 预检请求直接放行，不参与权限校验。
-  - `com.frame.me.auth.rbac.interceptor.PermissionInterceptor` — `@RequireAuth` 注解权限拦截器；OPTIONS 预检请求直接放行，不参与权限校验。
+  - `com.frame.me.auth.rbac.filter.PermissionFilter` — 路径规则权限过滤器；OPTIONS 预检请求带 `Origin` 头时直接放行，不参与权限校验（与 `AuthFilter` 同口径，无 `Origin` 非真预检走正常权限链防绕过）。
+  - `com.frame.me.auth.rbac.interceptor.PermissionInterceptor` — `@RequireAuth` 注解权限拦截器；OPTIONS 预检请求带 `Origin` 头时直接放行，不参与权限校验（同上口径）。
   - `com.frame.me.auth.rbac.propagation.AuthPermissionTaskDecorator` — `@Async` 权限上下文传播装饰器。
   - `com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration` — 可选 Redis 后端装配入口（`@ConditionalOnClass(RedisUtils.class)` + `@AutoConfigureAfter(RbacAutoConfiguration.class)`，必须在插槽注册后处理）。
   - `com.frame.me.auth.rbac.redis.config.RbacRedisProperties` — `me.auth.permission.redis.*` 配置绑定。
@@ -428,7 +428,7 @@ me:
 - **定位**：基于 sa-token（`cn.dev33:sa-token-spring-boot4-starter`，1.45.0）的会话治理型认证 starter，接管 `frame-me-starter-auth` 的 `IAuthService` / `IAuthUserResolver`。面向需要踢人 / 封禁 / 在线会话 / 多端互斥的后台场景，是 `frame-me-starter-auth-jwt`（+ rbac）之外的可选认证实现。
 - **依赖**：`frame-me-starter-auth`、`sa-token-spring-boot4-starter`、`fastjson2`、`spring-security-crypto`、`lombok`；`frame-me-starter-multi-redis` 为 optional 依赖——消费方显式引入即激活 Redis 会话后端。
 - **关键类**：
-  - `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration` — 自动装配入口（`@AutoConfigureBefore(AuthAutoConfiguration.class)`）：接管 `IAuthService` / `IAuthUserResolver`，注册配置版 `StpInterface`、默认 Controller、异常 Advice 与 `SaInterceptor`（路径规则 + `@SaCheck*` 注解鉴权）。`SaInterceptor` 的 auth 回调对 OPTIONS 预检请求直接跳过规则校验，避免预检被鉴权拦截。sa-token 原生 `SaTokenConfig` 由官方 starter 的 `SaBeanRegister` 绑定 `sa-token.*` 配置路径提供，本模块不声明。
+  - `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration` — 自动装配入口（`@AutoConfigureBefore(AuthAutoConfiguration.class)`）：接管 `IAuthService` / `IAuthUserResolver`，注册配置版 `StpInterface`、默认 Controller、异常 Advice 与 `SaInterceptor`（路径规则 + `@SaCheck*` 注解鉴权）。`SaInterceptor` 的 auth 回调对带 `Origin` 头的 OPTIONS 预检请求直接跳过规则校验，避免预检被鉴权拦截；无 `Origin` 的 OPTIONS 非真预检，走正常鉴权链防绕过（与 `AuthFilter` 同口径）。sa-token 原生 `SaTokenConfig` 由官方 starter 的 `SaBeanRegister` 绑定 `sa-token.*` 配置路径提供，本模块不声明。
   - `com.frame.me.auth.satoken.config.SaTokenAuthProperties` — `me.auth.sa-token.*` 配置属性绑定；启动时校验 rules key 是否以 `/` 开头，防 relaxed binding 导致的规则静默失效。
   - `com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration` — Redis 会话后端装配入口（类级 `@ConditionalOnClass(RedisUtils.class)`，与总开关 `me.auth.sa-token.enabled` 及 `me.auth.sa-token.redis.enabled` 联动）。
   - `com.frame.me.auth.satoken.config.SaTokenNoRedisWarnAutoConfiguration` — multi-redis 缺席告警（`@ConditionalOnMissingClass`，提示会话退回内存存储）。
@@ -578,7 +578,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
 ## `frame-me-starter-sse-mvc`
 
 - **定位**：SSE 服务端推送 starter，支持按事件类型广播与按接收者 ID 定向推送。
-- **依赖**：`frame-me-api`、`spring-boot-starter-web`、`fastjson2`、`lombok`。
+- **依赖**：`frame-me-starter-base`、`spring-boot-starter-web`、`fastjson2`、`lombok`。
 - **关键类**：
   - `com.frame.me.sse.mvc.core.SseEmitterManager` — Emitter 生命周期与路由管理；提供 `heartbeat()` 发送 SSE comment 保活并清理失败连接。
   - `com.frame.me.sse.mvc.core.SseEventDispatcher` — 监听 `MeApplicationEvent` 并转发到 SSE。
@@ -601,7 +601,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - `me.sse.broadcast-enabled` — 是否自动把 `MeApplicationEvent` 广播到 SSE，默认 `true`。
   - `me.sse.targeted-enabled` — 是否启用定向订阅，默认 `true`。
   - 两个开关任一开启即装配 `SseEventDispatcher`（分发时按开关拦截对应分支）；仅当两者同时关闭才不装配。
-  - `me.sse.max-emitters` — 单服务实例最大并发 Emitter 数，`0` 表示无限制，默认 `0`。
+  - `me.sse.max-emitters` — 单服务实例最大并发 Emitter 数，默认 `1000`（`0` 表示不限制）；每个长连接占用容器线程与句柄，无上限可被 DoS，超限返回 429。
 - **使用方式**：
   - 广播订阅：`GET {path}/subscribe/{eventType}`（默认 `/api/sse/subscribe/{eventType}`）。
   - 定向订阅：`GET {path}/subscribe?receiverId={receiverId}`（默认 `/api/sse/subscribe?receiverId={receiverId}`）。
@@ -611,7 +611,8 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
-  - 定向订阅 `receiverId` 由请求方提供，**不校验身份**：starter 不绑定具体鉴权方案（sa-token/jwt/rbac 均为可选），如需防止冒充他人 receiverId 订阅，应由业务在 `SseController` 前置的 Filter/拦截器里校验。
+  - `eventType` / `receiverId` 做长度（≤128）与字符白名单（字母数字、冒号、下划线、短横）校验，非法返回 400，防恶意 key 撑爆路由表。
+  - 定向订阅 `receiverId` 归属校验：注册 `IReceiverIdAuthorizer`（`com.frame.me.base.event`）Bean 后按登录身份校验，失败返回 403；未注册则不校验（starter 不绑定具体鉴权方案），应由业务用 auth 路径规则或前置 Filter/拦截器保护。
   - 默认 `timeout=0`（不超时）时，半关闭连接依赖 `me.sse.heartbeat-interval > 0` 的心跳探测清理；生产建议开启心跳或设置有限 timeout。
 
 **示例配置**：
@@ -631,7 +632,7 @@ me:
 ## `frame-me-starter-ws-mvc`
 
 - **定位**：Servlet 原生 WebSocket starter，支持按事件类型广播与按接收者 ID 定向推送，提供全双工通道。
-- **依赖**：`frame-me-api`、`spring-boot-starter-websocket`、`fastjson2`、`lombok`。
+- **依赖**：`frame-me-starter-base`、`spring-boot-starter-websocket`、`fastjson2`、`lombok`。
 - **关键类**：
   - `com.frame.me.ws.mvc.core.WsMvcSessionManager` — WebSocketSession 生命周期与路由管理。
   - `com.frame.me.ws.mvc.core.WsMvcEventDispatcher` — 监听 `MeApplicationEvent` 并转发到 WebSocket。
@@ -651,10 +652,10 @@ me:
   - `me.ws.mvc.broadcast-enabled` — 是否自动广播 `MeApplicationEvent`，默认 `true`。
   - `me.ws.mvc.targeted-enabled` — 是否启用定向订阅，默认 `true`。
   - 两个开关任一开启即装配 `WsMvcEventDispatcher`（分发时按开关拦截对应分支）；仅当两者同时关闭才不装配。
-  - `me.ws.mvc.max-sessions` — 单服务实例最大并发 session 数，`0` 无限制，默认 `0`。
+  - `me.ws.mvc.max-sessions` — 单服务实例最大并发 session 数，默认 `1000`（`0` 表示不限制）；每个长连接占用内存与发送线程，无上限可被 DoS，超限的新连接以 `POLICY_VIOLATION` 关闭。
   - `me.ws.mvc.heartbeat-interval` — 心跳间隔（秒），`0` 表示不发送心跳，默认 `30`。
   - `me.ws.mvc.scheduling-enabled` — 是否启用调度支持（含心跳任务），默认 `true`；设为 `false` 时不加载 `@EnableScheduling`，也不会创建 `WsMvcHeartbeatTask`。
-  - `me.ws.mvc.allowed-origins` — 握手允许的 Origins，空表示允许所有（生产环境建议显式配置）。
+  - `me.ws.mvc.allowed-origins` — 握手允许的 Origins，默认空列表=**仅允许同源连接**（防跨站 WebSocket 劫持 CSWSH）；跨域访问必须显式配置可信源白名单，`["*"]` 全开放仅限开发环境（会打 WARN）。**行为变更**：旧版本空值等价于 `*`（允许所有源），未显式配置的跨域 WS 客户端升级后会握手失败，迁移方式即显式配置本项。
   - `me.ws.mvc.send-time-limit` — 单 session 发送最长耗时（毫秒），超时关闭该 session，默认 `10000`。
   - `me.ws.mvc.buffer-size-limit` — 单 session 发送缓冲上限（字节），超过关闭该 session，默认 `65536`。
 - **使用方式**：
@@ -668,7 +669,8 @@ me:
   - session/emitter 移除用 `ConcurrentHashMap.compute` 原子完成"移除元素 + 判空移除 key"，避免并发注册复用被清空的空集合而丢失连接。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
-  - `me.ws.mvc.allowed-origins` 默认空=允许所有源（`*`），生产环境务必显式配置可信源，避免任意网页连接。
+  - `eventType` / `receiverId` 做长度（≤128）与字符白名单（字母数字、冒号、下划线、短横）校验，非法以 `BAD_DATA` 关闭连接，防恶意 key 撑爆路由表。
+  - 定向订阅 `receiverId` 归属校验：注册 `IReceiverIdAuthorizer`（`com.frame.me.base.event`）Bean 后按登录身份校验，失败以 `BAD_DATA` 关闭连接；未注册则不校验，由业务通过 auth 路径规则或 `HandshakeInterceptor` 自行保护。
   - `me.ws.mvc.scheduling-enabled=false` 会关闭本模块的 `@EnableScheduling`：若业务工程的 `@Scheduled` 任务依赖此处开启的调度支持，需自行保证 `@EnableScheduling` 存在（或引入 base 的 `SchedulingAutoConfiguration`）。
   - 后续可扩展 `frame-me-starter-ws-webflux`（WebFlux 原生 WebSocket）、`frame-me-starter-ws-stomp`（Servlet STOMP）、`frame-me-starter-rsocket`（RSocket），路径与 auto-config 条件均与本模块不冲突。
 
@@ -682,10 +684,10 @@ me:
       path: /api/ws
       broadcast-enabled: true
       targeted-enabled: true
-      max-sessions: 10000
+      max-sessions: 10000        # 显式调大，默认 1000
       heartbeat-interval: 30
       scheduling-enabled: true
-      allowed-origins: []
+      allowed-origins: []        # 空=仅同源；跨域须显式列可信源，["*"] 仅限开发
       send-time-limit: 10000
       buffer-size-limit: 65536
 ```

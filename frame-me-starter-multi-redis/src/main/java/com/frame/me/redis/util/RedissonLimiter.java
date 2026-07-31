@@ -13,7 +13,7 @@ import java.time.Duration;
  */
 public final class RedissonLimiter {
 
-    private static RedissonClient redissonClient;
+    private static volatile RedissonClient redissonClient;
 
     private RedissonLimiter() {
     }
@@ -25,7 +25,7 @@ public final class RedissonLimiter {
      *
      * @param client 默认实例的 Redisson 客户端
      */
-    public static void init(RedissonClient client) {
+    public static synchronized void init(RedissonClient client) {
         RedissonLimiter.redissonClient = client;
     }
 

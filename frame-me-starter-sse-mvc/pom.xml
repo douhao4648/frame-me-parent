@@ -17,7 +17,7 @@
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-api</artifactId>
+            <artifactId>frame-me-starter-base</artifactId>
         </dependency>
 
         <dependency>

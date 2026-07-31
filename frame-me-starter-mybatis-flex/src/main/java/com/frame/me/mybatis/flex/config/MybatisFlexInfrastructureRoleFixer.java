@@ -22,12 +22,21 @@ public class MybatisFlexInfrastructureRoleFixer implements BeanFactoryPostProces
 
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+        int hit = 0;
         for (String beanName : MYBATIS_FLEX_INFRA_BEANS) {
             if (beanFactory.containsBeanDefinition(beanName)) {
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
                 bd.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
                 log.debug("Set ROLE_INFRASTRUCTURE for MyBatis-Flex bean: {}", beanName);
+                hit++;
             }
+        }
+        // 全部未命中：MyBatis-Flex 版本升级可能改了 bean 名 / 包路径，fixer 静默失效，WARN 提示排查
+        if (hit == 0) {
+            log.warn("MybatisFlexInfrastructureRoleFixer 未命中任何 MyBatis-Flex bean（{}），"
+                    + "可能 MyBatis-Flex 版本升级导致 bean 名变化，ROLE_INFRASTRUCTURE 修复未生效，"
+                    + "Spring 启动期 BeanPostProcessor WARN 可能重新出现，请检查 bean 名是否需更新",
+                    java.util.Arrays.toString(MYBATIS_FLEX_INFRA_BEANS));
         }
     }
 

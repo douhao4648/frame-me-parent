@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.mock.env.MockEnvironment;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,5 +114,56 @@ class EncryptablePropertyEnvironmentPostProcessorTest {
 
         assertThat(env.getProperty("db.password")).isEqualTo(cipher);
         assertThat(env.getPropertySources().get("app")).isInstanceOf(MapPropertySource.class);
+    }
+
+    /**
+     * 配置中心动态刷新密文后，同一 key 读到新明文而非旧缓存.
+     *
+     * <p>旧实现缓存键只用 name，密文刷新后命中旧缓存返回旧明文（密钥轮换不生效）；
+     * 修复后缓存键含密文，密文变化缓存失效重新解密.</p>
+     */
+    @Test
+    void refreshedCipherReReadsNewPlaintext() {
+        MockEnvironment env = envWithPassword();
+        Map<String, Object> source = new HashMap<>();
+        source.put("db.password", encrypt("old-pass"));
+        env.getPropertySources().addLast(new MapPropertySource("app", source));
+
+        processor.postProcessEnvironment(env, null);
+
+        // 首次读取：解密 old-pass
+        assertThat(env.getProperty("db.password")).isEqualTo("old-pass");
+
+        // 模拟配置中心刷新：同一 key 换密文
+        source.put("db.password", encrypt("new-pass"));
+
+        // 刷新后读取：应得到新明文，而非旧缓存
+        assertThat(env.getProperty("db.password")).isEqualTo("new-pass");
+    }
+
+    /**
+     * 频繁轮换密文时，同 key 的旧密文缓存项被清理，缓存不无限增长.
+     */
+    @Test
+    void rotatedCipherEvictsStaleCacheEntries() throws Exception {
+        MockEnvironment env = envWithPassword();
+        Map<String, Object> source = new HashMap<>();
+        source.put("db.password", encrypt("pass-1"));
+        env.getPropertySources().addLast(new MapPropertySource("app", source));
+
+        processor.postProcessEnvironment(env, null);
+
+        // 多次轮换密文并读取，每次都应得到当期明文
+        for (int i = 2; i <= 5; i++) {
+            source.put("db.password", encrypt("pass-" + i));
+            assertThat(env.getProperty("db.password")).isEqualTo("pass-" + i);
+        }
+
+        // 该 key 的缓存只剩最新密文一项（旧密文缓存项已被清理）
+        Object wrapped = env.getPropertySources().get("app");
+        java.lang.reflect.Field cacheField = wrapped.getClass().getDeclaredField("decryptedCache");
+        cacheField.setAccessible(true);
+        Map<?, ?> cache = (Map<?, ?>) cacheField.get(wrapped);
+        assertThat(cache).hasSize(1);
     }
 }

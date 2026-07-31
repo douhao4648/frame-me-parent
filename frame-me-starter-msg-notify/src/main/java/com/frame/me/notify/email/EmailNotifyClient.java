@@ -157,8 +157,26 @@ public class EmailNotifyClient implements INotifyClient {
         multipart.addBodyPart(textPart);
 
         for (String path : message.getAttachments()) {
+            // 防任意文件读取：拒绝绝对路径（如 /etc/passwd）与路径穿越（../），
+            // 附件路径应为相对路径（相对工作目录或配置的附件根目录）
+            if (path == null || path.isBlank()) {
+                continue;
+            }
+            File file = new File(path);
+            String canonical = file.getCanonicalPath();
+            // 补分隔符再比较，防前缀绕过：workdir=/opt/app 时 ../app-backup/x 规范化后
+            // 仍以 /opt/app 开头，纯 startsWith(workdir) 会误放行兄弟目录
+            String workdir = new File(".").getCanonicalPath() + File.separator;
+            if (!canonical.startsWith(workdir)) {
+                log.warn("Skip attachment outside workdir: {}", path);
+                continue;
+            }
+            if (!file.exists() || !file.isFile()) {
+                log.warn("Skip attachment not found: {}", path);
+                continue;
+            }
             MimeBodyPart attachmentPart = new MimeBodyPart();
-            attachmentPart.attachFile(new File(path));
+            attachmentPart.attachFile(file);
             multipart.addBodyPart(attachmentPart);
         }
         return multipart;

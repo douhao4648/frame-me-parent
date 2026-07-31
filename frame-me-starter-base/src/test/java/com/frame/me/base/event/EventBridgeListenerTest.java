@@ -1,6 +1,6 @@
 package com.frame.me.base.event;
 
-import com.frame.me.event.EventBridgeMessage;
+import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 import org.junit.jupiter.api.BeforeEach;

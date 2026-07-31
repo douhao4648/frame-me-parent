@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -229,10 +230,11 @@ class AuthFilterTest {
     }
 
     /**
-     * ERROR dispatch 不清理 AuthContext —— ThreadLocal 由 REQUEST dispatch 的 finally 负责.
+     * ERROR dispatch 防御性清理 AuthContext —— ThreadLocal 由 REQUEST dispatch 的 finally 负责，
+     * 但 ERROR 路径上若有其他组件调 setUser，此处兜底防线程复用泄漏.
      */
     @Test
-    void testErrorDispatchDoesNotClearContext() throws Exception {
+    void testErrorDispatchClearsContextDefensively() throws Exception {
         User user = new User();
         user.setId(1L);
         AuthContext.setUser(user);
@@ -244,7 +246,7 @@ class AuthFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        assertEquals(user, AuthContext.getUser());
+        assertNull(AuthContext.getUser());
     }
 
     /**
@@ -252,8 +254,9 @@ class AuthFilterTest {
      * 即使未登录、非白名单，预检也应穿透到后续 CorsFilter/控制器。
      */
     @Test
-    void testOptionsPreflightPassesWithoutAuth() throws Exception {
+    void testOptionsPreflightWithOriginPassesWithoutAuth() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/protected");
+        request.addHeader("Origin", "https://app.example.com");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
 
@@ -261,6 +264,21 @@ class AuthFilterTest {
 
         assertEquals(request, chain.getRequest());
         verifyNoInteractions(userResolver);
+    }
+
+    /**
+     * 无 Origin 的 OPTIONS 非真 CORS 预检，不豁免，走正常鉴权链（防绕过）.
+     */
+    @Test
+    void testOptionsWithoutOriginNotSkipped() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        // 未豁免：enforceLogin=true 且非白名单，应走鉴权链（未登录会写 401，userResolver 被调用）
+        verify(userResolver).resolve(request);
     }
 
     @Anonymous

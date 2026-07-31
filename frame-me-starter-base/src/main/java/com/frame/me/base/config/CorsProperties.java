@@ -1,6 +1,8 @@
 package com.frame.me.base.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
@@ -16,6 +18,7 @@ import java.util.List;
  *
  * @author frame-me
  */
+@Slf4j
 @Data
 @ConfigurationProperties(prefix = "me.cors")
 public class CorsProperties {
@@ -34,6 +37,20 @@ public class CorsProperties {
      * 若需严格来源白名单，在此显式列出各来源即可.</p>
      */
     private List<String> allowedOrigins = new ArrayList<>();
+
+    /**
+     * 启动期校验：allowCredentials=true 且 allowedOrigins 为空时打 WARN.
+     *
+     * <p>pattern 模式下虽不会字面回显 {@code *}，但「回显任意具体 Origin + 携带 Cookie」
+     * 等于任意网站可带凭据访问，存在 CSRF 风险。提醒业务方显式配置可信 Origin 白名单.</p>
+     */
+    @PostConstruct
+    void warnOnCredentialsWithWildcardOrigin() {
+        if (enabled && allowCredentials && allowedOrigins.isEmpty()) {
+            log.warn("[me.cors] allowCredentials=true 且 allowed-origins 为空：当前会向任意来源回显具体 Origin 并允许携带 Cookie，"
+                    + "存在 CSRF 风险（任意网站可带凭据访问）。请显式配置 me.cors.allowed-origins 为可信来源白名单");
+        }
+    }
 
     /**
      * 允许的 HTTP 方法，默认常用方法。

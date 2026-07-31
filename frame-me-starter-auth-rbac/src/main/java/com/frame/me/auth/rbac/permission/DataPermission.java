@@ -71,7 +71,8 @@ public class DataPermission implements Serializable {
     }
 
     private boolean matchesValue(String pattern, String value) {
-        return "*".equals(pattern) || pattern.equalsIgnoreCase(value);
+        // 授权侧为 null（如反序列化缺字段的半成品对象）判不匹配：fail-closed
+        return "*".equals(pattern) || (pattern != null && pattern.equalsIgnoreCase(value));
     }
 
     /**

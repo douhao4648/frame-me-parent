@@ -34,11 +34,6 @@ public class SmsChannelProperties {
     private String signName;
 
     /**
-     * 请求超时（毫秒），默认 10000.
-     */
-    private int timeout = 10000;
-
-    /**
      * 额外请求头.
      */
     private Map<String, Object> headers = new HashMap<>();

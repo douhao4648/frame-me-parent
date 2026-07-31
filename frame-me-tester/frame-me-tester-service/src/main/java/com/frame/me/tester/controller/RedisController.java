@@ -54,21 +54,34 @@ public class RedisController implements IRedisApi {
         return Result.success(r);
     }
 
+    /** 演示用 key 前缀，隔离业务数据，防任意 key 覆盖. */
+    private static final String DEMO_KEY_PREFIX = "redis:demo:";
+
     @Override
     public IResult<Boolean> set(String key, String value) {
-        RedisUtils.set(key, value);
-        RedisUtils.getClient("second").set(key+":second", value);
+        if (key == null || key.isBlank() || value == null) {
+            return Result.error(com.frame.me.base.result.ResultCode.BAD_REQUEST, "key/value 不能为空");
+        }
+        String safeKey = DEMO_KEY_PREFIX + key;
+        RedisUtils.set(safeKey, value);
+        RedisUtils.getClient("second").set(safeKey + ":second", value);
         return Result.success(true);
     }
 
     @Override
     public IResult<String> get(String key) {
-        return Result.success(RedisUtils.get(key));
+        if (key == null || key.isBlank()) {
+            return Result.error(com.frame.me.base.result.ResultCode.BAD_REQUEST, "key 不能为空");
+        }
+        return Result.success(RedisUtils.get(DEMO_KEY_PREFIX + key));
     }
 
     @Override
     public IResult<Boolean> delete(String key) {
-        return Result.success(RedisUtils.delete(key));
+        if (key == null || key.isBlank()) {
+            return Result.error(com.frame.me.base.result.ResultCode.BAD_REQUEST, "key 不能为空");
+        }
+        return Result.success(RedisUtils.delete(DEMO_KEY_PREFIX + key));
     }
 
     /**

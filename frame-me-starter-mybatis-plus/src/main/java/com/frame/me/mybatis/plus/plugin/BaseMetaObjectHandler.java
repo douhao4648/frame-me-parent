@@ -22,7 +22,10 @@ public class BaseMetaObjectHandler implements MetaObjectHandler {
         this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());
         this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());
         this.strictInsertFill(metaObject, "deleted", Integer.class, 0);
-        this.strictInsertFill(metaObject, "version", Integer.class, 1);
+        // 仅当实体有 version 字段（继承 BaseVersionEntity）才填充，避免对普通实体产生无效填充噪音
+        if (metaObject.hasSetter("version")) {
+            this.strictInsertFill(metaObject, "version", Integer.class, 1);
+        }
     }
 
     @Override

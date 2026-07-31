@@ -50,7 +50,7 @@ public class JwtTokenService implements IAuthService {
     /**
      * 签名密钥：启动期校验时派生并缓存，避免每请求重复 {@link Keys#hmacShaKeyFor} 派生.
      */
-    private SecretKey secretKey;
+    private volatile SecretKey secretKey;
 
     /**
      * 启动期校验 {@code me.auth.jwt.secret}：未配置直接 fail-fast，

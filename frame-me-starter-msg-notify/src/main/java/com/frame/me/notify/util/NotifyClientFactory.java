@@ -17,7 +17,8 @@ public final class NotifyClientFactory {
 
     private static final Map<String, INotifyClient> CLIENT_MAP = new ConcurrentHashMap<>();
     private static final Map<String, String> CHANNEL_DEFAULT_NAMES = new ConcurrentHashMap<>();
-    private static String globalDefaultName;
+    // volatile：init 由启动线程写、请求线程读，保证可见性
+    private static volatile String globalDefaultName;
 
     private NotifyClientFactory() {
     }
@@ -38,15 +39,16 @@ public final class NotifyClientFactory {
     /**
      * 初始化客户端映射，指定各通道类型的默认客户端名称，并设置全局默认客户端.
      *
-     * <p>由 {@link com.frame.me.notify.config.NotifyAutoConfiguration} 调用。</p>
+     * <p>由 {@link com.frame.me.notify.config.NotifyAutoConfiguration} 调用.
+     * 同步防止并发 init 时 clear 与 putAll 交错导致瞬时读到空 Map.</p>
      *
      * @param clients         所有客户端实例
      * @param channelDefaults 通道类型到默认客户端名称的映射
      * @param globalDefault   全局默认客户端名称，为 null 表示不设置
      */
-    public static void init(Map<String, INotifyClient> clients,
-                            Map<String, String> channelDefaults,
-                            String globalDefault) {
+    public static synchronized void init(Map<String, INotifyClient> clients,
+                                        Map<String, String> channelDefaults,
+                                        String globalDefault) {
         CHANNEL_DEFAULT_NAMES.clear();
         if (channelDefaults != null) {
             CHANNEL_DEFAULT_NAMES.putAll(channelDefaults);

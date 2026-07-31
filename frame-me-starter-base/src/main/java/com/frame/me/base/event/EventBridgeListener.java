@@ -1,10 +1,10 @@
 package com.frame.me.base.event;
 
 import com.alibaba.fastjson2.JSON;
-import com.frame.me.event.EventBridgeMessage;
+import com.frame.me.base.event.EventBridgeMessage;
+import com.frame.me.base.event.IEventErrorHandler;
 import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -25,6 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>启动时会自动从 Spring 上下文收集所有 {@link IEventType} Bean 并注册；
  * 业务也可手动调用 {@link #register(IEventType)}。</p>
  *
+ * <p>消费失败时，若注册了 {@link IEventErrorHandler} 则委托处理（重试/死信/告警），
+ * 否则仅 {@code log.error} 后丢弃（保持兼容）.</p>
+ *
  * @author frame-me
  */
 @Slf4j
@@ -33,6 +37,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
     private final ApplicationEventPublisher localPublisher;
     private final EventBridgeProperties properties;
     private final Map<String, IEventTransport> transports;
+    private final Optional<IEventErrorHandler> errorHandler;
     private final Map<String, IEventType<?>> registry = new ConcurrentHashMap<>();
     private ApplicationContext applicationContext;
 
@@ -46,9 +51,25 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
     public EventBridgeListener(ApplicationEventPublisher localPublisher,
                                EventBridgeProperties properties,
                                Map<String, IEventTransport> transports) {
+        this(localPublisher, properties, transports, Optional.empty());
+    }
+
+    /**
+     * 创建监听器（带错误处理器）.
+     *
+     * @param localPublisher 本地事件发布器
+     * @param properties     桥接配置
+     * @param transports     transport 实现
+     * @param errorHandler   可选的错误处理器，消费失败时委托（重试/死信/告警）
+     */
+    public EventBridgeListener(ApplicationEventPublisher localPublisher,
+                               EventBridgeProperties properties,
+                               Map<String, IEventTransport> transports,
+                               Optional<IEventErrorHandler> errorHandler) {
         this.localPublisher = localPublisher;
         this.properties = properties;
         this.transports = transports;
+        this.errorHandler = errorHandler;
     }
 
     @Override
@@ -139,6 +160,14 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             log.debug("Event dispatched locally: type={}, source={}", type, message.getSourceService());
         } catch (Exception e) {
             log.error("Failed to dispatch event: type={}, payload={}", type, message.getPayload(), e);
+            // 委托错误处理器（重试/死信/告警），未注册则保持原行为（仅记日志）
+            errorHandler.ifPresent(h -> {
+                try {
+                    h.handleError(message, e);
+                } catch (Exception handlerEx) {
+                    log.error("Event error handler itself failed: type={}", type, handlerEx);
+                }
+            });
         }
     }
 }
