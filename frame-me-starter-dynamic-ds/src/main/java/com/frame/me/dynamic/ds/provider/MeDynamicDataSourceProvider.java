@@ -70,7 +70,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
                     .bind(HIKARI_BIND_PREFIX, Bindable.of(HikariCpConfig.class))
                     .ifBound(property::setHikari);
         } catch (Exception e) {
-            log.warn("Failed to bind Hikari connection pool properties: {}", e.getMessage());
+            log.warn("Failed to bind Hikari connection pool properties (config may be malformed): {}", e.getMessage());
         }
     }
 
@@ -80,7 +80,7 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
                     .bind(DRUID_BIND_PREFIX, Bindable.of(DruidConfig.class))
                     .ifBound(property::setDruid);
         } catch (Exception e) {
-            log.warn("Failed to bind Druid connection pool properties: {}", e.getMessage());
+            log.warn("Failed to bind Druid connection pool properties (config may be malformed): {}", e.getMessage());
         }
     }
 }

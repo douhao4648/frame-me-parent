@@ -171,7 +171,13 @@ public class RedissonLockAutoConfiguration {
     @Primary
     @ConditionalOnProperty(prefix = "me.auth.login-rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
     public LoginRateLimiter redissonLoginRateLimiter(Environment env) {
-        int maxAttempts = Integer.parseInt(env.getProperty("me.auth.login-rate-limit.max-attempts", "5"));
+        int maxAttempts;
+        try {
+            maxAttempts = Integer.parseInt(env.getProperty("me.auth.login-rate-limit.max-attempts", "5"));
+        } catch (NumberFormatException e) {
+            log.warn("me.auth.login-rate-limit.max-attempts 配置非数字，回退默认值 5: {}", e.getMessage());
+            maxAttempts = 5;
+        }
         Duration window = env.getProperty("me.auth.login-rate-limit.window", Duration.class, Duration.ofSeconds(60));
         return new RedissonLoginRateLimiter(maxAttempts, window);
     }

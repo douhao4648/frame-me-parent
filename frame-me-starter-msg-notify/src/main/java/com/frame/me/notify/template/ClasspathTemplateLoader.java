@@ -40,7 +40,9 @@ public final class ClasspathTemplateLoader {
             Resource resource = new ClassPathResource(path);
             if (resource.exists()) {
                 try {
-                    return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+                    try (var in = resource.getInputStream()) {
+                    return StreamUtils.copyToString(in, StandardCharsets.UTF_8);
+                }
                 } catch (IOException e) {
                     log.warn("Failed to load classpath template '{}', fallback to raw value", path, e);
                 }

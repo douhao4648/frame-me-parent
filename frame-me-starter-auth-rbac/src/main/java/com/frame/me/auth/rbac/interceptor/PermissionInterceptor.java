@@ -86,7 +86,11 @@ public class PermissionInterceptor implements HandlerInterceptor {
 
         // 已登录但无权限：403。preHandle 返回 false 时 Spring 不会回调 afterCompletion，需自行清理
         AuthPermissionHolder.clear();
-        writeError(response, ResultCode.FORBIDDEN);
+        try {
+            writeError(response, ResultCode.FORBIDDEN);
+        } catch (Exception ignored) {
+            // writeError 失败时 ThreadLocal 已清理，忽略
+        }
         return false;
     }
 
