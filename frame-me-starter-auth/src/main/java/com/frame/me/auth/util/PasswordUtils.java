@@ -13,6 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  */
 public class PasswordUtils {
 
+    /**
+     * ponytail: volatile 引用写入保证 happens-before，构造对象安全发布已满足，无需 AtomicReference。
+     */
     private static volatile PasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
     private PasswordUtils() {

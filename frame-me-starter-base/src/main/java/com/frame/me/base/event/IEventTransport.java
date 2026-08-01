@@ -29,4 +29,13 @@ public interface IEventTransport {
      * @param dispatcher 收到消息后交给桥接监听器处理
      */
     void subscribe(String type, Consumer<EventBridgeMessage> dispatcher);
+
+    /**
+     * 取消订阅.
+     *
+     * @param type 事件类型
+     */
+    default void unsubscribe(String type) {
+        // 默认空实现，子类按需覆盖
+    }
 }

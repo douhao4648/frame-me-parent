@@ -5,7 +5,10 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.time.temporal.Temporal;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,13 +28,30 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object> {
 
+    private static final Logger log = System.getLogger(TimeRangeValidator.class.getName());
+
     /** 缓存 key：{@code Class} 同一性区分不同 ClassLoader 加载的同名类，field 定位具体字段. */
     private record CacheKey(Class<?> type, String field) {
     }
 
-    /** 访问器方法缓存：value = 解析到的 Method. */
+    /** 占位 Method，标记该字段无可用访问器，避免重复反射查找. */
+    private static final Method ABSENT;
+
+    /** 占位 Field，标记该字段在类层次中未找到，避免重复遍历继承链. */
+    private static final Field ABSENT_FIELD;
+
+    static {
+        try {
+            ABSENT = Object.class.getMethod("toString");
+            ABSENT_FIELD = TimeRangeValidator.class.getDeclaredField("startField");
+        } catch (NoSuchMethodException | NoSuchFieldException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
+    /** 访问器方法缓存：value = 解析到的 Method（含 {@link #ABSENT} 占位）. */
     private static final ConcurrentHashMap<CacheKey, Method> ACCESSOR_CACHE = new ConcurrentHashMap<>();
-    /** 字段缓存：value = 解析到的 Field. */
+    /** 字段缓存：value = 解析到的 Field（含 {@link #ABSENT_FIELD} 占位）. */
     private static final ConcurrentHashMap<CacheKey, Field> FIELD_CACHE = new ConcurrentHashMap<>();
 
     private String startField;
@@ -61,15 +81,17 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
     @SuppressWarnings("unchecked")
     private int compare(Temporal start, Temporal end) {
         if (start instanceof Comparable && end instanceof Comparable
-                && start.getClass().isAssignableFrom(end.getClass())) {
+                && start.getClass().equals(end.getClass())) {
             return ((Comparable<Object>) start).compareTo(end);
         }
-        return 0;
+        log.log(Level.WARNING, "无法比较不同类型的时间字段: start={0}({1}), end={2}({3})",
+                start, start.getClass().getName(), end, end.getClass().getName());
+        return -1;
     }
 
     private Temporal getFieldValue(Object target, String fieldName) {
         Object result = invokeAccessor(target, fieldName);
-        if (result == null) {
+        if (!(result instanceof Temporal)) {
             result = readDeclaredField(target, fieldName);
         }
         return result instanceof Temporal temporal ? temporal : null;
@@ -77,6 +99,9 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
 
     /**
      * 依次尝试 getXxx / isXxx / 同名无参方法（record 访问器），反射结果按 Class+field 缓存.
+     *
+     * <p>若三种访问器均不存在，缓存 {@link #ABSENT} 占位标记，后续相同 key 直接返回 null，
+     * 避免高频校验场景下的重复反射扫描。</p>
      */
     private Object invokeAccessor(Object target, String fieldName) {
         if (fieldName == null || fieldName.isEmpty()) {
@@ -85,9 +110,20 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
         CacheKey cacheKey = new CacheKey(target.getClass(), fieldName);
         Method cached = ACCESSOR_CACHE.get(cacheKey);
         if (cached != null) {
+            if (cached == ABSENT) {
+                return null;
+            }
             try {
                 return cached.invoke(target);
-            } catch (Exception e) {
+            } catch (InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
+                log.log(Level.WARNING, "调用缓存的访问器方法失败: " + cacheKey, e);
+                return null;
+            } catch (IllegalAccessException e) {
+                log.log(Level.WARNING, "无法访问缓存的访问器方法: " + cacheKey, e);
                 return null;
             }
         }
@@ -96,16 +132,26 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
         for (String methodName : candidates) {
             try {
                 Method method = target.getClass().getMethod(methodName);
+                Object result = method.invoke(target);
+                // 调用成功后再缓存，避免将抛出 checked exception 的 broken getter 缓存后跳过备选
                 ACCESSOR_CACHE.putIfAbsent(cacheKey, method);
-                return method.invoke(target);
+                return result;
             } catch (NoSuchMethodException e) {
                 // 尝试下一种访问器形态
-            } catch (Exception e) {
+            } catch (InvocationTargetException e) {
+                Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
+                log.log(Level.WARNING, "调用访问器方法失败: " + cacheKey + "." + methodName, e);
+                return null;
+            } catch (IllegalAccessException e) {
+                log.log(Level.WARNING, "无法访问方法: " + cacheKey + "." + methodName, e);
                 return null;
             }
         }
-        // 全部访问器不存在：缓存 ABSENT 标记（用占位 Method 避免重复解析）
-        // ponytail: 用 null 值缓存区分较复杂，此处保持未缓存，下次仍尝试（访问器不存在的场景罕见）
+        // 全部访问器不存在：缓存 ABSENT 标记，避免重复反射解析
+        ACCESSOR_CACHE.putIfAbsent(cacheKey, ABSENT);
         return null;
     }
 
@@ -116,9 +162,16 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
         CacheKey cacheKey = new CacheKey(target.getClass(), fieldName);
         Field cached = FIELD_CACHE.get(cacheKey);
         if (cached != null) {
+            if (cached == ABSENT_FIELD) {
+                return null;
+            }
             try {
                 return cached.get(target);
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
+                log.log(Level.WARNING, "读取缓存的字段值失败: " + cacheKey, e);
+                return null;
+            } catch (IllegalAccessException e) {
+                log.log(Level.WARNING, "无法访问缓存的字段: " + cacheKey, e);
                 return null;
             }
         }
@@ -131,11 +184,27 @@ public class TimeRangeValidator implements ConstraintValidator<TimeRange, Object
                 return field.get(target);
             } catch (NoSuchFieldException e) {
                 type = type.getSuperclass();
-            } catch (Exception e) {
+            } catch (IllegalArgumentException e) {
+                log.log(Level.WARNING, "读取字段值失败: " + cacheKey + "." + fieldName, e);
+                return null;
+            } catch (IllegalAccessException e) {
+                log.log(Level.WARNING, "无法访问字段: " + cacheKey + "." + fieldName, e);
                 return null;
             }
         }
+        // 字段在整条继承链中均不存在：缓存占位标记，避免重复遍历
+        FIELD_CACHE.putIfAbsent(cacheKey, ABSENT_FIELD);
         return null;
     }
-}
 
+    /**
+     * 清理访问器和字段缓存，释放 ClassLoader 引用.
+     *
+     * <p>在应用上下文关闭（如 devtools 热重启）时调用，避免静态缓存
+     * 持有旧 ClassLoader 的 Class 对象导致 ClassLoader 无法 GC。</p>
+     */
+    public static void cleanup() {
+        ACCESSOR_CACHE.clear();
+        FIELD_CACHE.clear();
+    }
+}

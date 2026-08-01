@@ -7,6 +7,7 @@ import com.baomidou.dynamic.datasource.creator.hikaricp.HikariCpConfig;
 import com.baomidou.dynamic.datasource.provider.DynamicDataSourceProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.properties.bind.BindException;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -69,8 +70,8 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
             Binder.get(environment)
                     .bind(HIKARI_BIND_PREFIX, Bindable.of(HikariCpConfig.class))
                     .ifBound(property::setHikari);
-        } catch (Exception e) {
-            log.warn("Failed to bind Hikari connection pool properties (config may be malformed): {}", e.getMessage());
+        } catch (BindException e) {
+            log.warn("Failed to bind Hikari connection pool properties (config may be malformed)", e);
         }
     }
 
@@ -79,8 +80,8 @@ public class MeDynamicDataSourceProvider implements DynamicDataSourceProvider {
             Binder.get(environment)
                     .bind(DRUID_BIND_PREFIX, Bindable.of(DruidConfig.class))
                     .ifBound(property::setDruid);
-        } catch (Exception e) {
-            log.warn("Failed to bind Druid connection pool properties (config may be malformed): {}", e.getMessage());
+        } catch (BindException e) {
+            log.warn("Failed to bind Druid connection pool properties (config may be malformed)", e);
         }
     }
 }

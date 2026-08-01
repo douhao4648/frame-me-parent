@@ -103,7 +103,7 @@ public class RedisAutoConfiguration implements DisposableBean {
             try {
                 factory.destroy();
             } catch (Exception e) {
-                log.warn("销毁额外 Redis 连接工厂失败: {}", e.getMessage());
+                log.warn("销毁额外 Redis 连接工厂失败", e);
             }
         }
         extraConnectionFactories.clear();

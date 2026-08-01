@@ -171,7 +171,10 @@ public class AuthFilter implements Filter {
             // HandlerMapping 框架级异常（如请求分发失败），上抛由容器处理，不吞成 false
             throw e;
         } catch (Exception e) {
-            log.error("判断匿名接口时发生异常: {}", e.getMessage(), e);
+            // handlerMapping.getHandler 声明 throws Exception，此处捕获所有非 ServletException 异常。
+            // fallback 返回 false（非匿名，需走认证流程），安全侧偏好（fail-closed），防止异常时误放行。
+            // 降级 WARN：此类异常不影响请求处理主流程，ERROR 会触发告警噪音。
+            log.warn("判断匿名接口时发生异常，本次请求按非匿名处理: {}", e.getMessage(), e);
             return false;
         }
     }

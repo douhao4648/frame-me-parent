@@ -138,10 +138,6 @@ public final class PageUtils {
         if (safe.isEmpty()) {
             safe = parseOrderBy(defaultOrderBy);
         }
-        // ponytail: defaultOrderBy 本身字段非法时回退到原始串，避免 ORDER BY 后为空
-        if (safe.isEmpty() && defaultOrderBy != null && !defaultOrderBy.isBlank()) {
-            return new String[]{defaultOrderBy};
-        }
         return safe.toArray(String[]::new);
     }
 

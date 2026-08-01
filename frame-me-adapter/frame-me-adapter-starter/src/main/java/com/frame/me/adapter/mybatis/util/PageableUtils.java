@@ -6,6 +6,7 @@ import com.frame.me.adapter.api.result.PageResult;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -81,7 +82,9 @@ public final class PageableUtils {
         result.setPageSize(page.getSize());
         result.setTotal(page.getTotal());
         result.setPages(page.getPages());
-        result.setList(page.getRecords().stream().map(mapper).collect(Collectors.toList()));
+        List<T> records = page.getRecords();
+        result.setList(records == null ? java.util.Collections.emptyList()
+                : records.stream().map(mapper).collect(Collectors.toList()));
         return result;
     }
 

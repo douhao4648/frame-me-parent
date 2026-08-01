@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 
+import java.util.Objects;
+
 /**
  * 审计日志本地监听器.
  *
@@ -38,7 +40,7 @@ public class AuditLogLogger {
         if (!properties.isLogEnabled()) {
             return;
         }
-        if (!eventBridgeProperties.getServiceName().equals(event.getSource())) {
+        if (!Objects.equals(eventBridgeProperties.getServiceName(), event.getSource())) {
             log.debug("跳过其他服务广播的审计事件: source={}", event.getSource());
             return;
         }

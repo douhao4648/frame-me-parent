@@ -6,6 +6,7 @@ import com.frame.me.api.query.PageQuery;
 import com.frame.me.api.result.PageData;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
  *
  * <p>用于在 API 层 {@link PageQuery} / {@link PageData} 与 MyBatis-Plus {@link Page} 之间转换。</p>
  */
+@Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class PageUtils {
 
@@ -51,7 +53,9 @@ public final class PageUtils {
         if (query.getOrderBy() != null && !query.getOrderBy().isEmpty()) {
             query.getOrderBy().forEach(item -> addOrder(page, item));
         } else if (defaultOrderBy != null && !defaultOrderBy.isBlank()) {
-            addOrder(page, defaultOrderBy);
+            for (String segment : defaultOrderBy.split(",")) {
+                addOrder(page, segment);
+            }
         }
 
         return page;
@@ -97,12 +101,13 @@ public final class PageUtils {
         if (item == null || item.isBlank()) {
             return;
         }
-        String[] parts = item.split(" ");
-        String column = parts[0].trim();
+        String normalized = item.trim().replaceAll("\\s+", " ");
+        String[] parts = normalized.split(" ");
+        String column = parts[0];
         if (!SAFE_COLUMN.matcher(column).matches()) {
             return;
         }
-        boolean asc = parts.length < 2 || !"desc".equalsIgnoreCase(parts[1].trim());
+        boolean asc = parts.length < 2 || !"desc".equalsIgnoreCase(parts[1]);
         page.addOrder(asc ? OrderItem.asc(column) : OrderItem.desc(column));
     }
 
@@ -181,9 +186,9 @@ public final class PageUtils {
         if (safe.isEmpty()) {
             safe = parseOrderBy(defaultOrderBy);
         }
-        // ponytail: defaultOrderBy 本身字段非法时回退到原始串，避免 ORDER BY 后为空
         if (safe.isEmpty() && defaultOrderBy != null && !defaultOrderBy.isBlank()) {
-            return defaultOrderBy;
+            log.warn("defaultOrderBy 字段非法，已丢弃: {}", defaultOrderBy);
+            return "";
         }
         return String.join(", ", safe);
     }

@@ -17,6 +17,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 
@@ -77,6 +79,15 @@ public class BaseAutoConfiguration {
     @ConditionalOnMissingBean(IFilterErrorResponseWriter.class)
     public IFilterErrorResponseWriter filterErrorResponseWriter(ObjectProvider<ObjectMapper> objectMapperProvider) {
         return new ResultFilterErrorResponseWriter(objectMapperProvider.getIfAvailable(ObjectMapper::new));
+    }
+
+    /**
+     * 应用上下文关闭时清理 {@link com.frame.me.validation.validator.TimeRangeValidator} 静态缓存，
+     * 释放旧 ClassLoader 引用，避免 devtools 热重启等场景下 ClassLoader 泄漏.
+     */
+    @EventListener
+    public void onContextClosed(ContextClosedEvent event) {
+        com.frame.me.validation.validator.TimeRangeValidator.cleanup();
     }
 
 }

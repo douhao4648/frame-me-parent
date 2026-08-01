@@ -22,6 +22,8 @@ import java.util.concurrent.TimeUnit;
 public final class RedissonSync {
 
     private static final Logger log = LoggerFactory.getLogger(RedissonSync.class);
+    /** 门闩等待默认超时（毫秒），避免调用方未指定超时导致线程永久阻塞. */
+    private static final long DEFAULT_AWAIT_TIMEOUT_MS = 30_000;
     private static volatile RedissonClient redissonClient;
 
     private RedissonSync() {
@@ -282,8 +284,6 @@ public final class RedissonSync {
      *               避免调用方误用导致线程永久阻塞
      * @return 是否归零
      */
-    private static final long DEFAULT_AWAIT_TIMEOUT_MS = 30_000;
-
     public static boolean await(String key, long waitMs) {
         try {
             RCountDownLatch latch = getCountDownLatch(key);

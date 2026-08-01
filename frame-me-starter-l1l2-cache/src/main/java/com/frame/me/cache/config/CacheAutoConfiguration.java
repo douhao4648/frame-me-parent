@@ -26,7 +26,7 @@ public class CacheAutoConfiguration {
 
     @PostConstruct
     public void init() {
-        log.info("JetCache initialize Application starter use @EnableMethodCache");
+        log.info("JetCache infrastructure initialized; use @EnableMethodCache on application for method-level caching");
     }
 
 }

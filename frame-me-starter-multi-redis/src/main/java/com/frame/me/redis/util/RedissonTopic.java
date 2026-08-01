@@ -82,6 +82,16 @@ public final class RedissonTopic {
         getTopic(key).removeListener(listenerId);
     }
 
+    /**
+     * 移除监听器（String 类型 ID 重载，用于 {@link #reliableTopicSubscribe} 返回的监听器 ID）.
+     *
+     * @param key        键
+     * @param listenerId 监听器 ID（来自 {@code reliableTopicSubscribe} 的返回值）
+     */
+    public static void topicUnsubscribe(String key, String listenerId) {
+        getReliableTopic(key).removeListener(listenerId);
+    }
+
     // ============================ PatternTopic ============================
 
     /**

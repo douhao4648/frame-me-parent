@@ -23,6 +23,7 @@ public class RedisEventTransport implements IEventTransport, MessageListener<Eve
 
     private final String topicPrefix;
     private final Map<String, Consumer<EventBridgeMessage>> dispatchers = new ConcurrentHashMap<>();
+    private final Map<String, Integer> listenerIds = new ConcurrentHashMap<>();
 
     /**
      * 创建 Redis 传输实现.
@@ -43,9 +44,21 @@ public class RedisEventTransport implements IEventTransport, MessageListener<Eve
     @Override
     public void subscribe(String type, Consumer<EventBridgeMessage> dispatcher) {
         String topic = topicPrefix + type;
-        RedissonTopic.topicSubscribe(topic, EventBridgeMessage.class, this);
+        int listenerId = RedissonTopic.topicSubscribe(topic, EventBridgeMessage.class, this);
         dispatchers.put(type, dispatcher);
-        log.debug("Redis event subscribed: type={}, topic={}", type, topic);
+        listenerIds.put(type, listenerId);
+        log.debug("Redis event subscribed: type={}, topic={}, listenerId={}", type, topic, listenerId);
+    }
+
+    @Override
+    public void unsubscribe(String type) {
+        String topic = topicPrefix + type;
+        Integer listenerId = listenerIds.remove(type);
+        if (listenerId != null) {
+            RedissonTopic.topicUnsubscribe(topic, listenerId);
+        }
+        dispatchers.remove(type);
+        log.debug("Redis event unsubscribed: type={}, topic={}", type, topic);
     }
 
     @Override

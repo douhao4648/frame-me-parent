@@ -87,10 +87,19 @@ public class RedissonLockAutoConfiguration {
         }
 
         redissonClient = Redisson.create(config);
-        RedissonLock.init(redissonClient);
-        RedissonSync.init(redissonClient);
-        RedissonTopic.init(redissonClient);
-        RedissonLimiter.init(redissonClient);
+        try {
+            RedissonLock.init(redissonClient);
+            RedissonSync.init(redissonClient);
+            RedissonTopic.init(redissonClient);
+            RedissonLimiter.init(redissonClient);
+        } catch (Exception e) {
+            RedissonClient client = redissonClient;
+            redissonClient = null;
+            if (client != null && !client.isShutdown()) {
+                client.shutdown();
+            }
+            throw e;
+        }
         return redissonClient;
     }
 
