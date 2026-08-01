@@ -129,7 +129,8 @@ public class SseEmitterManager {
         String eventType = payload.getEventType() != null ? payload.getEventType() : "message";
         String json = JSON.toJSONString(payload);
         int success = 0;
-        for (SseEmitter emitter : emitters) {
+        // 快照遍历：send 失败会调用 removeEmitter 修改底层 ConcurrentHashMap.newKeySet()
+        for (SseEmitter emitter : new ArrayList<>(emitters)) {
             if (send(emitter, eventType, json)) {
                 success++;
             }

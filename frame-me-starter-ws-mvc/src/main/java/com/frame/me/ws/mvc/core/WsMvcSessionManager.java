@@ -136,7 +136,9 @@ public class WsMvcSessionManager {
         }
         String json = JSON.toJSONString(payload);
         int success = 0;
-        for (WebSocketSession session : sessions) {
+        // 快照遍历：send 失败会调用 removeSession 修改底层集合，
+        // ConcurrentHashMap.newKeySet() 迭代器弱一致，避免漏检
+        for (WebSocketSession session : new ArrayList<>(sessions)) {
             if (send(session, json)) {
                 success++;
             }
@@ -158,7 +160,8 @@ public class WsMvcSessionManager {
         }
         String json = JSON.toJSONString(payload);
         int success = 0;
-        for (WebSocketSession session : sessions) {
+        // 快照遍历：send 失败会调用 removeSession 修改底层集合
+        for (WebSocketSession session : new ArrayList<>(sessions)) {
             if (send(session, json)) {
                 success++;
             }

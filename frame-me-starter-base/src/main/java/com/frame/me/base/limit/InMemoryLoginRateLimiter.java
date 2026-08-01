@@ -36,7 +36,7 @@ public class InMemoryLoginRateLimiter implements LoginRateLimiter {
             if (now - v[0] > windowMs) {
                 return new long[]{now, 1};
             }
-            if (v[1] >= maxAttempts) {
+            if (v[1] > maxAttempts) {
                 return v;
             }
             return new long[]{v[0], v[1] + 1};

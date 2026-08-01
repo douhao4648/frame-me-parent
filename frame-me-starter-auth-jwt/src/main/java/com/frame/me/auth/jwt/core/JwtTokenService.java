@@ -83,7 +83,7 @@ public class JwtTokenService implements IAuthService {
         secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private SecretKey getSecretKey() {
+    private synchronized SecretKey getSecretKey() {
         // 惰性兜底：测试不经 Spring 生命周期（直接 new、未触发 @PostConstruct）时派生；
         // 生产环境由 validateSecret() 在启动期派生并缓存，此处直接命中缓存
         if (secretKey == null) {

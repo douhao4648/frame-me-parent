@@ -278,18 +278,20 @@ public final class RedissonSync {
      * 等待门闩归零.
      *
      * @param key    键
-     * @param waitMs 最长等待时间（毫秒），{@code <=0} 表示一直等待（仅在有明确倒计时保证时使用）
+     * @param waitMs 最长等待时间（毫秒），{@code <=0} 时回退为 30 秒默认超时，
+     *               避免调用方误用导致线程永久阻塞
      * @return 是否归零
      */
+    private static final long DEFAULT_AWAIT_TIMEOUT_MS = 30_000;
+
     public static boolean await(String key, long waitMs) {
         try {
             RCountDownLatch latch = getCountDownLatch(key);
+            long effectiveWaitMs = waitMs > 0 ? waitMs : DEFAULT_AWAIT_TIMEOUT_MS;
             if (waitMs <= 0) {
-                log.warn("{} 永久等待——waitMs={}, 线程将阻塞直到 countDown", key, waitMs);
-                latch.await();
-                return true;
+                log.warn("{} 未指定超时，回退为 {}ms 默认超时", key, DEFAULT_AWAIT_TIMEOUT_MS);
             }
-            return latch.await(waitMs, TimeUnit.MILLISECONDS);
+            return latch.await(effectiveWaitMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return false;

@@ -143,7 +143,7 @@ public class AuditLogAspect {
             error = t;
             success = false;
             if (auditLog.recordError()) {
-                record.setErrorMsg(t.getMessage());
+                record.setErrorMsg(truncate(t.getMessage()));
             }
         } finally {
             record.setDurationMs(System.currentTimeMillis() - start);
