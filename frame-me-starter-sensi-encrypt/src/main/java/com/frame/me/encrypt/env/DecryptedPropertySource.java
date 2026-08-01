@@ -80,7 +80,12 @@ class DecryptedPropertySource extends EnumerablePropertySource<Object> {
      */
     void decryptAll() {
         for (String name : delegate.getPropertyNames()) {
-            getProperty(name);
+            try {
+                getProperty(name);
+            } catch (Exception e) {
+                throw new IllegalStateException(
+                        "配置解密失败: property=" + name + " source=" + delegate.getName(), e);
+            }
         }
     }
 
