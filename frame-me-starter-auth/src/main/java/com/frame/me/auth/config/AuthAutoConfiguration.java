@@ -101,7 +101,7 @@ public class AuthAutoConfiguration {
      */
     @Bean
     public FilterRegistrationBean<Filter> authFilter(ObjectProvider<IAuthUserResolver> userResolverProvider,
-                                                      RequestMappingHandlerMapping handlerMapping,
+                                                      ObjectProvider<RequestMappingHandlerMapping> handlerMappingProvider,
                                                       AuthProperties properties,
                                                       IFilterErrorResponseWriter errorResponseWriter) {
         IAuthUserResolver userResolver = userResolverProvider.getIfAvailable(() -> {
@@ -110,6 +110,7 @@ public class AuthAutoConfiguration {
                             + "frame-me-starter-auth-sa-token；内网服务间调用可显式配置 "
                             + "me.auth.header-resolver.enabled=true 启用基于请求头的解析器");
         });
+        RequestMappingHandlerMapping handlerMapping = handlerMappingProvider.getIfAvailable();
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new AuthFilter(userResolver, handlerMapping, properties, errorResponseWriter));
         registration.addUrlPatterns("/*");

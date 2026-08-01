@@ -7,9 +7,6 @@ import com.frame.me.base.result.ResultJacksonModule;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.base.web.ResultFilterErrorResponseWriter;
 import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -22,13 +19,11 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
 
-import java.io.IOException;
-
 /**
  * frame-me-starter-base 自动配置.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(ExceptionProperties.class)
+@EnableConfigurationProperties({ExceptionProperties.class, CspProperties.class})
 public class BaseAutoConfiguration {
 
     @Bean
@@ -55,7 +50,7 @@ public class BaseAutoConfiguration {
      * 避免应用层因开发环境无 HTTPS 导致浏览器永久拒绝 HTTP 连接。</p>
      */
     @Bean
-    public FilterRegistrationBean<Filter> securityHeadersFilter() {
+    public FilterRegistrationBean<Filter> securityHeadersFilter(CspProperties cspProperties) {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter((servletRequest, servletResponse, chain) -> {
             HttpServletResponse res = (HttpServletResponse) servletResponse;
@@ -63,6 +58,9 @@ public class BaseAutoConfiguration {
             res.setHeader("X-Frame-Options", "DENY");
             res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
             res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
+            if (cspProperties.isEnabled()) {
+                res.setHeader("Content-Security-Policy", cspProperties.getPolicy());
+            }
             chain.doFilter(servletRequest, servletResponse);
         });
         // ponytail: CorsFilter 也是 HIGHEST_PRECEDENCE，安全头 filter 比它晚一个位置，

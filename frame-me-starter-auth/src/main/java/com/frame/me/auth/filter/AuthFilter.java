@@ -156,6 +156,9 @@ public class AuthFilter implements Filter {
         }
 
         // 2. 注解白名单
+        if (handlerMapping == null) {
+            return false;
+        }
         try {
             HandlerExecutionChain chain = handlerMapping.getHandler(request);
             if (chain == null) {

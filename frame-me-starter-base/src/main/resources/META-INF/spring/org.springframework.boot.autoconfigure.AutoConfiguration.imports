@@ -1,5 +1,6 @@
 com.frame.me.base.config.BaseAutoConfiguration
 com.frame.me.base.config.CorsAutoConfiguration
+com.frame.me.base.config.CsrfAutoConfiguration
 com.frame.me.base.client.HttpServiceClientAutoConfiguration
 com.frame.me.base.config.PoolingRestClientAutoConfiguration
 com.frame.me.base.config.AsyncAutoConfiguration
