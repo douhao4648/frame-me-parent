@@ -12,7 +12,7 @@ spring:
     url: jdbc:mysql://localhost:3306/frame_me_test3?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
     # 示例密文：主密码 me2026、默认迭代 100000 次、明文 root
-    password: ME(kFuq6O0VFyCJcFDJ8Dvxez1ogshwFzMIMjAIIaMBTjqB9yHmMvSjccvAbgLCrmPG)
+    password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -41,7 +41,7 @@ spring:
   #        second:
   #          url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
   #          username: root
-  #          password: ME(kFuq6O0VFyCJcFDJ8Dvxez1ogshwFzMIMjAIIaMBTjqB9yHmMvSjccvAbgLCrmPG)
+  #          password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
   #          driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
     default-property-inclusion: non_null
@@ -83,7 +83,7 @@ mybatis-flex:
     master:
       url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       username: root
-      password: ME(kFuq6O0VFyCJcFDJ8Dvxez1ogshwFzMIMjAIIaMBTjqB9yHmMvSjccvAbgLCrmPG)
+      password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
       driver-class-name: com.mysql.cj.jdbc.Driver
       type: hikari
       maximum-pool-size: 20
@@ -106,7 +106,7 @@ mybatis-flex:
     second:
       url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
       username: root
-      password: ME(kFuq6O0VFyCJcFDJ8Dvxez1ogshwFzMIMjAIIaMBTjqB9yHmMvSjccvAbgLCrmPG)
+      password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
       driver-class-name: com.mysql.cj.jdbc.Driver
       type: hikari
       maximum-pool-size: 20

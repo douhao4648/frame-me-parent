@@ -5,4 +5,4 @@
 # 不写入任何配置文件——真实业务中数据源密码可同样写成 password: ME(...)。
 me:
   demo:
-    secret: ME(kFuq6O0VFyCJcFDJ8Dvxez1ogshwFzMIMjAIIaMBTjqB9yHmMvSjccvAbgLCrmPG)
+    secret: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
