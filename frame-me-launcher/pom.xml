@@ -16,6 +16,9 @@
     <description>Frame Me 启动器聚合模块</description>
 
     <modules>
+        <module>frame-me-sso</module>
+        <module>frame-me-gateway</module>
+        <module>frame-me-audit</module>
     </modules>
 
 </project>

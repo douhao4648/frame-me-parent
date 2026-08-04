@@ -12,16 +12,39 @@
 
     <artifactId>frame-me-starter-cloud</artifactId>
     <name>frame-me-starter-cloud</name>
-    <description>微服务云组件 Starter 模块</description>
+    <description>微服务云基础底座 Starter：Spring Cloud 配置刷新体系（@RefreshScope / RefreshEvent）+ 配置中心无关的刷新解密 + 注册中心无关的优雅下线编排</description>
 
     <dependencies>
+        <!-- 云基础底座：两个平级独立 jar 都显式声明（Spring Cloud 2025.x 中 commons 不传递 context）。 -->
+        <!-- - spring-cloud-context：配置刷新体系 @RefreshScope / RefreshEvent / EnvironmentChangeEvent / ContextRefresher（刷新解密监听器依赖） -->
+        <!-- - spring-cloud-commons：serviceregistry 子包的 ServiceRegistry / Registration / AbstractAutoServiceRegistration（优雅下线反注册依赖） -->
+        <!-- 版本由根 pom 的 spring-cloud-dependencies BOM 管控。 -->
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-base</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-commons</artifactId>
+        </dependency>
+        <!-- 刷新解密能力：optional，消费方同时引入 sensi-encrypt 且配主密码时才装配刷新解密监听器 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-sensi-encrypt</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

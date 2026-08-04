@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.frame.me</groupId>
+        <artifactId>frame-me-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>frame-me-reducer</artifactId>
+    <packaging>pom</packaging>
+    <name>frame-me-reducer</name>
+    <description>阿里云系列 reducer：把阿里云公共 SDK 底座（frame-me-aliyun-common）与各能力 starter（frame-me-aliyun-starter-xxx）合并成一个集合</description>
+
+    <modules>
+        <module>frame-me-aliyun-common</module>
+        <module>frame-me-aliyun-starter-oss</module>
+    </modules>
+</project>

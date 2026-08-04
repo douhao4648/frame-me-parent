@@ -380,9 +380,11 @@
    - 实现与可运行入口放在 `frame-me-tester-service`，当前以 **MyBatis-Flex** 为数据访问演示（`FlexDemo*` 系列类）。
    - MyBatis-Plus 版演示类（`DemoController` / `DemoEntity` / `DemoMapper` / `DemoServiceImpl` 等）整体注释保留；`frame-me-starter-mybatis-plus`、`frame-me-starter-dynamic-ds`、`frame-me-adapter-starter` 依赖在 POM 中注释保留，可按需恢复。
 
-7. **Spring Cloud / Spring Cloud Alibaba BOM 已声明但未使用**
+7. **Spring Cloud / Spring Cloud Alibaba BOM 已使用**
    - 父 POM 中已导入 `spring-cloud-dependencies` 与 `spring-cloud-alibaba-dependencies`。
-   - 尚未在任何模块中引入具体 starter，为后续微服务化预留。
+   - `frame-me-starter-cloud` 显式引入 `spring-cloud-context`（配置刷新体系：`@RefreshScope` / `RefreshEvent` / `EnvironmentChangeEvent` / `ContextRefresher`），版本由 BOM 管控。
+   - `frame-me-starter-cloud-nacos` 引入 SCA `spring-cloud-starter-alibaba-nacos-config` 与 `spring-cloud-starter-alibaba-nacos-discovery`（SCA `2025.1.0.0`，内置 nacos-client `3.1.1`），版本由 BOM 管控，不写 version。
+   - LB 抽象（`LoadBalancerClient`）由消费方引入的 discovery starter 传递带入；auth 的服务名探针（`me.auth.propagate.service-discovery`）依赖它在场。
 
 ## `agent/` 目录
 

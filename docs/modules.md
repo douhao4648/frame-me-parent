@@ -464,11 +464,89 @@ me:
 
 ## `frame-me-starter-cloud`
 
-- **定位**：微服务云组件模块（当前为占位）。
-- **依赖**：`frame-me-starter-base`、`lombok`。
+- **定位**：微服务云基础底座模块，承载所有云组件共享的基础能力——Spring Cloud 配置刷新体系（`@RefreshScope` / `RefreshEvent` / `EnvironmentChangeEvent` / `ContextRefresher`）、**配置中心无关的刷新解密抽象**、**注册中心无关的优雅下线编排**。具体云组件（Nacos / Gateway / Sentinel 等）各自独立为 `frame-me-starter-cloud-xxx` 模块。
+- **依赖**：`frame-me-starter-base`、`spring-cloud-context`（配置刷新体系）+ `spring-cloud-commons`（反注册抽象 `ServiceRegistry`/`Registration`）、`lombok`；`frame-me-starter-sensi-encrypt` 为 **optional** 依赖——消费方同时引入 sensi-encrypt 且配了主密码时，刷新解密监听器才装配。actuator（含 `spring-boot-health`）由 base 传递带入。
 - **关键类**：
+  - `com.frame.me.cloud.config.CloudAutoConfiguration` — 自动装配入口；注册下线编排 bean + 内部用 `@ConditionalOnClass` 隔离的 `RefreshDecryptAutoConfiguration` 静态内部类承载刷新解密能力，sensi-encrypt 缺席时整体退避（遵循 `docs/conventions.md` 模式 A，不抛 NCDFE）。
+  - 优雅下线编排（`com.frame.me.cloud.shutdown` 包）：
+    - `GracefulShutdownProperties` — `me.cloud.shutdown.*` 配置属性绑定。
+    - `ShutdownReadyFlag` — 下线就绪标志 Bean（`AtomicBoolean`，默认 true）；actuator health indicator 与业务 HealthController 都注入它联动返回 DOWN。
+    - `GracefulShutdownExecutor` — 下线编排核心：标记 health DOWN → 反注册（`ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过）→ 等待消费者刷新缓存；被 endpoint 与 listener 共用，幂等。
+    - `ShutdownHealthIndicator` — actuator health 联动（Boot 4 新包 `org.springframework.boot.health.contributor`），flag false → `OUT_OF_SERVICE`（HTTP 503）。
+    - `GracefulShutdownEndpoint` — `POST /actuator/offline`，preStop 主路径，同步阻塞到编排完成返回 202。
+    - `GracefulShutdownListener` — `ApplicationListener<ContextClosedEvent>`，SIGTERM 兜底路径。
+  - `com.frame.me.cloud.config.RefreshDecryptListener` — 配置中心无关的刷新解密监听器：`ApplicationListener<EnvironmentChangeEvent>`，刷新后遍历 `ConfigurableEnvironment.getPropertySources()`，把含 `ME(密文)` 的未包装 `EnumerablePropertySource` 原位替换成 `DecryptedPropertySource`；已是 `DecryptedPropertySource` 的跳过（幂等，防重复包装）。
   - `com.frame.me.cloud.CloudConstant` — 占位常量类。
-- **扩展提示**：未来可引入 Nacos 注册/配置中心、Gateway、Sentinel、分布式链路追踪等。
+- **自动装配**：通过 `frame-me-starter-cloud/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CloudAutoConfiguration`。
+- **启用条件**：
+  - 优雅下线编排：`me.cloud.shutdown.enabled=true`（默认 `true`，可显式关闭）。`ShutdownHealthIndicator` 需 actuator 在场（base 已传递）；`GracefulShutdownEndpoint` 需 actuator + `management.endpoints.web.exposure.include` 含 `offline`；反注册部分用 `ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过（只做 health 联动 + 等待）。
+  - `RefreshDecryptAutoConfiguration` 内部类：classpath 存在 `EnumerablePropertySource`（spring-core）、`DecryptedPropertySource` 与 `StringEncryptor`（sensi-encrypt），且容器中有 `StringEncryptor` Bean（即配置了 `me.encrypt.password`）。
+  - 未配主密码时 `StringEncryptor` Bean 不存在，监听器不装配——未启用加密则无需解密，合理退避。
+- **可配置项**（前缀 `me.cloud.shutdown`）：
+  - `enabled` — 是否启用优雅下线编排，默认 `true`。
+  - `deregister-wait` — 反注册后等待消费者刷新缓存的时长，默认 `15s`；纯任务服务或无注册中心时可设 `0s` 跳过等待。
+  - `health-indicator-enabled` — 是否注册 actuator health indicator，默认 `true`。
+  - `endpoint-enabled` — 是否暴露 `POST /actuator/offline` 主动下线端点，默认 `true`。
+- **设计约定**：
+  - 已纳入 `frame-me-boot`（cloud 在 boot 聚合依赖中），业务 `xx-service` 引入 `frame-me-boot` 即获得云基础底座能力。
+  - **刷新解密链路时序**：
+    - **启动期（零改动）**：`ConfigDataEnvironmentPostProcessor`（order `HIGHEST_PRECEDENCE + 10`）远早于 sensi-encrypt 的 `EncryptablePropertyEnvironmentPostProcessor`（`LOWEST_PRECEDENCE`），Nacos 源走 `spring.config.import` 在 sensi-encrypt 跑时已就位，sensi-encrypt 现有循环天然扫描到并原位包装。
+    - **运行时刷新**：配置中心推送变更触发 `RefreshEvent` → `ContextRefresher.refreshEnvironment()` 构造全新 `PropertySource` 替换旧源（粒度为 Data ID / 整个配置文件级，非字段级） → 发布 `EnvironmentChangeEvent` → 本监听器对新加入的未包装含密文源重新包装。
+    - **短窗口期**：`EnvironmentChangeEvent` 触发到监听器跑完之间，environment 里的密文短暂裸露；约束：**敏感配置 bean 不用 `@RefreshScope`**（敏感值变更走重启，不参与热刷新）。
+    - **缓存不累积**：`DecryptedPropertySource.decryptedCache` 是实例字段，refresh 时整个实例被丢弃、新建，缓存随之清零重建，不跨 refresh 累积。
+  - **主密码永不进配置中心**：`me.encrypt.password` 只走环境变量 / `-D` 启动参数，不写入 Nacos 远程配置（否则形成"解密自己"的循环依赖）。
+  - **cloud 显式声明 `spring-cloud-context` + `spring-cloud-commons`**：Spring Cloud 2025.x 中 commons 与 context 是两个平级独立 jar，commons 不传递依赖 context。本模块既需要刷新体系（context 的 `@RefreshScope`/`RefreshEvent`/`EnvironmentChangeEvent`）又需要反注册抽象（commons 的 `serviceregistry` 子包 `ServiceRegistry`/`Registration`），故两者都显式声明。LB 抽象（`LoadBalancerClient`，在 commons 内）由消费方引入的 discovery starter 传递带入，本模块不重复声明。
+  - **优雅下线流水线**（云平台滚动发布 SIGTERM 窗口内编排）：
+    1. preStop 调 `POST /actuator/offline`（主路径，SIGTERM 前完成编排）或 SIGTERM 触发 `ContextClosedEvent`（兜底路径）
+    2. `ShutdownReadyFlag` 置 false → actuator health 立即返回 `OUT_OF_SERVICE`（503）+ 业务 HealthController 返回 DOWN，LB 探针失败停止发新流量
+    3. 反注册（`ServiceRegistry.deregister`，`ObjectProvider` 守卫，无注册中心时跳过）→ 注册中心不再把实例返回给消费者
+    4. 等待 `deregister-wait`（默认 15s）让消费者刷新本地缓存
+    5. 返回，Spring 继续 → Tomcat graceful shutdown（`server.shutdown=graceful`）处理在途请求
+    6. 处理完在途请求，关闭
+  - **两条路径幂等**：preStop 调过端点后 flag 已 false、已反注册，SIGTERM 来 listener 再跑一遍无副作用。
+  - **K8s 对齐建议**：`terminationGracePeriodSeconds` ≥ `deregister-wait`(15s) + `timeout-per-shutdown-phase`(30s) + buffer(5s) = 50s，否则 Tomcat 还在处理在途请求就被 SIGKILL。
+- **扩展提示**：未来接 Apollo / Consul 等其他配置中心时，刷新解密能力天然复用（监听器配置中心无关）；Gateway / Sentinel / 链路追踪等云组件各自新建 `frame-me-starter-cloud-xxx` 模块。
+
+## `frame-me-starter-cloud-nacos`
+
+- **定位**：Nacos 配置中心 + 注册中心组件 starter，引入 SCA 官方 `nacos-config` / `nacos-discovery` starter。极薄模块——不重写 SCA 装配逻辑，刷新解密能力从 `frame-me-starter-cloud` 继承。
+- **依赖**：`frame-me-starter-cloud`（继承配置刷新体系与刷新解密抽象）、`spring-cloud-starter-alibaba-nacos-config`、`spring-cloud-starter-alibaba-nacos-discovery`（SCA `2025.1.0.0`，版本由根 pom 的 `spring-cloud-alibaba-dependencies` BOM 管控，内置 nacos-client `3.1.1`）、`lombok`。
+- **关键类**：
+  - `com.frame.me.cloud.nacos.NacosCloudConstant` — 占位常量类（遵循 `*Constant` 约定，`final` + 私有构造器）。
+- **自动装配**：无自有自动装配类。SCA 官方 starter 自带 `NacosConfigAutoConfiguration` / `NacosDiscoveryAutoConfiguration`，本模块不重写。
+- **启用条件**：
+  - 通过 `spring.config.import=nacos:application.yml` 等 ConfigData 机制加载 Nacos 配置（SCA 原生约定）。
+  - 注册中心默认开启（`spring.cloud.nacos.discovery.enabled` 默认 `true`）。
+- **可配置项**：全部走 SCA 原生 `spring.cloud.nacos.*`，本模块不定义 `me.*` 配置项。
+  - `spring.cloud.nacos.server-addr` — Nacos server 地址。
+  - `spring.cloud.nacos.username` / `password` — 连 Nacos 的凭证，写**本地** `application.yml`，可用 `ME(密文)`，sensi-encrypt 启动期解密。
+  - `spring.cloud.nacos.namespace` — 命名空间；约定 `namespace=${spring.profiles.active}` 实现 namespace=环境隔离（dev profile → dev namespace，生产 namespace 天然隔离）。
+  - `spring.cloud.nacos.config.file-extension` — 配置文件扩展名，默认 `properties`，建议 `yaml`。
+  - `spring.cloud.nacos.discovery.cluster-name` — 集群名。
+- **设计约定**：
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-cloud-nacos` 以获得 Nacos 能力（与 mybatis-plus / dynamic-ds 等约定一致）。
+  - **不造 `me.cloud.nacos.*` 配置前缀**：SCA 原生 `spring.cloud.nacos.*` 已有全套配置，重造等于做无意义属性转发 + 绕过 SCA 原生校验。
+  - **粒度（先合后拆）**：当前一个模块同时提供 config + discovery；未来如需拆分，改为 `frame-me-starter-cloud-nacos-config` 与 `frame-me-starter-cloud-nacos-discovery` 两个模块，依赖路径调整即可。
+  - **服务间调用**：Nacos discovery + Spring Cloud LoadBalancer（SCA discovery 传递带入 commons）+ base 的 `PoolingRestClient`；不引 OpenFeign，现有 HTTP Interface（`@HttpExchange`）+ RestClient 够用。
+  - **与 auth 头传播衔接**：`frame-me-starter-auth` 的 `me.auth.propagate.service-discovery` 用 `LoadBalancerClient.choose(host)` 甄别服务名调用自动放行，Nacos discovery 落地后天然生效，auth 模块零改动。
+
+**示例配置**：
+
+```yaml
+spring:
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      server-addr: nacos.example.com:8848
+      username: nacos                              # 连 Nacos 凭证，写本地
+      password: ME(GXXXX)                          # 可用 ME(密文)，sensi-encrypt 启动期解密
+      namespace: ${spring.profiles.active}         # namespace=环境，原生占位符
+      config:
+        file-extension: yaml
+      discovery:
+        cluster-name: BJ
+```
 
 ## `frame-me-starter-multi-redis`
 
@@ -970,7 +1048,7 @@ public class AlertService {
 - **依赖**：`frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`redisson`、`spring-boot-starter-test`（test scope）；`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus`、`druid-spring-boot-4-starter` 在 POM 中注释保留，可按需恢复。
 - **关键类/文件**：
   - `com.frame.me.tester.Application` — `@SpringBootApplication` 启动类。
-  - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi` 的健康检查端点（返回 `UP`），`@Anonymous` 匿名可访问。
+  - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi` 的健康检查端点，`@Anonymous` 匿名可访问；注入 `ShutdownReadyFlag` 联动——服务就绪返回 `UP`，进入优雅下线（flag=false）返回 503 `DOWN`，供打业务端口的 LB 探针立即摘流。
   - `com.frame.me.tester.controller.FlexDemoController` — 实现 `IFlexDemoApi`，演示 MyBatis-Flex CRUD、分页、校验分组。
   - `com.frame.me.tester.controller.DataSourceController` — 实现 `IDataSourceApi`，演示多数据源切换与连接池信息查询；**当前整体注释保留**（未装配），如需启用须先加字段白名单脱敏（jdbc-url/密码不可外泄）。
   - `com.frame.me.tester.controller.RedisController` — 实现 `IRedisApi`，演示 Redis 操作与 Redisson 分布式锁。
@@ -1019,7 +1097,8 @@ public class AlertService {
 | `frame-me-starter-auth-rbac` | `frame-me-starter-auth`、`caffeine`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-auth-jwt` | `frame-me-starter-auth`、`jjwt-api`/`jjwt-impl`/`jjwt-gson`、`spring-security-crypto`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-auth-sa-token` | `frame-me-starter-auth`、`sa-token-spring-boot4-starter`、`fastjson2`、`spring-security-crypto`（`frame-me-starter-multi-redis` optional） |
-| `frame-me-starter-cloud` | `frame-me-starter-base` |
+| `frame-me-starter-cloud` | `frame-me-starter-base`、`spring-cloud-context`（`frame-me-starter-sensi-encrypt` optional） |
+| `frame-me-starter-cloud-nacos` | `frame-me-starter-cloud`、`spring-cloud-starter-alibaba-nacos-config`、`spring-cloud-starter-alibaba-nacos-discovery` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |

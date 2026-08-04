@@ -1,6 +1,6 @@
 package com.frame.me.encrypt.env;
 
-import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
+import org.jasypt.encryption.StringEncryptor;
 import org.springframework.core.env.EnumerablePropertySource;
 
 import java.util.Map;
@@ -14,22 +14,26 @@ import java.util.concurrent.ConcurrentHashMap;
  * Spring Boot 的优先级语义：命令行 / JVM -D / 环境变量等更高优先级来源
  * 仍能覆盖加密配置项（生产紧急切换场景的刚需）。</p>
  *
+ * <p>构造器接收 {@link StringEncryptor} 接口（而非 {@code StandardPBEStringEncryptor}
+ * 具体类型），使 {@code frame-me-starter-cloud} 等外部模块可直接注入 sensi-encrypt
+ * 暴露的 {@code StringEncryptor} Bean 复用解密能力，无需感知具体实现类型。</p>
+ *
  * @author frame-me
  */
-class DecryptedPropertySource extends EnumerablePropertySource<Object> {
+public class DecryptedPropertySource extends EnumerablePropertySource<Object> {
 
     private final EnumerablePropertySource<?> delegate;
-    private final StandardPBEStringEncryptor encryptor;
+    private final StringEncryptor encryptor;
     private final String prefix;
     private final String suffix;
 
     /**
-     * 已解密值缓存：StandardPBEStringEncryptor 解密有 PBKDF2 迭代开销，按 key 缓存一次.
+     * 已解密值缓存：StringEncryptor 解密有 PBKDF2 迭代开销，按 key 缓存一次.
      */
     private final Map<String, Object> decryptedCache = new ConcurrentHashMap<>();
 
-    DecryptedPropertySource(EnumerablePropertySource<?> delegate,
-                            StandardPBEStringEncryptor encryptor, String prefix, String suffix) {
+    public DecryptedPropertySource(EnumerablePropertySource<?> delegate,
+                                   StringEncryptor encryptor, String prefix, String suffix) {
         super(delegate.getName(), delegate.getSource());
         this.delegate = delegate;
         this.encryptor = encryptor;
@@ -65,7 +69,7 @@ class DecryptedPropertySource extends EnumerablePropertySource<Object> {
     /**
      * 是否含有密文属性（决定是否替换原属性源）.
      */
-    boolean hasEncryptedProperties() {
+    public boolean hasEncryptedProperties() {
         for (String name : delegate.getPropertyNames()) {
             if (delegate.getProperty(name) instanceof String text && isEncrypted(text)) {
                 return true;

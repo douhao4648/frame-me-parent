@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.frame.me</groupId>
+        <artifactId>frame-me-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>frame-me-starter-cloud-nacos</artifactId>
+    <name>frame-me-starter-cloud-nacos</name>
+    <description>Nacos 配置中心 + 注册中心组件 Starter：引入 SCA 官方 nacos-config / nacos-discovery starter，刷新解密能力从 frame-me-starter-cloud 继承</description>
+
+    <dependencies>
+        <!-- 云基础底座：继承配置刷新体系（@RefreshScope / RefreshEvent）与配置中心无关的刷新解密抽象 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-cloud</artifactId>
+        </dependency>
+        <!-- Nacos 配置中心：版本由根 pom 的 spring-cloud-alibaba-dependencies BOM 管控（2025.1.0.0）-->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+        <!-- Nacos 注册中心：同上 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.frame.me</groupId>
+        <artifactId>frame-me-reducer</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>frame-me-aliyun-common</artifactId>
+    <name>frame-me-aliyun-common</name>
+    <description>阿里云公共 SDK 底座：存放各阿里云服务共用的 SDK 与公共依赖，不带自动装配，具体能力由各 frame-me-aliyun-starter-xxx 模块按需引入</description>
+
+    <dependencies>
+        <!-- 阿里云各服务的公共 SDK 放这里；当前为占位工程，暂无公共依赖 -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+    </dependencies>
+</project>

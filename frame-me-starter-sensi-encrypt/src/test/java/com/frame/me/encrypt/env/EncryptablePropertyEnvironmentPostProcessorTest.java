@@ -89,6 +89,10 @@ class EncryptablePropertyEnvironmentPostProcessorTest {
 
     /**
      * 主密码错误导致解密失败时启动期 fail-fast，而非延迟到首次读取.
+     *
+     * <p>{@code decryptAll} 将底层 {@link org.jasypt.exceptions.EncryptionOperationNotPossibleException}
+     * 包装为 {@link IllegalStateException} 抛出（带 property / source 定位信息），故断言包装类型
+     * 并验证根因异常为 jasypt 解密失败.</p>
      */
     @Test
     void wrongPasswordFailsFastAtStartup() {
@@ -98,7 +102,8 @@ class EncryptablePropertyEnvironmentPostProcessorTest {
                 Map.of("db.password", encrypt("s3cret"))));
 
         assertThatThrownBy(() -> processor.postProcessEnvironment(env, null))
-                .isInstanceOf(org.jasypt.exceptions.EncryptionOperationNotPossibleException.class);
+                .isInstanceOf(IllegalStateException.class)
+                .hasRootCauseInstanceOf(org.jasypt.exceptions.EncryptionOperationNotPossibleException.class);
     }
 
     /**

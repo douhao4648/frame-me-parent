@@ -26,6 +26,13 @@
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-auth-jwt</artifactId>
+            <!-- 与 frame-me-starter-auth-rbac 中冲突 -->
+            <exclusions>
+                <exclusion>
+                    <artifactId>error_prone_annotations</artifactId>
+                    <groupId>com.google.errorprone</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>

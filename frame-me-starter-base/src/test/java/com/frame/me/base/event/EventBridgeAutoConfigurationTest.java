@@ -2,16 +2,21 @@ package com.frame.me.base.event;
 
 import com.frame.me.base.config.BaseAutoConfiguration;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * {@link EventBridgeAutoConfiguration} 测试.
+ *
+ * <p>用 {@link WebApplicationContextRunner} 而非 {@code ApplicationContextRunner}：
+ * {@link BaseAutoConfiguration} 标注 {@code @ConditionalOnWebApplication(SERVLET)}，
+ * 非 Web runner 下整体退避，{@code EnvironmentHelper} bean 不创建，
+ * {@link EventBridgeAutoConfiguration} 构造器注入失败.</p>
  */
 class EventBridgeAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+    private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner()
             .withUserConfiguration(BaseAutoConfiguration.class, EventBridgeAutoConfiguration.class);
 
     @Test

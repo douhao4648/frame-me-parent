@@ -153,7 +153,64 @@ starter 模块对 **optional 依赖**（`<optional>true</optional>` 或 `provide
 - **模式 C：`@ConditionalOnBean` 二次守卫**（optional 类在 classpath 但对应 Bean 可能未创建时）
   - 在模式 A/B 基础上叠加 `@ConditionalOnBean(X.class)`，确保依赖的 Bean 实际存在于容器才装配，避免"类在但 Bean 未注册"的运行期空指针。示例见 `RedisEventTransportAutoConfiguration` 的 `@ConditionalOnBean({RedissonClient.class, EventBridgeProperties.class})`。
 
-- **配套测试**：每个 optional 依赖保护点必须有 **AbsentClasspath 测试**（用 `FilteredClassLoader` 屏蔽 optional 包模拟缺席），验证 starter 在缺类时整体退避不抛异常。示例见 `RbacRedisAbsentClasspathTest`、`RedisEventTransportAutoConfigurationTest#shouldNotConfigureTransportWhenRedissonJarAbsent`。
+- **配套测试**：每个 optional 依赖保护点必须有 **AbsentClasspath 测试**（用 `FilteredClassLoader` 屏蔽 optional 包模拟缺席），验证 starter 在缺类时整体退避不抛异常。示例见 `RbacRedisAbsentClasspathTest`、`RedisEventTransportAutoConfigurationTest#shouldNotConfigureTransportWhenRedissonJarAbsent`、`frame-me-starter-cloud` 的 `CloudAbsentClasspathTest`。
+
+## 配置中心刷新解密约定
+
+引入配置中心（如 Nacos）后，`ME(密文)` 的解密链路在启动期与运行时刷新两个时序上分别处理：
+
+- **启动期（零改动）**：`spring.config.import` 触发的配置中心加载走 `ConfigDataEnvironmentPostProcessor`（order `HIGHEST_PRECEDENCE + 10`），远早于 sensi-encrypt 的 `EncryptablePropertyEnvironmentPostProcessor`（`LOWEST_PRECEDENCE`）。配置中心源在 sensi-encrypt 跑时已就位，sensi-encrypt 现有循环天然扫描到并原位包装成 `DecryptedPropertySource`。**启动期不需要额外监听器/PostProcessor。**
+- **运行时刷新**：配置中心推送变更触发 `RefreshEvent` → `ContextRefresher.refreshEnvironment()` 构造全新 `PropertySource` 替换旧源（粒度为 Data ID / 整个配置文件级，非字段级）→ 发布 `EnvironmentChangeEvent`。`frame-me-starter-cloud` 的 `RefreshDecryptListener` 监听此事件，对新加入的未包装含密文源重新包装；已是 `DecryptedPropertySource` 的跳过（幂等）。**这是 sensi-encrypt 的 `EnvironmentPostProcessor` 只在启动跑一次、不重跑所必需的补全。**
+
+约定：
+
+- **配置中心无关**：`RefreshDecryptListener` 监听 `EnvironmentChangeEvent`，不绑定具体配置中心；任何走 Spring Cloud 刷新体系的配置中心（Nacos / Apollo / Consul）都自动被覆盖。解密参数（prefix / suffix）与 sensi-encrypt 共用同一套 `me.encrypt.*`，密文互通。
+- **ME(密文) 不参与热刷新生效**：敏感值变更走重启。`@RefreshScope` 用于业务配置（开关、阈值）；**敏感配置 bean 不用 `@RefreshScope`**，避免短窗口期（`EnvironmentChangeEvent` 到监听器跑完之间密文裸露）读到密文。
+- **主密码永不进配置中心**：`me.encrypt.password` 只走环境变量 / `-D` 启动参数，不写入 Nacos 远程配置（否则形成"解密自己"的循环依赖）。
+- **连配置中心的凭证**（如 `spring.cloud.nacos.username/password`）写**本地** `application.yml`，可用 `ME(密文)`，sensi-encrypt 启动期解密；业务敏感值（`spring.datasource.password` 等）放配置中心远程配置写成 `ME(密文)`，运行时刷新由 `RefreshDecryptListener` 补全解密。
+
+## 优雅下线约定
+
+云平台滚动发布时，容器收到 SIGTERM 到真正被 kill 之间有窗口（K8s 默认 `terminationGracePeriodSeconds=30s`）。直接关闭 Tomcat 会导致 LB 健康检查未失败新请求继续打进来、注册中心实例还在消费者拉到调用失败、在途请求未处理完被 kill。`frame-me-starter-cloud` 提供**注册中心无关的优雅下线编排**（`me.cloud.shutdown.*`），编排多步骤：标记 health DOWN → 反注册 → 等待消费者刷新缓存 → Spring 原生 graceful shutdown 处理在途请求。
+
+约定：
+
+- **两条触发路径，幂等**：
+  - **preStop 主路径**：K8s `preStop` 钩子调 `POST http://localhost:{management.port}/actuator/offline`，SIGTERM 前完成整个下线编排（同步阻塞，返回后 K8s 才发 SIGTERM）。需 `management.endpoints.web.exposure.include` 含 `offline`。
+  - **ContextClosedEvent 兜底**：未配 preStop 或 preStap 失败时，SIGTERM 触发 Spring 关闭流程，`GracefulShutdownListener` 在 Tomcat graceful shutdown 之前完成编排。preStap 调过端点后 flag 已 false、已反注册，listener 再跑一遍无副作用。
+- **health 联动两处**：
+  - actuator `/actuator/health`：`ShutdownHealthIndicator`（Boot 4 新包 `org.springframework.boot.health.contributor`）读 flag，false → `OUT_OF_SERVICE`（HTTP 503），打 management 端口的探针立即摘流。
+  - 业务 HealthController：注入 `ShutdownReadyFlag`，flag false → 返回 503 DOWN，打业务端口的探针也摘流。两条探针路径都覆盖。
+- **反注册用 `ObjectProvider` 守卫**：无注册中心（纯定时任务服务、或未引 discovery）时 `ServiceRegistry`/`Registration` Bean 不存在，跳过反注册，只做 health 联动 + 等待——不抛异常。
+- **配置示例**（业务 `application.yml`）：
+  ```yaml
+  server:
+    shutdown: graceful                              # 原生：处理在途请求
+  spring:
+    lifecycle:
+      timeout-per-shutdown-phase: 30s                # 原生：关闭超时，与 K8s terminationGracePeriodSeconds 对齐
+  me:
+    cloud:
+      shutdown:
+        enabled: true
+        deregister-wait: 15s
+        health-indicator-enabled: true
+        endpoint-enabled: true
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: health,offline                   # 暴露 health 与 offline 端点
+  ```
+- **K8s 对齐建议**：`terminationGracePeriodSeconds` ≥ `deregister-wait`(15s) + `timeout-per-shutdown-phase`(30s) + buffer(5s) = **50s**。否则 Tomcat 还在处理在途请求就被 SIGKILL，graceful shutdown 失效。
+- **preStop 示例**（K8s deployment）：
+  ```yaml
+  lifecycle:
+    preStop:
+      exec:
+        command: ["sh", "-c", "curl -X POST http://localhost:9091/actuator/offline && sleep 1"]
+    terminationGracePeriodSeconds: 50
+  ```
 
 ## 参数校验约定
 
