@@ -102,10 +102,15 @@ public class CsrfAutoConfiguration {
             // 提取请求来源 Origin
             String origin = extractOrigin(httpRequest);
             if (origin == null || origin.isBlank()) {
-                // 无 Origin/Referer 头：服务间调用或老旧客户端，放行。
-                // 注意这是 fail-open 行为——浏览器配置 Referrer-Policy: no-referrer
-                // 时合法同源 POST 也可能不带 Referer，因此默认放行；
-                // 若需严格模式（拒绝无来源头的状态变更请求），可自行扩展
+                // 无 Origin/Referer 头：默认 fail-open 放行（兼容服务间调用与老旧客户端）；
+                // 严格模式（me.csrf.strict-mode=true）下 fail-closed，按 CSRF 攻击拒绝，
+                // 适用于 Cookie 传 token 场景与 SameSite 形成纵深防御
+                if (properties.isStrictMode()) {
+                    log.warn("CSRF 校验失败（无来源头，严格模式）: method={}, uri={}",
+                            httpRequest.getMethod(), httpRequest.getRequestURI());
+                    errorResponseWriter.write(httpResponse, ResultCode.FORBIDDEN, "CSRF 校验失败");
+                    return;
+                }
                 chain.doFilter(request, response);
                 return;
             }

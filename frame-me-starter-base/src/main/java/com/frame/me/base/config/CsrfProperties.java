@@ -41,4 +41,14 @@ public class CsrfProperties {
      * 支持完整源（{@code https://example.com}）和端口通配（{@code https://example.com:*}）。</p>
      */
     private List<String> allowedOrigins = new ArrayList<>();
+
+    /**
+     * 严格模式：状态变更请求无 Origin/Referer 头时是否拒绝，默认 {@code false}（放行）。
+     *
+     * <p>默认 fail-open 以兼容纯服务间调用与老旧客户端；但浏览器配置
+     * {@code Referrer-Policy: no-referrer} 时合法同源 POST 也可能不带 Referer，
+     * 故默认放行。开启 Cookie 传 token 场景建议设为 {@code true}（fail-closed），
+     * 将无来源头的状态变更请求按 CSRF 攻击拒绝，与 SameSite 形成纵深防御.</p>
+     */
+    private boolean strictMode = false;
 }

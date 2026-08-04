@@ -1,5 +1,6 @@
 package com.frame.me.base.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import tools.jackson.databind.ObjectMapper;
 import com.frame.me.base.advice.GlobalExceptionHandler;
 import com.frame.me.base.env.EnvironmentHelper;
@@ -23,7 +24,8 @@ import org.springframework.core.env.Environment;
  * frame-me-starter-base 自动配置.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({ExceptionProperties.class, CspProperties.class})
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@EnableConfigurationProperties({ExceptionProperties.class, SecurityHeadersProperties.class})
 public class BaseAutoConfiguration {
 
     @Bean
@@ -46,20 +48,25 @@ public class BaseAutoConfiguration {
     /**
      * 安全响应头 Filter：添加基础浏览器安全头，防 XSS/clickjacking/MIME-sniffing.
      *
-     * <p>HSTS（Strict-Transport-Security）不在此设置，应交由网关/反向代理（TLS 终结点）统一处理，
-     * 避免应用层因开发环境无 HTTPS 导致浏览器永久拒绝 HTTP 连接。</p>
+     * <p>各项头部值均可通过 {@link SecurityHeadersProperties}（{@code me.security.headers.*}）调整；
+     * 空字符串表示不设置对应头。HSTS 默认关闭，由业务在 HTTPS 环境显式开启
+     * （{@code me.security.headers.hsts-enabled=true}），避免开发环境自签证书走 HTTPS
+     * 时被浏览器长期锁定；若网关/反向代理已统一处理 HSTS，此处保持默认关闭即可.</p>
      */
     @Bean
-    public FilterRegistrationBean<Filter> securityHeadersFilter(CspProperties cspProperties) {
+    public FilterRegistrationBean<Filter> securityHeadersFilter(SecurityHeadersProperties securityHeadersProperties) {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter((servletRequest, servletResponse, chain) -> {
             HttpServletResponse res = (HttpServletResponse) servletResponse;
-            res.setHeader("X-Content-Type-Options", "nosniff");
-            res.setHeader("X-Frame-Options", "DENY");
-            res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-            res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-            if (cspProperties.isEnabled()) {
-                res.setHeader("Content-Security-Policy", cspProperties.getPolicy());
+            setHeaderIfNotBlank(res, "X-Content-Type-Options", securityHeadersProperties.getXContentTypeOptions());
+            setHeaderIfNotBlank(res, "X-Frame-Options", securityHeadersProperties.getXFrameOptions());
+            setHeaderIfNotBlank(res, "Referrer-Policy", securityHeadersProperties.getReferrerPolicy());
+            setHeaderIfNotBlank(res, "Permissions-Policy", securityHeadersProperties.getPermissionsPolicy());
+            if (securityHeadersProperties.isCspEnabled()) {
+                setHeaderIfNotBlank(res, "Content-Security-Policy", securityHeadersProperties.getCsp());
+            }
+            if (securityHeadersProperties.isHstsEnabled()) {
+                setHeaderIfNotBlank(res, "Strict-Transport-Security", securityHeadersProperties.getHsts());
             }
             chain.doFilter(servletRequest, servletResponse);
         });
@@ -86,6 +93,15 @@ public class BaseAutoConfiguration {
     @EventListener
     public void onContextClosed(ContextClosedEvent event) {
         com.frame.me.validation.validator.TimeRangeValidator.cleanup();
+    }
+
+    /**
+     * 值非空白时才设置响应头，空字符串表示业务方主动关闭该头.
+     */
+    private static void setHeaderIfNotBlank(HttpServletResponse res, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            res.setHeader(name, value);
+        }
     }
 
 }
