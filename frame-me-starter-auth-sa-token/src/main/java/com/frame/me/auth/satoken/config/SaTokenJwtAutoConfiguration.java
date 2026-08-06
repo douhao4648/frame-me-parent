@@ -38,7 +38,9 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class SaTokenJwtAutoConfiguration {
 
-    /** HS256 签名密钥最低字节数（256 位）. */
+    /**
+     * HS256 签名密钥最低字节数（256 位）.
+     */
     private static final int MIN_SECRET_BYTES = 32;
 
     private final Environment environment;

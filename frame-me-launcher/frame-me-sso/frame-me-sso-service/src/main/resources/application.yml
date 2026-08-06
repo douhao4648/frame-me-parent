@@ -1,0 +1,83 @@
+server:
+  port: 10010
+
+management:
+  server:
+    port: 10011
+
+spring:
+  application:
+    name: frame-me-sso
+  jackson:
+    default-property-inclusion: non_null
+
+logging:
+  file:
+    path: ./logs
+    name: ${spring.application.name}
+  level:
+    com.frame.me.sso: INFO
+
+mybatis-flex:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    logic-delete-column: deleted
+    normal-value-of-logic-delete: 0
+    deleted-value-of-logic-delete: 1
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+decorator:
+  datasource:
+    enabled: true
+    p6spy:
+      enable-logging: true
+
+sa-token:
+  token-name: satoken
+  # 7 天（秒）
+  timeout: 604800
+  # 2 小时（秒）
+  active-timeout: 7200
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: true
+  is-read-header: true
+  # cookie:
+  #   domain: .example.com
+
+me:
+  auth:
+    enabled: true
+    enforce-login: true
+    whitelist:
+      - /base/auth/login
+      - /base/auth/refresh
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
+      - /v3/api-docs
+      - /actuator/**
+    propagate:
+      enabled: false
+    sa-token:
+      enabled: true
+      path: /base/auth
+#      authorization:
+#        enabled: false
+  sso:
+    login-page:
+      enabled: true
+    auth-code:
+      expires: 60s
+    token:
+      app-timeout: P7D
+
+

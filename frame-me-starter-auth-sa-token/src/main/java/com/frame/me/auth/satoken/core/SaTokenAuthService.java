@@ -42,6 +42,22 @@ public class SaTokenAuthService implements IAuthService {
 
     private final IAuthUserDetailsService userDetailsService;
 
+    /**
+     * 从 Session 值还原 User：JSON 字符串反序列化；兼容直接放入的 User 对象（内存 DAO）.
+     */
+    static User readUser(Object raw) {
+        if (raw == null) {
+            return null;
+        }
+        if (raw instanceof User user) {
+            return user;
+        }
+        if (raw instanceof String json) {
+            return JSON.parseObject(json, User.class);
+        }
+        return null;
+    }
+
     @Override
     public String login(String account, String password) {
         User user = AuthUserAuthenticator.authenticate(userDetailsService, account, password);
@@ -64,7 +80,7 @@ public class SaTokenAuthService implements IAuthService {
         }
         try {
             StpUtil.logout();
-        } catch (cn.dev33.satoken.exception.NotLoginException e) {
+        } catch (NotLoginException e) {
             // 未登录场景：登出本就无意义，静默忽略
             log.debug("Sa-Token 登出时未登录（忽略）: {}", e.getMessage());
         } catch (Exception e) {
@@ -180,21 +196,5 @@ public class SaTokenAuthService implements IAuthService {
         } catch (Exception e) {
             log.debug("写入 Sa-Token 用户缓存失败（忽略，下次读取将回源）: {}", e.getMessage());
         }
-    }
-
-    /**
-     * 从 Session 值还原 User：JSON 字符串反序列化；兼容直接放入的 User 对象（内存 DAO）.
-     */
-    static User readUser(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        if (raw instanceof User user) {
-            return user;
-        }
-        if (raw instanceof String json) {
-            return JSON.parseObject(json, User.class);
-        }
-        return null;
     }
 }

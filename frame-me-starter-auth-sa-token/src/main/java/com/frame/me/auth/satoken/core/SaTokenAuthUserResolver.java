@@ -31,15 +31,6 @@ public class SaTokenAuthUserResolver implements IAuthUserResolver {
 
     private final IAuthService authService;
 
-    @Override
-    public User resolve(HttpServletRequest request) {
-        String token = extractToken(request);
-        if (token == null) {
-            return null;
-        }
-        return authService.getUser(token);
-    }
-
     /**
      * 从请求中提取 Token：header 优先、同名 Cookie 兜底（头名取原生
      * {@code sa-token.token-name} 配置，trim 后判空）.
@@ -81,5 +72,14 @@ public class SaTokenAuthUserResolver implements IAuthUserResolver {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Override
+    public User resolve(HttpServletRequest request) {
+        String token = extractToken(request);
+        if (token == null) {
+            return null;
+        }
+        return authService.getUser(token);
     }
 }

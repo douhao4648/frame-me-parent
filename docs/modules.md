@@ -1106,3 +1106,43 @@ public class AlertService {
 | `frame-me-boot` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |
+| `frame-me-sso-api` | `frame-me-api` |
+| `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`、`frame-me-starter-doc-openapi`、`jjwt` |
+
+## frame-me-sso（SSO 单点登录服务）
+
+`frame-me-launcher/frame-me-sso` 是独立可运行的 Spring Boot 认证服务，聚合 `frame-me-sso-api`（契约）+ `frame-me-sso-service`（启动服务）。提供集群内应用免密钥接入、集群外三方应用授权码换 token、RS256 JWT 自验签、三层踢人机制。
+
+### 模块职责
+
+| 模块 | 职责 |
+|---|---|
+| `frame-me-sso-api` | `@HttpExchange` API 契约（`ISsoAuthApi`/`ISsoAdminApi`）+ dto/vo，供下游引模块用 Spring HTTP Interface 调用 |
+| `frame-me-sso-service` | 启动服务：应用注册表、授权码流程、RS256 JWT 签发、sa-token 会话治理、踢人事件 |
+
+### 关键类
+
+| 类 | 路径 | 职责 |
+|---|---|---|
+| `SsoApplication` | `sso/SsoApplication` | 主启动类 |
+| `SsoAuthController` | `sso/controller/SsoAuthController` | 授权码流程端点（authorize/login/token/refresh/logout/jwks） |
+| `SsoAdminController` | `sso/controller/SsoAdminController` | 管理端点（app CRUD + 强制登出，`@SaCheckRole("admin")`） |
+| `SsoTokenService` | `sso/service/SsoTokenService` | RS256 JWT 签发/解析 |
+| `SsoAppService` | `sso/service/SsoAppService` | 应用注册/密钥/校验 |
+| `SsoAuthCodeService` | `sso/service/SsoAuthCodeService` | 授权码签发/消费（Redis 原子防重放） |
+| `SsoLogoutService` | `sso/service/SsoLogoutService` | 踢人 + 发 `UserLogoutEvent` |
+| `IJwtSigner`/`Rs256JwtSigner` | `sso/infrastructure/jwt/` | JWT 签名器接口 + RS256 实现 |
+| `SsoProperties` | `sso/infrastructure/config/SsoProperties` | `me.sso.*` 配置 |
+
+### 可配置项（`me.sso.*`）
+
+| 属性 | 默认值 | 说明 |
+|---|---|---|
+| `me.sso.enabled` | `true` | SSO 服务总开关 |
+| `me.sso.path` | `/api/sso` | 端点基础路径 |
+| `me.sso.login-page.enabled` | `true` | 是否提供 HTML 登录页 |
+| `me.sso.auth-code.expires` | `60s` | 授权码时效（一次性） |
+| `me.sso.token.access-expires` | `PT2H` | access token 时效 |
+| `me.sso.jwt.private-key` | - | RS256 私钥（classpath: 或 PEM，走 sensi-encrypt） |
+| `me.sso.jwt.public-key` | - | RS256 公钥（下游验签用） |
+| `me.sso.jwt.issuer` | `frame-me-sso` | 签发方标识 |

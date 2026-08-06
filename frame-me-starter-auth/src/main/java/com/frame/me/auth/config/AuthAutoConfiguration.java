@@ -20,6 +20,7 @@ import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -98,10 +99,17 @@ public class AuthAutoConfiguration {
      *
      * <p>缺少 {@link IAuthUserResolver} 实现时直接启动失败并给出指引，
      * 避免静默退化为不安全的默认行为。</p>
+     *
+     * <p>用 {@code @Qualifier} 指定 {@code "requestMappingHandlerMapping"}：
+     * management 独立端口时 actuator 的 {@code controllerEndpointHandlerMapping} 在 child context，
+     * 主 context 仅一个候选；management 与主端口同 context（或未配 {@code management.server.port}）时，
+     * 两个 {@link RequestMappingHandlerMapping} 同 context 共存，按类型注入会抛
+     * {@code NoUniqueBeanDefinitionException}。显式按名限定取 Spring MVC 的那个。</p>
      */
     @Bean
     public FilterRegistrationBean<Filter> authFilter(ObjectProvider<IAuthUserResolver> userResolverProvider,
-                                                      ObjectProvider<RequestMappingHandlerMapping> handlerMappingProvider,
+                                                      @Qualifier("requestMappingHandlerMapping")
+                                                      RequestMappingHandlerMapping handlerMapping,
                                                       AuthProperties properties,
                                                       IFilterErrorResponseWriter errorResponseWriter) {
         IAuthUserResolver userResolver = userResolverProvider.getIfAvailable(() -> {
@@ -110,7 +118,6 @@ public class AuthAutoConfiguration {
                             + "frame-me-starter-auth-sa-token；内网服务间调用可显式配置 "
                             + "me.auth.header-resolver.enabled=true 启用基于请求头的解析器");
         });
-        RequestMappingHandlerMapping handlerMapping = handlerMappingProvider.getIfAvailable();
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new AuthFilter(userResolver, handlerMapping, properties, errorResponseWriter));
         registration.addUrlPatterns("/*");

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>SSO 登录</title>
+    <style>
+        body { font-family: sans-serif; max-width: 320px; margin: 80px auto; }
+        input { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #2563eb; color: #fff; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>SSO 统一登录</h2>
+    <form id="loginForm">
+        <input type="text" id="account" placeholder="账号" required>
+        <input type="password" id="password" placeholder="密码" required>
+        <button type="submit">登录</button>
+    </form>
+    <p id="msg" style="color:red;"></p>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const account = document.getElementById('account').value;
+            const password = document.getElementById('password').value;
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ account, password })
+            });
+            const data = await res.json();
+            if (data.code === 200) {
+                const params = new URLSearchParams(location.search);
+                const redirect = params.get('redirect');
+                if (redirect) {
+                    location.href = redirect;
+                } else {
+                    location.href = '/api/sso/authorize' + location.search;
+                }
+            } else {
+                document.getElementById('msg').textContent = data.msg || '登录失败';
+            }
+        });
+    </script>
+</body>
+</html>

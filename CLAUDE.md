@@ -45,6 +45,9 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 
 # 启动示例应用
 ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
+
+# 启动 SSO 认证服务
+./mvnw -pl frame-me-launcher/frame-me-sso/frame-me-sso-service spring-boot:run
 ```
 
 更多命令与 profile（`p6spy`、`swagger`）见 `docs/build.md` 与 `docs/testing.md`。

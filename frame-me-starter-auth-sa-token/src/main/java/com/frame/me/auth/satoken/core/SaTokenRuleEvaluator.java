@@ -24,27 +24,6 @@ public final class SaTokenRuleEvaluator {
     }
 
     /**
-     * 规则类型.
-     */
-    public enum Kind {
-        /** 登录校验. */
-        LOGIN,
-        /** 角色校验. */
-        ROLE,
-        /** 权限校验（权限码原样透传，可为 resource 或 resource:action）. */
-        PERMISSION
-    }
-
-    /**
-     * 解析后的规则.
-     *
-     * @param kind  规则类型
-     * @param value 角色标识或权限码（LOGIN 类型时为 {@code null}）
-     */
-    public record Rule(Kind kind, String value) {
-    }
-
-    /**
      * 解析简化表达式为 {@link Rule}，非法表达式抛 {@link IllegalArgumentException}.
      *
      * @param expression 表达式字符串
@@ -88,5 +67,32 @@ public final class SaTokenRuleEvaluator {
             case PERMISSION -> StpUtil.checkPermission(rule.value());
             default -> throw new IllegalStateException("未知规则类型: " + rule.kind());
         }
+    }
+
+    /**
+     * 规则类型.
+     */
+    public enum Kind {
+        /**
+         * 登录校验.
+         */
+        LOGIN,
+        /**
+         * 角色校验.
+         */
+        ROLE,
+        /**
+         * 权限校验（权限码原样透传，可为 resource 或 resource:action）.
+         */
+        PERMISSION
+    }
+
+    /**
+     * 解析后的规则.
+     *
+     * @param kind  规则类型
+     * @param value 角色标识或权限码（LOGIN 类型时为 {@code null}）
+     */
+    public record Rule(Kind kind, String value) {
     }
 }

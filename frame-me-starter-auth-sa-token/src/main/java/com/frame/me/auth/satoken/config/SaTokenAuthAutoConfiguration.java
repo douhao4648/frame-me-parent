@@ -4,6 +4,7 @@ import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpInterface;
+import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice;
 import com.frame.me.auth.satoken.core.SaTokenAuthService;
 import com.frame.me.auth.satoken.core.SaTokenAuthUserResolver;
@@ -13,8 +14,10 @@ import com.frame.me.auth.satoken.web.SaTokenAuthController;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.base.limit.LoginRateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -74,8 +77,8 @@ public class SaTokenAuthAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public SaTokenAuthController saTokenAuthController(IAuthService authService,
-                                                       com.frame.me.auth.config.AuthProperties authProperties,
-                                                       org.springframework.beans.factory.ObjectProvider<com.frame.me.base.limit.LoginRateLimiter> loginRateLimiter) {
+                                                       AuthProperties authProperties,
+                                                       ObjectProvider<LoginRateLimiter> loginRateLimiter) {
         return new SaTokenAuthController(authService, authProperties, loginRateLimiter);
     }
 
@@ -118,15 +121,27 @@ public class SaTokenAuthAutoConfiguration {
             @Override
             public void addInterceptors(@NonNull InterceptorRegistry registry) {
                 registry.addInterceptor(new SaInterceptor(auth -> {
-                    // CORS 预检请求（OPTIONS）带 Origin 头时跳过 sa-token 规则校验，避免预检被鉴权拦截返回 401/403。
-                    // 与 AuthFilter 对齐：无 Origin 的 OPTIONS 非真预检，仍走正常鉴权链，防绕过。
-                    if ("OPTIONS".equalsIgnoreCase(SaHolder.getRequest().getMethod())
-                            && SaHolder.getRequest().getHeader("Origin") != null) {
-                        return;
-                    }
-                    parsedRules.forEach((pattern, rule) ->
-                            SaRouter.match(pattern).check(() -> SaTokenRuleEvaluator.check(rule)));
-                }))
+                            // 上下文不可用直接放行。
+                            // 场景：management 配置独立端口时，actuator 跑在 child context，其 RequestMappingHandlerMapping
+                            // 沿祖先链拾取本 MappedInterceptor（见 AbstractHandlerMapping.detectMappedInterceptors →
+                            // BeanFactoryUtils.beansOfTypeIncludingAncestors），但 child servlet 容器不注册
+                            // SaTokenContextFilterForJakartaServlet（parent 的 @Bean Filter 不进 child），导致 SaTokenContext
+                            // ThreadLocal 为空。isValid() 调 getModelBoxOrNull() 返回 null 不抛异常，安全判断后放行。
+                            // actuator 安全由独立端口网络隔离 + 默认仅暴露 health 保障，不纳入业务鉴权链。
+                            // 反观 management 与主端口同 context 时，actuator 走独立的 WebMvcEndpointHandlerMapping，
+                            // 不拾取本 MappedInterceptor，SaInterceptor 不执行，不存在此问题。
+                            if (!SaHolder.getContext().isValid()) {
+                                return;
+                            }
+                            // CORS 预检请求（OPTIONS）带 Origin 头时跳过 sa-token 规则校验，避免预检被鉴权拦截返回 401/403。
+                            // 与 AuthFilter 对齐：无 Origin 的 OPTIONS 非真预检，仍走正常鉴权链，防绕过。
+                            if ("OPTIONS".equalsIgnoreCase(SaHolder.getRequest().getMethod())
+                                    && SaHolder.getRequest().getHeader("Origin") != null) {
+                                return;
+                            }
+                            parsedRules.forEach((pattern, rule) ->
+                                    SaRouter.match(pattern).check(() -> SaTokenRuleEvaluator.check(rule)));
+                        }))
                         .addPathPatterns("/**");
             }
         };

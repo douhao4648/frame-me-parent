@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:sso-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+mybatis-flex:
+  datasource:
+    master:
+      url: jdbc:h2:mem:sso-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+      type: hikari
+  global-config:
+    logic-delete-column: deleted
+    normal-value-of-logic-delete: 0
+    deleted-value-of-logic-delete: 1
+  configuration:
+    map-underscore-to-camel-case: true
+
+me:
+  auth:
+    sa-token:
+      jwt:
+        enabled: false
+      redis:
+        enabled: false

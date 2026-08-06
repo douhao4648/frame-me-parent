@@ -56,6 +56,8 @@
     <logger name="com.baomidou.mybatisplus" level="WARN"/>
     <logger name="com.mybatisflex" level="WARN"/>
     <logger name="com.zaxxer.hikari" level="WARN"/>
+    <logger name="com.alicp.jetcache" level="INFO"/>
+    <logger name="org.springframework.web" level="INFO"/>
     <logger name="com.baomidou.mybatisplus.core.toolkit.Sequence" level="DEBUG"/>
 
     <!-- 本地/开发环境：彩色控制台 + 调试级别 -->
@@ -64,7 +66,6 @@
             <appender-ref ref="CONSOLE"/>
         </root>
         <logger name="com.frame.me" level="DEBUG"/>
-        <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
     <!-- 测试环境：控制台 + 文件 -->
@@ -74,7 +75,6 @@
             <appender-ref ref="ASYNC_FILE"/>
         </root>
         <logger name="com.frame.me" level="DEBUG"/>
-        <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
     <!-- 日常环境：控制台 + 文件，保留较详细的业务日志 -->
@@ -84,7 +84,6 @@
             <appender-ref ref="ASYNC_FILE"/>
         </root>
         <logger name="com.frame.me" level="DEBUG"/>
-        <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
     <!-- 预发环境：控制台 + 文件，保留较详细的业务日志 -->
@@ -94,7 +93,6 @@
             <appender-ref ref="ASYNC_FILE"/>
         </root>
         <logger name="com.frame.me" level="INFO"/>
-        <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
     <!-- 生产环境：仅输出文件，关闭控制台 -->
@@ -103,7 +101,6 @@
             <appender-ref ref="ASYNC_FILE"/>
         </root>
         <logger name="com.frame.me" level="INFO"/>
-        <logger name="org.springframework.web" level="INFO"/>
     </springProfile>
 
 </included>

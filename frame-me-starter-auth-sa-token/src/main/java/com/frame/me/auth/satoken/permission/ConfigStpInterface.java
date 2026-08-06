@@ -40,34 +40,6 @@ public class ConfigStpInterface implements StpInterface {
     }
 
     /**
-     * 返回指定账号拥有的角色标识列表.
-     *
-     * @param loginId  登录 ID（本框架为用户 ID）
-     * @param loginType 账号类型（未使用）
-     */
-    @Override
-    public List<String> getRoleList(Object loginId, String loginType) {
-        if (loginId == null) {
-            return List.of();
-        }
-        return userRoles.getOrDefault(String.valueOf(loginId), List.of());
-    }
-
-    /**
-     * 返回指定账号拥有的权限码列表（按角色展开，权限码原样透传）.
-     *
-     * @param loginId  登录 ID（本框架为用户 ID）
-     * @param loginType 账号类型（未使用）
-     */
-    @Override
-    public List<String> getPermissionList(Object loginId, String loginType) {
-        return getRoleList(loginId, loginType).stream()
-                .flatMap(role -> rolePermissions.getOrDefault(role, List.<String>of()).stream())
-                .distinct()
-                .toList();
-    }
-
-    /**
      * 启动期一次性把 CSV 配置预解析为去重 List，空白段剔除.
      */
     private static Map<String, List<String>> presplit(Map<String, String> source) {
@@ -89,6 +61,34 @@ public class ConfigStpInterface implements StpInterface {
         return Arrays.stream(csv.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+    }
+
+    /**
+     * 返回指定账号拥有的角色标识列表.
+     *
+     * @param loginId   登录 ID（本框架为用户 ID）
+     * @param loginType 账号类型（未使用）
+     */
+    @Override
+    public List<String> getRoleList(Object loginId, String loginType) {
+        if (loginId == null) {
+            return List.of();
+        }
+        return userRoles.getOrDefault(String.valueOf(loginId), List.of());
+    }
+
+    /**
+     * 返回指定账号拥有的权限码列表（按角色展开，权限码原样透传）.
+     *
+     * @param loginId   登录 ID（本框架为用户 ID）
+     * @param loginType 账号类型（未使用）
+     */
+    @Override
+    public List<String> getPermissionList(Object loginId, String loginType) {
+        return getRoleList(loginId, loginType).stream()
+                .flatMap(role -> rolePermissions.getOrDefault(role, List.<String>of()).stream())
                 .distinct()
                 .toList();
     }

@@ -1,0 +1,45 @@
+spring:
+  # p6spy
+  # hikari
+  datasource:
+    url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+  data:
+    redis:
+      database: 0
+      host: localhost
+      port: 6379
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+#mybatis-flex:
+#  default-datasource-key: master
+#  datasource:
+#    master:
+#      url: jdbc:mysql://localhost:3306/frame_me_sso?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+#      username: root
+#      password: root
+#      driver-class-name: com.mysql.cj.jdbc.Driver
+#      type: hikari
+#      maximum-pool-size: 10
+#      minimum-idle: 5
+
+# swagger
+# cookie
+# encrypt
+# auth
+# sa-token
+# redis
+# snowflake my-felx
+# cache
+# notify
+# op-audit
+# nacos
+# base

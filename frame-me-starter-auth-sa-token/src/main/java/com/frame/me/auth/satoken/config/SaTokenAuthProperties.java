@@ -101,6 +101,23 @@ public class SaTokenAuthProperties {
     private Redis redis = new Redis();
 
     /**
+     * 启动时校验规则 key：若不以 {@code /} 开头，多半是 YAML 中未用方括号记法，
+     * 导致路径里的 {@code /}、{@code *} 被 relaxed binding 剥离，规则会静默失效（fail-open）。
+     * 校验不通过直接抛异常，阻止应用启动。
+     */
+    @PostConstruct
+    void validateRuleKeys() {
+        for (String key : rules.keySet()) {
+            if (!key.startsWith("/")) {
+                throw new IllegalStateException(
+                        "Sa-Token 路径规则 key [" + key + "] 不是以 '/' 开头的有效路径，规则不会生效。"
+                                + "YAML 中 Map key 含 '/' 或 '*' 时会被 Spring Boot relaxed binding 剥离字符，"
+                                + "请改用方括号记法：\"[/api/xxx/**]\"");
+            }
+        }
+    }
+
+    /**
      * sa-token 鉴权能力开关.
      */
     @Data
@@ -148,22 +165,5 @@ public class SaTokenAuthProperties {
          * Redis 实例名（对应 {@code me.redis.clients} 的 key），默认 {@code default}.
          */
         private String clientName = "default";
-    }
-
-    /**
-     * 启动时校验规则 key：若不以 {@code /} 开头，多半是 YAML 中未用方括号记法，
-     * 导致路径里的 {@code /}、{@code *} 被 relaxed binding 剥离，规则会静默失效（fail-open）。
-     * 校验不通过直接抛异常，阻止应用启动。
-     */
-    @PostConstruct
-    void validateRuleKeys() {
-        for (String key : rules.keySet()) {
-            if (!key.startsWith("/")) {
-                throw new IllegalStateException(
-                        "Sa-Token 路径规则 key [" + key + "] 不是以 '/' 开头的有效路径，规则不会生效。"
-                                + "YAML 中 Map key 含 '/' 或 '*' 时会被 Spring Boot relaxed binding 剥离字符，"
-                                + "请改用方括号记法：\"[/api/xxx/**]\"");
-            }
-        }
     }
 }

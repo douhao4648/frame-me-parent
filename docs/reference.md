@@ -253,6 +253,16 @@
 | `SchedulingProperties` | `me.scheduling.*` 配置属性绑定。 |
 | `PoolingRestClientAutoConfiguration` | 基于 HttpClient 5 的池化 `RestClient.Builder` 自动配置。 |
 | `User` | 通用用户模型占位类 |
+| `SsoApplication` | SSO 服务主启动类（`frame-me-sso-service`） |
+| `SsoAuthController` | SSO 授权码流程端点（authorize/login/token/refresh/logout/jwks） |
+| `SsoAdminController` | SSO 管理端点（app CRUD + 强制登出，`@SaCheckRole("admin")`） |
+| `SsoTokenService` | SSO RS256 JWT 签发/解析 |
+| `SsoAppService` | SSO 应用注册/密钥/校验 |
+| `SsoAuthCodeService` | SSO 授权码签发/消费（Redis 原子防重放） |
+| `SsoLogoutService` | SSO 踢人 + 发 `UserLogoutEvent` |
+| `IJwtSigner` / `Rs256JwtSigner` | SSO JWT 签名器接口 + RS256 实现（可插拔，预留 JWKS 演进） |
+| `SsoProperties` | `me.sso.*` 配置属性绑定 |
+| `UserLogoutEvent` | SSO 踢人事件（下游订阅做本地黑名单/清缓存） |
 | `PageParam` | 老规范分页查询参数（`frame-me-adapter-api`） |
 | `PageResult<T>` | 老规范分页结果（`frame-me-adapter-api`） |
 | `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |

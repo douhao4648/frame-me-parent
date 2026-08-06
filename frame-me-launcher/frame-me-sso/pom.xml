@@ -11,13 +11,12 @@
     </parent>
 
     <artifactId>frame-me-sso</artifactId>
+    <packaging>pom</packaging>
     <name>frame-me-sso</name>
-    <description>SSO 单点登录工程（占位）：挂 frame-me-launcher 下，后续按需补充认证服务实现</description>
+    <description>SSO 单点登录服务聚合工程（api 契约 + service 启动服务）</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>frame-me-sso-api</module>
+        <module>frame-me-sso-service</module>
+    </modules>
 </project>

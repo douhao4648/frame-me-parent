@@ -5,11 +5,11 @@ import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.annotation.LoginUser;
 import com.frame.me.auth.config.AuthProperties;
-import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.auth.satoken.core.SaTokenAuthUserResolver;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
 import com.frame.me.auth.web.vo.TokenVO;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -18,16 +18,12 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -118,7 +114,7 @@ public class SaTokenAuthController {
     @PostMapping("/admin/logout/{userId}")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)
-            @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
+            @PathVariable @Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties.Admin admin = authProperties.getAdmin();
         if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");

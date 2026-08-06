@@ -15,8 +15,8 @@ import org.springframework.data.redis.core.script.RedisScript;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,8 +39,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class RedisSaTokenDao implements SaTokenDaoByObjectFollowString {
 
-    private final String redisClientName;
-
     /**
      * 原子更新脚本：读 PTTL → 按 TTL 原值重写 value，消除 getExpire+set 的 TOCTOU 竞态.
      *
@@ -54,6 +52,11 @@ public class RedisSaTokenDao implements SaTokenDaoByObjectFollowString {
             return 0
             """;
     private static final RedisScript<Long> UPDATE_SCRIPT = new DefaultRedisScript<>(UPDATE_LUA, Long.class);
+    /**
+     * SCAN 游标迭代上限，防止 keyspace 过大时无限扫描拖垮管理端调用.
+     */
+    private static final int SCAN_LIMIT = 10_000;
+    private final String redisClientName;
 
     public RedisSaTokenDao(String redisClientName) {
         this.redisClientName = redisClientName;
@@ -134,9 +137,6 @@ public class RedisSaTokenDao implements SaTokenDaoByObjectFollowString {
         }
         client().expire(key, Duration.ofSeconds(timeout));
     }
-
-    /** SCAN 游标迭代上限，防止 keyspace 过大时无限扫描拖垮管理端调用. */
-    private static final int SCAN_LIMIT = 10_000;
 
     /**
      * 搜索数据（sa-token 仅管理端功能使用）.
