@@ -9,8 +9,8 @@
 SSO 服务（`frame-me-sso-service`）是独立 Spring Boot 认证服务，提供：
 
 - **应用注册表**：登记内部/外部应用，分配 `appId`（外部额外分配 `appSecret`）
-- **授权码流程**：`/authorize` → 登录 → 回调带 code → `/token` 换 sa-token 不透明 token
-- **/userinfo 端点**：下游凭 token 调用，SSO 用 sa-token 原生验 token（`StpUtil.getLoginIdByToken`），返回用户信息
+- **授权码流程**：`/api/auth/authorize` → 登录（`POST /base/auth/login`）→ 回调带 code → `/api/auth/token` 换 sa-token 不透明 token
+- **/userinfo 端点**：`GET /api/users/info`，下游凭 token 调用，SSO 用 sa-token 原生验 token（`StpUtil.getLoginIdByToken`），返回用户信息
 - **踢人（档3事件）**：SSO 踢人 `StpUtil.logout(userId)` 即时清 SSO 侧 sa-token 会话 + 发 `UserLogoutEvent` 跨进程广播，下游订阅清自己 session
 
 ### token 体系
@@ -19,10 +19,12 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
 
 - 签发：`StpUtil.createLoginSession(userId, SaLoginParameter().setDeviceType(appId).setTimeout(7d))`，不依赖请求上下文（下游服务端 POST 调用无浏览器上下文）
 - app 维度：`deviceType=appId`，会话绑定具体应用，可按 app 单独踢人
-- 独立时效：`me.sso.token.app-timeout`（默认 7d），与浏览器登录会话（`sa-token.timeout` 2h）分开，互不影响
+- 独立时效：`me.sso.token.app-timeout`（默认 1d），与浏览器登录会话（`sa-token.timeout` 7d + `active-timeout` 2h 闲置冻结）分开，互不影响
 - 验证：`StpUtil.getLoginIdByToken(token)`，查 sa-token Redis，原生能力，零自写验签代码
 - 下游不自己验 token，调 `/userinfo` 由 SSO 代劳验证 + 返回用户信息
 - 无 JWT、无公钥私钥、无 jjwt 依赖
+
+> **安全基线**：`authorize` 强制校验 redirectUri 白名单与 scope 白名单（请求 scope 须 ⊆ 应用注册 scopes）；支持 `state` 参数原样回显（防登录 CSRF，下游生成并比对）；授权码一次性（Redis GETDEL 原子消费，60s 过期）；登录页 `/sso-login.html` 在 `me.auth.whitelist` 中匿名放行，且登录成功后的回跳地址仅允许站内相对路径（防 open redirect）。**管理端点（`/api/apps/**`、踢人、用户 CRUD）加设备闸**（`DefaultDeviceInterceptor`）：仅接受默认设备会话（deviceType=DEF，即 SSO 登录会话），SSO 下发的应用 token（deviceType=appId）即使放入 satoken 头也 403，堵住"窄钥匙开管理门"；匿名请求直接放行（`@Anonymous` 端点自验 token，受保护端点由 `@SaCheckRole` 拦 401）。开关与拦截路径可配：`me.sso.device-gate.enabled`（默认开）、`me.sso.device-gate.path-patterns`（默认 `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**`）。
 
 > **边界**：/userinfo 不校验 token 的 app 受众（不透明 token 模式下 deviceType 校验链路重，且 /userinfo 只返基础信息风险可控）。演进 OIDC 时 JWT 的 `aud` claim 天然解决受众校验。
 
@@ -30,44 +32,55 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
 
 | 类型 | `access_type` | 凭证 | 换 token 验密钥 |
 |---|---|---|---|
-| 集群内应用 | `INTERNAL` | 仅 `appId`（免 aksk） | 跳过（网络层可信） |
+| 集群内应用 | `INTERNAL` | `appId` + `appSecret` | 强制 |
 | 集群外三方 | `EXTERNAL` | `appId` + `appSecret` | 强制 |
 
-"内部/外部"是 SSO 登记关系维护，不靠网络/cloud 判定。
+"内部/外部"是 SSO 登记关系维护（标识归属与审计），两种类型注册时均分配 `appSecret`，换 token 一律强制验密钥。
 
 ## 内部应用接入
 
 1. 管理员在 SSO 管理端注册应用：
    ```bash
-   curl -X POST http://sso:9090/api/sso/admin/app \
+   curl -X POST http://sso:10010/api/apps/ \
      -H 'satoken: <admin-token>' -H 'Content-Type: application/json' \
      -d '{"appName":"订单服务","accessType":"INTERNAL","redirectUris":["http://order.svc/cb"],"scopes":"openid"}'
    ```
-   返回 `appId`（如 `fm-internal-xxxx`），**不发 secret**。
+   返回 `appId`（如 `fm-internal-xxxx`）+ `appSecret`（**明文仅此一次返回**，妥善保管）。
 
-2. 用户访问应用 → 应用重定向到 SSO 授权：
+2. 用户访问应用 → 应用重定向到 SSO 授权（`state` 下游生成，SSO 原样回显）：
    ```
-   GET http://sso:9090/api/sso/authorize?appId=fm-internal-xxxx&redirectUri=http://order.svc/cb&scope=openid
+   GET http://sso:10010/api/auth/authorize?appId=fm-internal-xxxx&redirectUri=http://order.svc/cb&scope=openid&state=<random>
    ```
-   - 未登录 → 重定向登录页 → 用户登录 → 回调 `http://order.svc/cb?code=xxx`
+   - 未登录 → 重定向登录页 → 用户登录 → 回调 `http://order.svc/cb?code=xxx&state=<random>`
    - 已登录 → 直接回调带 code
 
-3. 应用用 code 换 token（**INTERNAL 免 appSecret**）：
+3. 应用用 code 换 token（**必须带 appSecret**）：
    ```bash
-   curl -X POST http://sso:9090/api/sso/token \
+   curl -X POST http://sso:10010/api/auth/token \
      -H 'Content-Type: application/json' \
-     -d '{"code":"xxx","app_id":"fm-internal-xxxx","redirect_uri":"http://order.svc/cb"}'
+     -d '{"code":"xxx","appId":"fm-internal-xxxx","appSecret":"<secret>","redirectUri":"http://order.svc/cb"}'
    ```
    返回 `{ "data": { "accessToken": "<sa-token>" } }`。
 
 ## 外部三方应用接入
 
-1. 管理员注册应用（`accessType=EXTERNAL`），返回 `appId` + `appSecret`（明文仅此一次）。
-2. 授权码流程同上，但换 token 时**必须带 app_secret**：
-   ```json
-   {"code":"xxx","app_id":"fm-external-xxxx","app_secret":"<secret>","redirect_uri":"https://crm.example.com/cb"}
-   ```
-   SSO 校验 `app_secret`（SHA256 比对），不匹配则拒绝。
+流程与内部应用完全一致（注册 `accessType=EXTERNAL`，授权码 + secret 换 token），
+区别仅是登记关系标识，用于归属审计。
+
+## 机器对机器调用（client_credentials）
+
+定时任务/服务间调用没有用户参与，走不了授权码流程，用 client_credentials 直换**应用 token**：
+
+```bash
+curl -X POST http://sso:10010/api/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"grantType":"client_credentials","appId":"fm-external-xxxx","appSecret":"<secret>"}'
+```
+
+- 无需 code / redirectUri；INTERNAL / EXTERNAL 均可用（两类型注册时都发 `appSecret`，强制验密钥）
+- token 的 loginId 是 `"app:"+appId`（**主体是应用自身，无用户维度**），deviceType=appId，时效同 `app-timeout`
+- 该 token 调 `/userinfo` 返 401（无对应用户），只用于机器接口调用
+- 续期同用户 token：`POST /base/auth/refresh` 带当前 token 即可
 
 ## 下游建 session（RP session 模式核心）
 
@@ -75,7 +88,7 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
 
 1. **调 /userinfo 取用户信息**（SSO 代劳验 token）：
    ```bash
-   curl http://sso:9090/api/sso/userinfo \
+   curl http://sso:10010/api/users/info \
      -H 'Authorization: Bearer <sa-token>'
    ```
    返回 `{ "data": { "sub":"1001", "account":"alice", "name":"Alice", "roles":"admin" } }`。
@@ -103,11 +116,15 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 
 ### SSO 侧踢人
 
-`POST /api/sso/admin/user/{userId}/logout?appId=xxx&reason=xxx`：
+`POST /api/auth/{userId}/logout?appId=xxx&reason=xxx`：
 - 传 `appId` → `StpUtil.logout(userId, appId)` 只清该用户在该 app 的会话（deviceType 匹配），其他 app 会话和浏览器登录态不受影响
 - 不传 `appId` → `StpUtil.logout(userId)` 清该用户所有 sa-token 会话（含浏览器登录态 + 各 app 的下游 token）
 - 给下游的 token 立即失效，下游调 /userinfo 会 401
 - 但下游**已建的 sa-token session** SSO 清不到，靠下游 session 短时效兜底（建议配 30min~2h）或档3事件即时清
+
+`POST /api/apps/{appId}/logout?reason=xxx`（按应用踢，admin）：
+- 注销该 appId 下**全部**会话：client_credentials 应用 token（loginId="app:"+appId）+ 所有用户 token（deviceType=appId 的 terminal，遍历会话精确匹配）
+- 返回踢掉的会话数；档3事件 payload 的 userId 为 null，下游应以 appId 清该应用全部本地 session
 
 ### 档3事件（即时清下游 session）
 
@@ -122,12 +139,20 @@ SSO 踢人时通过事件桥接发布 `UserLogoutEvent`（type=`sso:user-logout`
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/sso/admin/app` | 注册应用 |
-| PUT | `/api/sso/admin/app/{appId}` | 更新应用 |
-| POST | `/api/sso/admin/app/{appId}/reset-secret` | 重置 EXTERNAL 密钥 |
-| DELETE | `/api/sso/admin/app/{appId}` | 禁用应用 |
-| GET | `/api/sso/admin/apps` | 应用列表 |
-| POST | `/api/sso/admin/user/{userId}/logout` | 强制登出（踢人，清 SSO 会话 + 发档3事件） |
+| POST | `/api/apps/` | 注册应用（`@Valid`：appName 非空、accessType 仅 INTERNAL/EXTERNAL、redirectUris 非空） |
+| POST | `/api/apps/{appId}` | 更新应用（`@Valid`：status 仅 ACTIVE/DISABLED，null 表示不更新） |
+| POST | `/api/apps/{appId}/reset-secret` | 重置 EXTERNAL 密钥 |
+| POST | `/api/apps/{appId}/disable` | 禁用应用（**禁用即生效**：联动踢出该应用全部存量会话） |
+| POST | `/api/apps/{appId}/logout` | 按应用踢人（注销该 appId 全部会话：用户 token + 应用 token，发档3事件 userId=null） |
+| GET | `/api/apps/` | 应用列表 |
+| POST | `/api/auth/{userId}/logout` | 强制登出（踢人，清 SSO 会话 + 发档3事件） |
+| POST | `/api/users/` | 创建用户（`@Valid`：account 格式、password 6-64、name 非空；账号唯一，BCrypt 入库） |
+| GET | `/api/users/` | 用户列表（VO 永不含密码字段） |
+| GET | `/api/users/{id}` | 用户详情 |
+| POST | `/api/users/{id}` | 更新用户（name/password/roles/status，null 不更新；改密码或置 DISABLED 联动踢出全部会话） |
+| DELETE | `/api/users/{id}` | 删除用户（逻辑删除，联动踢出全部会话，不可再登录） |
+
+用户管理端点防自锁：不能禁用/删除当前登录账号。
 
 ## 演进路径（标准 OIDC）
 

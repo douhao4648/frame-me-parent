@@ -64,7 +64,7 @@ public class GroupedOpenApiRegistrar implements ImportBeanDefinitionRegistrar, E
         for (GroupProperties group : groups) {
             String name = group.getName();
             if (!seen.add(name)) {
-                log.warn("检测到重复的 Swagger 分组名 '{}'：SpringDoc 运行时仅保留最后一个，请修正 me.swagger.groups 配置", name);
+                log.warn("检测到重复的 Swagger 分组名 '{}'：SpringDoc 运行时仅保留一个，请修正 me.swagger.groups 配置", name);
             }
         }
     }

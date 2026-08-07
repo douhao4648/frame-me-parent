@@ -52,7 +52,7 @@
   - `com.frame.me.base.notify.INotifySender` — 通用通知发送接口，业务代码通过它发送通知而无需关心底层通道。
   - `com.frame.me.base.config.AsyncAutoConfiguration` / `com.frame.me.base.config.AsyncProperties` — 默认 `@Async` 线程池与未捕获异常处理；异常通知发送失败仅降级为 warn，不会逃逸出异常处理器。
   - `com.frame.me.base.config.SchedulingAutoConfiguration` / `com.frame.me.base.config.SchedulingProperties` — 默认 `@Scheduled` 调度线程池；调度异常处理同上，通知故障不影响后续调度。
-  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 `RestClient.Builder` 自动配置。
+  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 HTTP 客户端自动配置。注册共享 `PoolingHttpClientConnectionManager`（maxTotal=200/maxPerRoute=50，空闲/过期连接驱逐由 HC5 原生 `IdleConnectionEvictor` 承担）+ `ClientHttpRequestFactoryBuilder`，让所有 HTTP 调用方式（注入 `RestClient.Builder`、`@ImportHttpServices` 声明式接口、`RestTemplateBuilder` → `RestTemplate`）复用同一连接池；所有产出的 HttpClient 均标记 `connectionManagerShared`，单个 factory 被 close 不会连带关闭共享池。超时优先级：`read-timeout` → `spring.http.serviceclient.<group>.read-timeout`（group 级）→ `spring.http.clients.read-timeout`（全局级）→ `me.restclient.pool.response-timeout`（池化默认）；`connect-timeout` → `spring.http.clients.connect-timeout`（全局级）→ `me.restclient.pool.connect-timeout`（池化默认），group 级 connect-timeout 无法 per-request 覆盖（ConnectionConfig 绑共享 ConnectionManager），统一用全局值。
   - `com.frame.me.base.user.User` — 通用用户模型占位类；`password` 字段标记 `@ToString.Exclude`，口令哈希不随日志打印落盘。
   - `com.frame.me.base.util.SnowflakeUtils` — 雪花 ID 生成工具，优先使用 MyBatis-Plus / MyBatis-Flex 的生成器实例，其次使用 base 的 `Snowflake` Bean，最后回退到 Hutool 默认生成器。
   - `com.frame.me.base.web.IFilterErrorResponseWriter` — Filter 层错误响应写入器 SPI，允许业务模块自定义 Filter 层错误消息体格式。
@@ -473,10 +473,9 @@ me:
     - `ShutdownReadyFlag` — 下线就绪标志 Bean（`AtomicBoolean`，默认 true）；actuator health indicator 与业务 HealthController 都注入它联动返回 DOWN。
     - `GracefulShutdownExecutor` — 下线编排核心：标记 health DOWN → 反注册（`ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过）→ 等待消费者刷新缓存；被 endpoint 与 listener 共用，幂等。
     - `ShutdownHealthIndicator` — actuator health 联动（Boot 4 新包 `org.springframework.boot.health.contributor`），flag false → `OUT_OF_SERVICE`（HTTP 503）。
-    - `GracefulShutdownEndpoint` — `POST /actuator/offline`，preStop 主路径，同步阻塞到编排完成返回 202。
+    - `GracefulShutdownEndpoint` — `POST /actuator/offline`，preStop 主路径，同步阻塞到编排完成返回 202；配了 `endpoint-token` 时强制校验请求头 `X-Offline-Token`，不匹配置 403（未配置则放行但每次调用 WARN 提醒，生产必须配置）。
     - `GracefulShutdownListener` — `ApplicationListener<ContextClosedEvent>`，SIGTERM 兜底路径。
   - `com.frame.me.cloud.config.RefreshDecryptListener` — 配置中心无关的刷新解密监听器：`ApplicationListener<EnvironmentChangeEvent>`，刷新后遍历 `ConfigurableEnvironment.getPropertySources()`，把含 `ME(密文)` 的未包装 `EnumerablePropertySource` 原位替换成 `DecryptedPropertySource`；已是 `DecryptedPropertySource` 的跳过（幂等，防重复包装）。
-  - `com.frame.me.cloud.CloudConstant` — 占位常量类。
 - **自动装配**：通过 `frame-me-starter-cloud/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CloudAutoConfiguration`。
 - **启用条件**：
   - 优雅下线编排：`me.cloud.shutdown.enabled=true`（默认 `true`，可显式关闭）。`ShutdownHealthIndicator` 需 actuator 在场（base 已传递）；`GracefulShutdownEndpoint` 需 actuator + `management.endpoints.web.exposure.include` 含 `offline`；反注册部分用 `ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过（只做 health 联动 + 等待）。
@@ -487,6 +486,7 @@ me:
   - `deregister-wait` — 反注册后等待消费者刷新缓存的时长，默认 `15s`；纯任务服务或无注册中心时可设 `0s` 跳过等待。
   - `health-indicator-enabled` — 是否注册 actuator health indicator，默认 `true`。
   - `endpoint-enabled` — 是否暴露 `POST /actuator/offline` 主动下线端点，默认 `true`。
+  - `endpoint-token` — `/actuator/offline` 的共享密钥；配置后请求头 `X-Offline-Token` 必须匹配否则 403，未配置则放行但每次调用 WARN——该端点是远程下线开关，生产环境必须配置。
 - **设计约定**：
   - 已纳入 `frame-me-boot`（cloud 在 boot 聚合依赖中），业务 `xx-service` 引入 `frame-me-boot` 即获得云基础底座能力。
   - **刷新解密链路时序**：
@@ -504,7 +504,7 @@ me:
     5. 返回，Spring 继续 → Tomcat graceful shutdown（`server.shutdown=graceful`）处理在途请求
     6. 处理完在途请求，关闭
   - **两条路径幂等**：preStop 调过端点后 flag 已 false、已反注册，SIGTERM 来 listener 再跑一遍无副作用。
-  - **K8s 对齐建议**：`terminationGracePeriodSeconds` ≥ `deregister-wait`(15s) + `timeout-per-shutdown-phase`(30s) + buffer(5s) = 50s，否则 Tomcat 还在处理在途请求就被 SIGKILL。
+  - **K8s 时间窗约束（必须满足）**：兜底路径总耗时 = `deregister-wait`（默认 15s）+ Spring 关闭流程（`spring.lifecycle.timeout-per-shutdown-phase` 默认 30s），`terminationGracePeriodSeconds` 必须 ≥ 两者之和（默认配置下 ≥ 45s，建议配 60s），否则 Tomcat 还在处理在途请求就被 SIGKILL，优雅下线落空。
 - **扩展提示**：未来接 Apollo / Consul 等其他配置中心时，刷新解密能力天然复用（监听器配置中心无关）；Gateway / Sentinel / 链路追踪等云组件各自新建 `frame-me-starter-cloud-xxx` 模块。
 
 ## `frame-me-starter-cloud-nacos`
@@ -1107,42 +1107,43 @@ public class AlertService {
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |
 | `frame-me-sso-api` | `frame-me-api` |
-| `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`、`frame-me-starter-doc-openapi`、`jjwt` |
+| `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（`frame-me-starter-doc-openapi` 在 swagger profile） |
 
 ## frame-me-sso（SSO 单点登录服务）
 
-`frame-me-launcher/frame-me-sso` 是独立可运行的 Spring Boot 认证服务，聚合 `frame-me-sso-api`（契约）+ `frame-me-sso-service`（启动服务）。提供集群内应用免密钥接入、集群外三方应用授权码换 token、RS256 JWT 自验签、三层踢人机制。
+`frame-me-launcher/frame-me-sso` 是独立可运行的 Spring Boot 认证服务，聚合 `frame-me-sso-api`（契约）+ `frame-me-sso-service`（启动服务）。提供应用注册表、授权码 + client_credentials 双模式颁发 sa-token 不透明 token、/userinfo 代验、用户 CRUD、事件踢人（档3）。接入指南见 `docs/guides/sso.md`。
 
 ### 模块职责
 
 | 模块 | 职责 |
 |---|---|
-| `frame-me-sso-api` | `@HttpExchange` API 契约（`ISsoAuthApi`/`ISsoAdminApi`）+ dto/vo，供下游引模块用 Spring HTTP Interface 调用 |
-| `frame-me-sso-service` | 启动服务：应用注册表、授权码流程、RS256 JWT 签发、sa-token 会话治理、踢人事件 |
+| `frame-me-sso-api` | `@HttpExchange` API 契约（`IAuthApi`/`IAppApi`/`IUserApi`）+ dto/vo/enums，供下游引模块用 Spring HTTP Interface 调用 |
+| `frame-me-sso-service` | 启动服务：应用注册表、授权码流程、sa-token 会话治理、用户 CRUD、踢人事件 |
 
 ### 关键类
 
 | 类 | 路径 | 职责 |
 |---|---|---|
-| `SsoApplication` | `sso/SsoApplication` | 主启动类 |
-| `SsoAuthController` | `sso/controller/SsoAuthController` | 授权码流程端点（authorize/login/token/refresh/logout/jwks） |
-| `SsoAdminController` | `sso/controller/SsoAdminController` | 管理端点（app CRUD + 强制登出，`@SaCheckRole("admin")`） |
-| `SsoTokenService` | `sso/service/SsoTokenService` | RS256 JWT 签发/解析 |
-| `SsoAppService` | `sso/service/SsoAppService` | 应用注册/密钥/校验 |
-| `SsoAuthCodeService` | `sso/service/SsoAuthCodeService` | 授权码签发/消费（Redis 原子防重放） |
-| `SsoLogoutService` | `sso/service/SsoLogoutService` | 踢人 + 发 `UserLogoutEvent` |
-| `IJwtSigner`/`Rs256JwtSigner` | `sso/infrastructure/jwt/` | JWT 签名器接口 + RS256 实现 |
-| `SsoProperties` | `sso/infrastructure/config/SsoProperties` | `me.sso.*` 配置 |
+| `Application` | `sso/Application` | 主启动类 |
+| `AuthController` | `sso/controller/AuthController` | 授权码流程端点（authorize/loginPage/token）+ 强制登出 |
+| `AppController` | `sso/controller/AppController` | 应用管理端点（注册/列表/更新/重置密钥/禁用/按 app 踢人，`@SaCheckRole("admin")`） |
+| `UserController` | `sso/controller/UserController` | `/userinfo`（匿名 + 自验 Bearer）+ 用户 CRUD（admin） |
+| `AppService` | `sso/service/AppService` | 应用注册/密钥/白名单校验 |
+| `UserService` | `sso/service/UserService` | 用户查询/保存/更新/逻辑删除 |
+| `AuthCodeService` | `sso/service/AuthCodeService` | 授权码签发/消费（Redis GETDEL 原子防重放） |
+| `LogoutService` | `sso/service/LogoutService` | 踢人（按用户/按应用）+ 发 `UserLogoutEvent` |
+| `SsoTokenUtils` | `sso/infrastructure/satoken/SsoTokenUtils` | app token 身份收口（`app:` loginId 前缀、Bearer 解析） |
+| `DefaultDeviceInterceptor` | `sso/infrastructure/satoken/DefaultDeviceInterceptor` | 管理端点设备闸：仅认默认设备会话，匿名放行 |
+| `SsoStpInterface` | `sso/infrastructure/satoken/SsoStpInterface` | sa-token 角色源，读 `UserEntity.roles`（app loginId 空列表 fail-closed） |
+| `SsoUserDetailsService` | `sso/infrastructure/satoken/SsoUserDetailsService` | 认证 SPI 适配：UserEntity → base User |
+| `SsoProperties`/`SsoConfiguration` | `sso/infrastructure/config/` | `me.sso.*` 配置 + 拦截器装配 |
 
 ### 可配置项（`me.sso.*`）
 
 | 属性 | 默认值 | 说明 |
 |---|---|---|
-| `me.sso.enabled` | `true` | SSO 服务总开关 |
-| `me.sso.path` | `/api/sso` | 端点基础路径 |
 | `me.sso.login-page.enabled` | `true` | 是否提供 HTML 登录页 |
 | `me.sso.auth-code.expires` | `60s` | 授权码时效（一次性） |
-| `me.sso.token.access-expires` | `PT2H` | access token 时效 |
-| `me.sso.jwt.private-key` | - | RS256 私钥（classpath: 或 PEM，走 sensi-encrypt） |
-| `me.sso.jwt.public-key` | - | RS256 公钥（下游验签用） |
-| `me.sso.jwt.issuer` | `frame-me-sso` | 签发方标识 |
+| `me.sso.token.app-timeout` | `P1D` | 下发给下游应用 token 的独立时效 |
+| `me.sso.device-gate.enabled` | `true` | 管理端点设备闸开关 |
+| `me.sso.device-gate.path-patterns` | `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**` | 设备闸拦截路径 |

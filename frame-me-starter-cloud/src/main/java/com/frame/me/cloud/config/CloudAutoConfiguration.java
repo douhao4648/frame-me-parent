@@ -77,19 +77,20 @@ public class CloudAutoConfiguration {
     }
 
     /**
-     * 主动下线端点 POST /actuator/offline：preStap 主路径.
+     * 主动下线端点 POST /actuator/offline：preStop 主路径.
      */
     @Bean
     @ConditionalOnClass(Endpoint.class)
     @ConditionalOnBean(GracefulShutdownExecutor.class)
     @ConditionalOnProperty(prefix = "me.cloud.shutdown", name = {"enabled", "endpoint-enabled"},
             havingValue = "true", matchIfMissing = true)
-    public GracefulShutdownEndpoint gracefulShutdownEndpoint(GracefulShutdownExecutor executor) {
-        return new GracefulShutdownEndpoint(executor);
+    public GracefulShutdownEndpoint gracefulShutdownEndpoint(GracefulShutdownExecutor executor,
+                                                             GracefulShutdownProperties properties) {
+        return new GracefulShutdownEndpoint(executor, properties);
     }
 
     /**
-     * ContextClosedEvent 兜底监听器：preStap 未配/失败时，SIGTERM 来了兜住.
+     * ContextClosedEvent 兜底监听器：preStop 未配/失败时，SIGTERM 来了兜住.
      */
     @Bean
     @ConditionalOnBean(GracefulShutdownExecutor.class)

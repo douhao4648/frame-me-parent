@@ -40,7 +40,11 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/
 - `MybatisPlusOptimisticLockTest`：覆盖乐观锁版本递增与冲突。
 - `MybatisPlusPaginationTest`：覆盖分页插件与条件分页。
 
-其他模块目前测试代码较少；`frame-me-starter-base` 包含 `EnvironmentHelperTest`、`SnowflakeUtilsTest` 等基础单元测试。
+其他模块目前测试代码较少；`frame-me-starter-base` 包含 `EnvironmentHelperTest`、`SnowflakeUtilsTest` 等基础单元测试，以及 `PoolingRestClientAutoConfigurationTest`——验证池化 HTTP 客户端配置（观测某个调用用了哪个池：飞行途中断言共享 `PoolingHttpClientConnectionManager.getTotalStats().getLeased()`；并覆盖 `me.restclient.pool.*` / `spring.http.clients.*` / `spring.http.serviceclient.<group>.*` 三层配置叠加）。
+
+`frame-me-sso-service` 包含 `SsoAuthFlowTest`：Testcontainers Redis + H2 + TestRestTemplate 真实 HTTP 的授权码全流程端到端测试（登录页匿名可访问、未登录 302、登录→发 code（state 回显）→换 token→Bearer /userinfo、授权码重放拒绝、scope/redirectUri 白名单 400、EXTERNAL 密钥强制校验、应用注册/更新 DTO 校验、client_credentials 应用 token 颁发（INTERNAL/EXTERNAL 均强制 secret）与其调 /userinfo 被拒、管理端点设备闸（应用 token 塞 satoken 头 403）、按 appId 踢人、禁用应用联动踢存量会话、用户 CRUD 全生命周期（重复账号/垃圾入参拒绝、VO 无密码字段）、用户更新校验与防自锁（禁用/删除当前登录账号拒绝）、改密码/禁用联动踢会话、用户管理端点设备闸拦截应用 token）。Docker 不可用时自动跳过，`ContextLoadTest` 仍会执行。
+
+> 注意：Boot 4 的 `TestRestTemplate`（`spring-boot-resttestclient` 模块）**默认跟随重定向**，断言 302 需 `rest.withRedirects(HttpRedirects.DONT_FOLLOW)`；且需显式 `@AutoConfigureTestRestTemplate` 才有 `TestRestTemplate` Bean。单模块 `-pl` 跑测试时注意先 `install` 同工程 api 模块，否则本地仓库旧 jar 会造成接口签名不一致。
 
 ## 运行测试
 

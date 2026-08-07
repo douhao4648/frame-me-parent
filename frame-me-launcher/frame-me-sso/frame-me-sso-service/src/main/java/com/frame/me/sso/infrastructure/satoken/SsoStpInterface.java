@@ -28,7 +28,16 @@ public class SsoStpInterface implements StpInterface {
 
     @Override
     public List<String> getRoleList(Object loginId, String loginType) {
-        UserEntity user = userMapper.selectOneById(Long.parseLong(loginId.toString()));
+        if (SsoTokenUtils.isAppLoginId(loginId)) {
+            // 应用 token（client_credentials）无用户角色，fail-closed 空列表
+            return Collections.emptyList();
+        }
+        UserEntity user;
+        try {
+            user = userMapper.selectOneById(Long.parseLong(loginId.toString()));
+        } catch (NumberFormatException e) {
+            return Collections.emptyList();
+        }
         if (user == null || user.getRoles() == null || user.getRoles().isBlank()) {
             return Collections.emptyList();
         }

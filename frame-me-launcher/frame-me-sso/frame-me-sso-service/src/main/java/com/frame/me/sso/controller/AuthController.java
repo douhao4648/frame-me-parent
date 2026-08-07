@@ -12,6 +12,7 @@ import com.frame.me.sso.api.dto.TokenRequestDTO;
 import com.frame.me.sso.api.vo.TokenVO;
 import com.frame.me.sso.entity.AppEntity;
 import com.frame.me.sso.infrastructure.config.SsoProperties;
+import com.frame.me.sso.infrastructure.satoken.SsoTokenUtils;
 import com.frame.me.sso.service.AppService;
 import com.frame.me.sso.service.AuthCodeService;
 import com.frame.me.sso.service.LogoutService;
@@ -53,14 +54,18 @@ public class AuthController implements IAuthApi {
     private final LogoutService logoutService;
 
     /**
-     * 授权端点：校验应用 → 未登录重定向登录页 → 已登录发 code 回调.
+     * 授权端点：校验应用 → 校验 scope 白名单 → 未登录重定向登录页 → 已登录发 code 回调.
+     *
+     * <p>{@code state} 是 OAuth 防登录 CSRF 的基础参数：下游生成、SSO 原样回显在回调里，
+     * 下游比对一致才接受回调。SSO 侧只做透传（经登录页跳转链不丢失），不存储.</p>
      */
     @Anonymous
     @Override
     public ResponseEntity<Void> authorize(@RequestParam String appId,
                                           @RequestParam String redirectUri,
                                           @RequestParam(required = false, defaultValue = "openid") String scope,
-                                          @RequestParam(required = false) String nonce) {
+                                          @RequestParam(required = false) String nonce,
+                                          @RequestParam(required = false) String state) {
         AppEntity app = appService.findByAppId(appId);
         if (app == null || !"ACTIVE".equals(app.getStatus())) {
             return ResponseEntity.badRequest().build();
@@ -68,16 +73,23 @@ public class AuthController implements IAuthApi {
         if (!appService.isRedirectAllowed(app, redirectUri)) {
             return ResponseEntity.badRequest().build();
         }
+        if (!appService.isScopeAllowed(app, scope)) {
+            return ResponseEntity.badRequest().build();
+        }
         if (!StpUtil.isLogin()) {
             String target = "/sso-login.html?redirect=" +
-                    URLEncoder.encode("/api/sso/authorize?" +
-                            buildQuery(appId, redirectUri, scope, nonce), StandardCharsets.UTF_8);
+                    URLEncoder.encode("/api/auth/authorize?" +
+                            buildQuery(appId, redirectUri, scope, nonce, state), StandardCharsets.UTF_8);
             return ResponseEntity.status(302).location(URI.create(target)).build();
         }
         Long userId = StpUtil.getLoginIdAsLong();
         String code = authCodeService.issue(appId, userId, scope, redirectUri);
         String sep = redirectUri.contains("?") ? "&" : "?";
-        return ResponseEntity.status(302).location(URI.create(redirectUri + sep + "code=" + code)).build();
+        String location = redirectUri + sep + "code=" + code;
+        if (state != null && !state.isBlank()) {
+            location += "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
+        }
+        return ResponseEntity.status(302).location(URI.create(location)).build();
     }
 
     /**
@@ -91,19 +103,44 @@ public class AuthController implements IAuthApi {
         }
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .body("{\"code\":200,\"msg\":\"请 POST /api/auth/login\"}");
+                .body("{\"code\":200,\"msg\":\"请 POST /base/auth/login\"}");
     }
 
     /**
-     * 换 token：code → sa-token 不透明 token.
+     * 换 token：按 {@code grantType} 分派.
      *
      * <p>用 {@link StpUtil#createLoginSession} 而非 {@link StpUtil#login}：本端点由下游服务端
      * POST 调用，无浏览器请求上下文，{@code createLoginSession} 不依赖上下文纯建会话返 token.
      * {@code is-concurrent: true} 保证与浏览器会话独立.</p>
+     *
+     * <ul>
+     *   <li>{@code authorization_code}（默认）：code → 用户 token（loginId=userId，deviceType=appId），
+     *       下游凭此调 /userinfo</li>
+     *   <li>{@code client_credentials}：appId+appSecret → 应用 token（loginId="app:"+appId，
+     *       无用户维度），用于定时任务/服务间等机器对机器调用</li>
+     * </ul>
      */
     @Anonymous
     @Override
     public IResult<TokenVO> token(@Valid @RequestBody TokenRequestDTO req) {
+        String grantType = req.getGrantType() == null || req.getGrantType().isBlank()
+                ? "authorization_code" : req.getGrantType();
+        return switch (grantType) {
+            case "authorization_code" -> authorizationCodeGrant(req);
+            case "client_credentials" -> clientCredentialsGrant(req);
+            default -> Result.error(ResultCode.BAD_REQUEST,
+                    "grantType 仅支持 authorization_code / client_credentials");
+        };
+    }
+
+    /**
+     * 授权码模式：code → 用户 token.
+     */
+    private IResult<TokenVO> authorizationCodeGrant(TokenRequestDTO req) {
+        if (req.getCode() == null || req.getCode().isBlank()
+                || req.getRedirectUri() == null || req.getRedirectUri().isBlank()) {
+            return Result.error(ResultCode.BAD_REQUEST, "authorization_code 模式需 code 与 redirectUri");
+        }
         AuthCodeService.CodePayload payload = authCodeService.consume(req.getCode());
         if (payload == null) {
             return Result.error(ResultCode.UNAUTHORIZED, "授权码无效或已使用");
@@ -121,15 +158,39 @@ public class AuthController implements IAuthApi {
         if (!appService.verifySecret(app, req.getAppSecret())) {
             return Result.error(ResultCode.UNAUTHORIZED, "密钥校验失败");
         }
-        // sa-token 不透明 token：带 app 维度（deviceType=appId）+ 独立 TTL，下游凭此调 /userinfo
+        return Result.success(issueToken(payload.userId, payload.appId));
+    }
+
+    /**
+     * 客户端凭证模式：appId+appSecret → 应用 token（主体是应用自身，无用户维度）.
+     *
+     * <p>loginId 用 {@code "app:"+appId} 字符串，与用户 token 的数字 userId 区分；
+     * 该 token 调 /userinfo 会 401（无对应用户），只应用于机器对机器调用.
+     * INTERNAL / EXTERNAL 均强制校验 appSecret（注册时两类型都发密钥）.</p>
+     */
+    private IResult<TokenVO> clientCredentialsGrant(TokenRequestDTO req) {
+        AppEntity app = appService.findByAppId(req.getAppId());
+        if (app == null || !"ACTIVE".equals(app.getStatus())) {
+            return Result.error(ResultCode.UNAUTHORIZED, "应用不存在或已禁用");
+        }
+        if (!appService.verifySecret(app, req.getAppSecret())) {
+            return Result.error(ResultCode.UNAUTHORIZED, "密钥校验失败");
+        }
+        return Result.success(issueToken(SsoTokenUtils.appLoginId(app.getAppId()), app.getAppId()));
+    }
+
+    /**
+     * 签发 sa-token 不透明 token：app 维度（deviceType=appId）+ 独立 TTL.
+     */
+    private TokenVO issueToken(Object loginId, String appId) {
         long timeout = properties.getToken().getAppTimeout().getSeconds();
-        String token = StpUtil.createLoginSession(payload.userId,
+        String token = StpUtil.createLoginSession(loginId,
                 new SaLoginParameter()
-                        .setDeviceType(payload.appId)
+                        .setDeviceType(appId)
                         .setTimeout(timeout));
         TokenVO vo = new TokenVO();
         vo.setAccessToken(token);
-        return Result.success(vo);
+        return vo;
     }
 
     /**
@@ -142,13 +203,24 @@ public class AuthController implements IAuthApi {
         return Result.success(true);
     }
 
-    private String buildQuery(String appId, String redirectUri, String scope, String nonce) {
-        StringBuilder sb = new StringBuilder("appId=").append(appId)
-                .append("&redirectUri=").append(redirectUri)
-                .append("&scope=").append(scope);
+    /**
+     * 拼接 authorize 回跳查询串：每个值单独 URL 编码，scope/nonce/state 均用户可控，
+     * 不编码可注入额外参数（如 scope=openid&amp;nonce=x）.
+     */
+    private String buildQuery(String appId, String redirectUri, String scope, String nonce, String state) {
+        StringBuilder sb = new StringBuilder("appId=").append(encode(appId))
+                .append("&redirectUri=").append(encode(redirectUri))
+                .append("&scope=").append(encode(scope));
         if (nonce != null) {
-            sb.append("&nonce=").append(nonce);
+            sb.append("&nonce=").append(encode(nonce));
+        }
+        if (state != null) {
+            sb.append("&state=").append(encode(state));
         }
         return sb.toString();
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

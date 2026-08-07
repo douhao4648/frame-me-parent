@@ -7,7 +7,7 @@ package com.frame.me.sso.api.enums;
  */
 public enum AccessType {
 
-    /** 集群内可信应用，免密钥接入. */
+    /** 集群内应用（登记关系标识，同样配密钥）. */
     INTERNAL,
 
     /** 集群外三方应用，强制密钥校验. */

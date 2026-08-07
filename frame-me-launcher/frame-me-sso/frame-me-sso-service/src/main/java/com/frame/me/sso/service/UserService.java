@@ -53,4 +53,11 @@ public class UserService {
     public void update(UserEntity user) {
         userMapper.update(user);
     }
+
+    /**
+     * 删除用户（逻辑删除，BaseEntity.deleted 标志）.
+     */
+    public void delete(Long id) {
+        userMapper.deleteById(id);
+    }
 }

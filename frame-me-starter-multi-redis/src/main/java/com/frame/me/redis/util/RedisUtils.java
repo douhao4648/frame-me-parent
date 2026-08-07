@@ -3,8 +3,13 @@ package com.frame.me.redis.util;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.time.Duration;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Redis 工具类入口.
@@ -31,8 +36,8 @@ public final class RedisUtils {
      * @param templates         所有 RedisTemplate 实例
      */
     public static synchronized void init(String defaultClientName,
-                                          Map<String, StringRedisTemplate> stringTemplates,
-                                          Map<String, RedisTemplate<Object, Object>> templates) {
+                                         Map<String, StringRedisTemplate> stringTemplates,
+                                         Map<String, RedisTemplate<Object, Object>> templates) {
         RedisUtils.defaultClientName = defaultClientName;
         CLIENT_MAP.clear();
         stringTemplates.forEach((name, stringTemplate) -> {
@@ -74,15 +79,15 @@ public final class RedisUtils {
         client().set(key, value);
     }
 
-    public static void set(String key, String value, java.time.Duration timeout) {
+    public static void set(String key, String value, Duration timeout) {
         client().set(key, value, timeout);
     }
 
-    public static void set(String key, String value, long timeout, java.util.concurrent.TimeUnit unit) {
+    public static void set(String key, String value, long timeout, TimeUnit unit) {
         client().set(key, value, timeout, unit);
     }
 
-    public static void setObject(String key, Object value, java.time.Duration timeout) {
+    public static void setObject(String key, Object value, Duration timeout) {
         client().setObject(key, value, timeout);
     }
 
@@ -98,11 +103,11 @@ public final class RedisUtils {
         return client().delete(key);
     }
 
-    public static Long delete(java.util.Collection<String> keys) {
+    public static Long delete(Collection<String> keys) {
         return client().delete(keys);
     }
 
-    public static Boolean expire(String key, java.time.Duration timeout) {
+    public static Boolean expire(String key, Duration timeout) {
         return client().expire(key, timeout);
     }
 
@@ -118,7 +123,7 @@ public final class RedisUtils {
         client().hSet(key, hashKey, value);
     }
 
-    public static void hSetAll(String key, java.util.Map<String, Object> map) {
+    public static void hSetAll(String key, Map<String, Object> map) {
         client().hSetAll(key, map);
     }
 
@@ -130,7 +135,7 @@ public final class RedisUtils {
         return client().hGet(key, hashKey, clazz);
     }
 
-    public static java.util.Map<Object, Object> hGetAll(String key) {
+    public static Map<Object, Object> hGetAll(String key) {
         return client().hGetAll(key);
     }
 
@@ -158,7 +163,7 @@ public final class RedisUtils {
         return client().rPop(key);
     }
 
-    public static java.util.List<String> lRange(String key, long start, long end) {
+    public static List<String> lRange(String key, long start, long end) {
         return client().lRange(key, start, end);
     }
 
@@ -170,7 +175,7 @@ public final class RedisUtils {
         return client().sAdd(key, values);
     }
 
-    public static java.util.Set<String> sMembers(String key) {
+    public static Set<String> sMembers(String key) {
         return client().sMembers(key);
     }
 
@@ -186,7 +191,7 @@ public final class RedisUtils {
         return client().zAdd(key, value, score);
     }
 
-    public static java.util.Set<String> zRangeByScore(String key, double start, double end) {
+    public static Set<String> zRangeByScore(String key, double start, double end) {
         return client().zRangeByScore(key, start, end);
     }
 

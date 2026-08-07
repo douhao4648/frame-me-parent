@@ -35,3 +35,6 @@ me:
         enabled: false
       redis:
         enabled: false
+    # 端到端测试同 IP 高频登录，关闭固定窗口限流（生产配置保持开启）
+    login-rate-limit:
+      enabled: false

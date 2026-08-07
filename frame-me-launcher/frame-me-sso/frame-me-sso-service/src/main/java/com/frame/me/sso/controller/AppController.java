@@ -10,6 +10,7 @@ import com.frame.me.sso.api.enums.AccessType;
 import com.frame.me.sso.api.vo.AppVO;
 import com.frame.me.sso.entity.AppEntity;
 import com.frame.me.sso.service.AppService;
+import com.frame.me.sso.service.LogoutService;
 import com.alibaba.fastjson2.JSON;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class AppController implements IAppApi {
 
     private final AppService appService;
+    private final LogoutService logoutService;
 
     /**
      * 注册应用.
@@ -90,13 +92,24 @@ public class AppController implements IAppApi {
     }
 
     /**
-     * 禁用应用.
+     * 禁用应用：禁用即生效——除阻断新发 token 外，联动踢出该应用全部存量会话
+     * （用户 token + 应用 token），避免"已颁发 token 自然过期"窗口内继续可用.
      */
     @SaCheckRole("admin")
     @Override
     public IResult<Boolean> disableApp(String appId) {
         appService.disable(appId);
+        logoutService.logoutByApp(appId, "app-disabled");
         return Result.success(true);
+    }
+
+    /**
+     * 按应用踢人：注销该 appId 全部会话（用户 token + 应用 token），返回踢掉的会话数.
+     */
+    @SaCheckRole("admin")
+    @Override
+    public IResult<Integer> logoutApp(String appId, String reason) {
+        return Result.success(logoutService.logoutByApp(appId, reason));
     }
 
     private AppVO toVO(AppEntity app) {

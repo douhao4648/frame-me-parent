@@ -1,6 +1,4 @@
 spring:
-  # p6spy
-  # hikari
   datasource:
     url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
@@ -14,11 +12,19 @@ spring:
       database: 0
       host: localhost
       port: 6379
+  http:
+    serviceclient:
+      tester:
+        base-url: http://localhost:9090
+        read-timeout: 10s
   sql:
     init:
       mode: always
       schema-locations: classpath:schema.sql
 
+logging:
+  level:
+      com.zaxxer.hikari: INFO
 #mybatis-flex:
 #  default-datasource-key: master
 #  datasource:
@@ -31,15 +37,15 @@ spring:
 #      maximum-pool-size: 10
 #      minimum-idle: 5
 
-# swagger
-# cookie
-# encrypt
-# auth
-# sa-token
+
 # redis
+# sa-token 基础登录
+# auth
+# sa-token、cookie 模式
+# 多个文件的 pom
 # snowflake my-felx
 # cache
 # notify
 # op-audit
-# nacos
+# nacos encrypt
 # base

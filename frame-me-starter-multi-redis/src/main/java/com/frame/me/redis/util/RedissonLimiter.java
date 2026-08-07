@@ -5,6 +5,7 @@ import org.redisson.api.RateType;
 import org.redisson.api.RedissonClient;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Redisson 分布式限流工具类.
@@ -58,7 +59,7 @@ public final class RedissonLimiter {
      * @return 是否初始化成功
      */
     public static boolean trySetRate(String key, RateType type, long rate,
-                                     long rateInterval, java.util.concurrent.TimeUnit rateIntervalUnit) {
+                                     long rateInterval, TimeUnit rateIntervalUnit) {
         return getRateLimiter(key).trySetRate(type, rate, Duration.ofMillis(rateIntervalUnit.toMillis(rateInterval)));
     }
 

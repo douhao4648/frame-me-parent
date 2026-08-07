@@ -40,7 +40,6 @@ public class DocOpenApiAutoConfiguration {
      */
     @Bean
     public OpenAPI openAPI(DocOpenApiProperties properties) {
-        log.info("register OpenAPI doc：{}", properties.getTitle());
         Contact contact = new Contact();
         contact.setName(properties.getContact().getName());
         contact.setEmail(properties.getContact().getEmail());

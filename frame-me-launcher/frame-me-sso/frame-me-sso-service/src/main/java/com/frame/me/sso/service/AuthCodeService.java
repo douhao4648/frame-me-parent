@@ -1,6 +1,7 @@
 package com.frame.me.sso.service;
 
 import cn.hutool.core.util.IdUtil;
+import com.alibaba.fastjson2.JSON;
 import com.frame.me.sso.infrastructure.SsoConstant;
 import com.frame.me.sso.infrastructure.config.SsoProperties;
 import lombok.RequiredArgsConstructor;
@@ -28,40 +29,37 @@ public class AuthCodeService {
 
     /**
      * 签发授权码.
+     *
+     * <p>value 用 JSON 序列化：scopes/redirectUri 用户可控，":" 等分隔符拼接会被注入错位.</p>
      */
     public String issue(String appId, Long userId, String scopes, String redirectUri) {
         String code = IdUtil.fastSimpleUUID();
         Duration expires = properties.getAuthCode().getExpires();
         String key = SsoConstant.AUTH_CODE_KEY_PREFIX + code;
-        // ponytail: value 用 ":" 分隔，redirectUri 含 ":" 时用 split(,4) 限分 4 段保证 redirectUri 完整
-        String value = appId + ":" + userId + ":" + scopes + ":" + redirectUri;
-        redisTemplate.opsForValue().set(key, value, expires);
+        CodePayload payload = new CodePayload();
+        payload.appId = appId;
+        payload.userId = userId;
+        payload.scopes = scopes;
+        payload.redirectUri = redirectUri;
+        redisTemplate.opsForValue().set(key, JSON.toJSONString(payload), expires);
         return code;
     }
 
     /**
      * 校验并消费授权码（一次性，原子操作）.
      *
+     * <p>{@code GETDEL}（Redis 6.2+）一次往返取值的同时删除，并发下只有一个请求能拿到
+     * value，杜绝 GET+DELETE 两次往返的重放窗口.</p>
+     *
      * @return null 表示无效或已使用
      */
     public CodePayload consume(String code) {
         String key = SsoConstant.AUTH_CODE_KEY_PREFIX + code;
-        String value = redisTemplate.opsForValue().get(key);
+        String value = redisTemplate.opsForValue().getAndDelete(key);
         if (value == null) {
             return null;
         }
-        // 原子删除：只有持有者能消费
-        Boolean deleted = redisTemplate.delete(key);
-        if (Boolean.FALSE.equals(deleted)) {
-            return null;
-        }
-        String[] parts = value.split(":", 4);
-        CodePayload payload = new CodePayload();
-        payload.appId = parts[0];
-        payload.userId = Long.parseLong(parts[1]);
-        payload.scopes = parts[2];
-        payload.redirectUri = parts.length > 3 ? parts[3] : "";
-        return payload;
+        return JSON.parseObject(value, CodePayload.class);
     }
 
     /**

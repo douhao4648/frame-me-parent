@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * SSO 服务配置属性.
@@ -23,6 +24,9 @@ public class SsoProperties {
     /** token 配置. */
     private Token token = new Token();
 
+    /** 管理端点设备闸配置. */
+    private DeviceGate deviceGate = new DeviceGate();
+
     @Data
     public static class LoginPage {
 
@@ -38,7 +42,17 @@ public class SsoProperties {
     @Data
     public static class Token {
 
-        /** 下游 token 独立时效（默认 7d，与浏览器登录 2h 分开）. */
-        private Duration appTimeout = Duration.ofDays(7);
+        /** 下游 token 独立时效（默认 1d，与浏览器登录会话分开）. */
+        private Duration appTimeout = Duration.ofDays(1);
+    }
+
+    @Data
+    public static class DeviceGate {
+
+        /** 是否启用设备闸（管理端点仅接受默认设备会话），默认开. */
+        private boolean enabled = true;
+
+        /** 设备闸拦截路径. */
+        private List<String> pathPatterns = List.of("/api/apps/**", "/api/auth/*/logout", "/api/users/**");
     }
 }

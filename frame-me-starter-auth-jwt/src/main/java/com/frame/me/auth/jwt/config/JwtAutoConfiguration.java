@@ -1,16 +1,14 @@
 package com.frame.me.auth.jwt.config;
 
 import com.frame.me.auth.config.AuthProperties;
-import com.frame.me.auth.jwt.core.InMemoryRefreshTokenStore;
-import com.frame.me.auth.jwt.core.JwtAuthUserResolver;
-import com.frame.me.auth.jwt.core.JwtTokenService;
-import com.frame.me.auth.jwt.core.RedisRefreshTokenStore;
-import com.frame.me.auth.jwt.core.IRefreshTokenStore;
+import com.frame.me.auth.jwt.core.*;
 import com.frame.me.auth.jwt.web.JwtAuthController;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.base.limit.LoginRateLimiter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -46,21 +44,6 @@ public class JwtAutoConfiguration {
     }
 
     /**
-     * Redis 存储装配：classpath 存在 multi-redis 时激活，业务自定义
-     * {@link IRefreshTokenStore} 优先.
-     */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "com.frame.me.redis.util.RedisUtils")
-    static class RedisRefreshTokenStoreConfiguration {
-
-        @Bean
-        @ConditionalOnMissingBean(IRefreshTokenStore.class)
-        public IRefreshTokenStore redisRefreshTokenStore(JwtAuthProperties properties) {
-            return new RedisRefreshTokenStore(properties);
-        }
-    }
-
-    /**
      * JWT 认证服务，接管 {@link IAuthService}.
      *
      * <p>SuppressWarnings：{@code IAuthUserDetailsService} 由业务工程实现，本模块内
@@ -87,7 +70,22 @@ public class JwtAutoConfiguration {
     @ConditionalOnMissingBean
     public JwtAuthController jwtAuthController(IAuthService authService, JwtAuthProperties properties,
                                                AuthProperties authProperties,
-                                               org.springframework.beans.factory.ObjectProvider<com.frame.me.base.limit.LoginRateLimiter> loginRateLimiter) {
+                                               ObjectProvider<LoginRateLimiter> loginRateLimiter) {
         return new JwtAuthController(authService, properties, authProperties, loginRateLimiter);
+    }
+
+    /**
+     * Redis 存储装配：classpath 存在 multi-redis 时激活，业务自定义
+     * {@link IRefreshTokenStore} 优先.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "com.frame.me.redis.util.RedisUtils")
+    static class RedisRefreshTokenStoreConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(IRefreshTokenStore.class)
+        public IRefreshTokenStore redisRefreshTokenStore(JwtAuthProperties properties) {
+            return new RedisRefreshTokenStore(properties);
+        }
     }
 }

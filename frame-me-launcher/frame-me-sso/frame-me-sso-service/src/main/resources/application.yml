@@ -4,12 +4,20 @@ server:
 management:
   server:
     port: 10011
+  endpoints:
+    web:
+      exposure:
+        include: health
 
 spring:
   application:
     name: frame-me-sso
   jackson:
     default-property-inclusion: non_null
+  http:
+    clients:
+      connect-timeout: 5s
+      read-timeout: 30s
 
 logging:
   file:
@@ -60,11 +68,15 @@ me:
     whitelist:
       - /base/auth/login
       - /base/auth/refresh
+      - /sso-login.html
+      - /favicon.ico
       - /swagger-ui/**
       - /swagger-ui.html
       - /v3/api-docs/**
       - /v3/api-docs
       - /actuator/**
+    header-resolver:
+      enabled: false
     propagate:
       enabled: false
     sa-token:
@@ -72,12 +84,26 @@ me:
       path: /base/auth
 #      authorization:
 #        enabled: false
+  swagger:
+    title: Frame Me Sso API
+    description: Frame Me Sso 接口文档
+    version: 1.0.0
+    groups:
+      - name: app-api
+        paths-to-match:
+          - /api/**
+      - name: base-api
+        paths-to-match:
+          - /base/**
+    contact:
+      name: douhao4648
+      email: 464834138@qq.com
+      url: https://github.com/douhao4648/frame-me-parent
   sso:
     login-page:
       enabled: true
     auth-code:
       expires: 60s
     token:
-      app-timeout: P7D
-
+      app-timeout: P1D
 

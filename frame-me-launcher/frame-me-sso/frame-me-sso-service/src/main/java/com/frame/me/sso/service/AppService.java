@@ -12,12 +12,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * SSO 应用注册服务.
  *
- * <p>INTERNAL 不发 secret（免 aksk），EXTERNAL 生成并加密存储 secret。</p>
+ * <p>INTERNAL / EXTERNAL 均生成并加密存储 secret（明文仅注册/重置时返回一次），
+ * 换 token（含 client_credentials）一律强制校验密钥.</p>
  *
  * @author frame-me
  */
@@ -31,7 +35,7 @@ public class AppService {
     /**
      * 注册应用.
      *
-     * @return 新建的 app；EXTERNAL 时 appSecretPlain 为明文（仅此一次返回），appSecret 为加密后
+     * @return 新建的 app；appSecretPlain 为明文（仅此一次返回），appSecret 为加密后
      */
     public AppEntity register(String appName, AccessType accessType, List<String> redirectUris,
                            String scopes) {
@@ -43,12 +47,10 @@ public class AppService {
         app.setScopes(scopes);
         app.setStatus(AppStatus.ACTIVE.name());
 
-        if (accessType == AccessType.EXTERNAL) {
-            String plainSecret = generateSecret();
-            app.setAppSecret(encryptSecret(plainSecret));
-            app.setAppSecretPlain(plainSecret);
-        }
-        // INTERNAL: app_secret 保持 null
+        // INTERNAL / EXTERNAL 均发 secret：换 token 强制验密钥，appId 不再是凭证
+        String plainSecret = generateSecret();
+        app.setAppSecret(encryptSecret(plainSecret));
+        app.setAppSecretPlain(plainSecret);
         appMapper.insert(app);
         return app;
     }
@@ -86,14 +88,14 @@ public class AppService {
     }
 
     /**
-     * 重置 EXTERNAL 应用密钥.
+     * 重置应用密钥.
      *
      * @return 新明文密钥
      */
     public String resetSecret(String appId) {
         AppEntity app = findByAppId(appId);
-        if (app == null || !AccessType.EXTERNAL.name().equals(app.getAccessType())) {
-            throw new IllegalArgumentException("仅 EXTERNAL 应用可重置密钥");
+        if (app == null) {
+            throw new IllegalArgumentException("应用不存在");
         }
         String plainSecret = generateSecret();
         app.setAppSecret(encryptSecret(plainSecret));
@@ -102,12 +104,9 @@ public class AppService {
     }
 
     /**
-     * 校验应用密钥（INTERNAL 免验）.
+     * 校验应用密钥（INTERNAL / EXTERNAL 均强制）.
      */
     public boolean verifySecret(AppEntity app, String inputSecret) {
-        if (app.getAccessType().equals(AccessType.INTERNAL.name())) {
-            return true;
-        }
         if (inputSecret == null || inputSecret.isBlank()) {
             return false;
         }
@@ -125,8 +124,33 @@ public class AppService {
         return uris.contains(redirectUri);
     }
 
+    /**
+     * 校验请求的 scope 是否 ⊆ 应用注册的 scopes.
+     *
+     * <p>请求的 scope 是用户输入（OAuth 惯例空格分隔，兼容逗号），不校验会被当成
+     * 任意字符串写进授权码；注册侧 scopes 同样按空格/逗号拆分比对.</p>
+     */
+    public boolean isScopeAllowed(AppEntity app, String scope) {
+        if (scope == null || scope.isBlank()) {
+            // 未请求 scope（取默认授权），放行
+            return true;
+        }
+        Set<String> registered = splitScopes(app.getScopes());
+        Set<String> requested = splitScopes(scope);
+        return !requested.isEmpty() && registered.containsAll(requested);
+    }
+
+    private Set<String> splitScopes(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(raw.split("[\\s,]+"))
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toSet());
+    }
+
     private String generateAppId(AccessType accessType) {
-        return "fm-" + accessType.name().toLowerCase() + "-" + IdUtil.fastSimpleUUID().substring(0, 8);
+        return accessType.name().toLowerCase() + "-" + IdUtil.fastSimpleUUID().substring(0, 8);
     }
 
     private String generateSecret() {
@@ -134,8 +158,8 @@ public class AppService {
     }
 
     /**
-     * ponytail: 现期 SHA256 单向哈希比对；生产可走 sensi-encrypt 对称加密（可还原明文）。
-     * 升级路径：替换为 StringEncryptor 加密存储，verifySecret 用 StringEncryptor 解密后比对。
+     * SHA256 单向哈希比对：secret 只验不还原（明文仅注册/重置时返回一次），
+     * 与口令同策，不需要可逆加密。secret 为 64 位随机串，熵足够，无需加盐慢哈希。
      */
     private String encryptSecret(String plain) {
         return SecureUtil.sha256(plain);

@@ -22,7 +22,7 @@
             e.preventDefault();
             const account = document.getElementById('account').value;
             const password = document.getElementById('password').value;
-            const res = await fetch('/api/auth/login', {
+            const res = await fetch('/base/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ account, password })
@@ -31,10 +31,13 @@
             if (data.code === 200) {
                 const params = new URLSearchParams(location.search);
                 const redirect = params.get('redirect');
-                if (redirect) {
+                // 防 open redirect：只允许站内相对路径，拒绝 //evil.com 这类协议相对地址
+                if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
                     location.href = redirect;
+                } else if (redirect) {
+                    document.getElementById('msg').textContent = '非法的回跳地址';
                 } else {
-                    location.href = '/api/sso/authorize' + location.search;
+                    location.href = '/';
                 }
             } else {
                 document.getElementById('msg').textContent = data.msg || '登录失败';

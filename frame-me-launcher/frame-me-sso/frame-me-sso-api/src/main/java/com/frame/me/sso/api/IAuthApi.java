@@ -31,20 +31,22 @@ import org.springframework.web.service.annotation.PostExchange;
 public interface IAuthApi {
 
     /**
-     * 授权端点：校验应用 → 未登录重定向登录页 → 已登录发 code 回调.
+     * 授权端点：校验应用与 scope 白名单 → 未登录重定向登录页 → 已登录发 code 回调.
      *
      * @param appId       应用 ID
      * @param redirectUri 回调地址
-     * @param scope       授权范围
+     * @param scope       授权范围（需 ⊆ 应用注册的 scopes）
      * @param nonce       防重放随机串
-     * @return 302 重定向（登录页或回调地址），应用非法/redirect 不在白名单返回 400
+     * @param state       防登录 CSRF 随机串，SSO 原样回显在回调里，下游自行比对
+     * @return 302 重定向（登录页或回调地址），应用非法/redirect 不在白名单/scope 越权返回 400
      */
-    @Operation(summary = "授权端点", description = "校验应用→未登录重定向登录页→已登录发 code 回调")
+    @Operation(summary = "授权端点", description = "校验应用与 scope→未登录重定向登录页→已登录发 code 回调，state 原样回显")
     @GetExchange("/authorize")
     ResponseEntity<Void> authorize(@RequestParam String appId,
                                    @RequestParam String redirectUri,
                                    @RequestParam(required = false, defaultValue = "openid") String scope,
-                                   @RequestParam(required = false) String nonce);
+                                   @RequestParam(required = false) String nonce,
+                                   @RequestParam(required = false) String state);
 
     /**
      * 登录页：重定向到 SSO 登录页，或提示 POST /api/auth/login.
@@ -56,12 +58,19 @@ public interface IAuthApi {
     ResponseEntity<Object> loginPage();
 
     /**
-     * 换 token：授权码 → sa-token 不透明 token.
+     * 换 token：按 {@code grantType} 分派.
+     *
+     * <ul>
+     *   <li>{@code authorization_code}（默认）：授权码 → 用户 token（loginId=userId），下游凭此调 /userinfo；
+     *       需 code + redirectUri + appSecret</li>
+     *   <li>{@code client_credentials}：appId + appSecret → 应用 token（loginId="app:"+appId，无用户维度），
+     *       用于定时任务/服务间机器调用；该 token 调 /userinfo 返 401</li>
+     * </ul>
      *
      * @param request 换 token 请求
      * @return token 响应
      */
-    @Operation(summary = "换 token", description = "授权码换 sa-token 不透明 token，下游凭此调 /userinfo")
+    @Operation(summary = "换 token", description = "authorization_code：授权码换用户 token；client_credentials：appId+appSecret 换应用 token（机器对机器）")
     @PostExchange("/token")
     IResult<TokenVO> token(@Valid @RequestBody TokenRequestDTO request);
 

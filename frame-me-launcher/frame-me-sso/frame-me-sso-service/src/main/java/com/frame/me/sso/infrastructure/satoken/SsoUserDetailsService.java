@@ -1,21 +1,23 @@
-package com.frame.me.sso.service;
+package com.frame.me.sso.infrastructure.satoken;
 
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.user.User;
 import com.frame.me.sso.entity.UserEntity;
+import com.frame.me.sso.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * SSO 用户详情服务，实现认证 SPI.
+ * SSO 用户详情适配器，实现认证 SPI {@link IAuthUserDetailsService}.
  *
- * <p>把 UserEntity 实体转为基础 User 基类，供 sa-token 会话治理使用。</p>
+ * <p>把 UserEntity 实体转为基础 User 基类，供 sa-token 会话治理使用。
+ * 属认证基础设施（与 {@link SsoStpInterface} 同层），非业务服务。</p>
  *
  * @author frame-me
  */
 @Service
 @RequiredArgsConstructor
-public class UserDetailsService implements IAuthUserDetailsService {
+public class SsoUserDetailsService implements IAuthUserDetailsService {
 
     private final UserService userService;
 

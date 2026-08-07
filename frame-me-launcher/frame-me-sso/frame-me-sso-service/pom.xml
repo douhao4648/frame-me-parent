@@ -12,7 +12,7 @@
 
     <artifactId>frame-me-sso-service</artifactId>
     <name>frame-me-sso-service</name>
-    <description>SSO 单点登录服务：集群内免密钥接入、集群外授权码换 token、RS256 JWT 自验签</description>
+    <description>SSO 单点登录服务：授权码 + client_credentials 双模式颁发 sa-token 不透明 token，/userinfo 代验，事件踢人</description>
 
     <dependencies>
         <!-- 本工程契约 -->
@@ -55,11 +55,34 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.redisson</groupId>-->
+<!--            <artifactId>redisson</artifactId>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.freemarker</groupId>-->
+<!--            <artifactId>freemarker</artifactId>-->
+<!--        </dependency>-->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
 
         <!-- 测试 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Boot 4 模块化：TestRestTemplate 独立模块（BOM 未管理对应 starter） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-resttestclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -97,6 +120,16 @@
     </build>
 
     <profiles>
+        <!-- mvn ... -Pprometheus -->
+        <profile>
+            <id>prometheus</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.micrometer</groupId>
+                    <artifactId>micrometer-registry-prometheus</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
         <!-- mvn ... -Pp6spy -->
         <profile>
             <id>p6spy</id>

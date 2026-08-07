@@ -31,6 +31,27 @@ public class RedisProperties {
     private Map<String, ClientConfig> clients = new HashMap<>();
 
     /**
+     * Redis 部署模式.
+     */
+    public enum Mode {
+
+        /**
+         * 单机.
+         */
+        STANDALONE,
+
+        /**
+         * 集群.
+         */
+        CLUSTER,
+
+        /**
+         * 哨兵.
+         */
+        SENTINEL
+    }
+
+    /**
      * 单个 Redis 实例配置.
      */
     @Data
@@ -75,26 +96,5 @@ public class RedisProperties {
          * 数据库索引（{@code CLUSTER} 模式不支持，将被忽略）.
          */
         private int database = 0;
-    }
-
-    /**
-     * Redis 部署模式.
-     */
-    public enum Mode {
-
-        /**
-         * 单机.
-         */
-        STANDALONE,
-
-        /**
-         * 集群.
-         */
-        CLUSTER,
-
-        /**
-         * 哨兵.
-         */
-        SENTINEL
     }
 }

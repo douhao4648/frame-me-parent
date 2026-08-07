@@ -119,7 +119,7 @@ public class JwtAuthController {
      * {@code "[/api/auth/admin/**]": "role('admin')"}）。</p>
      */
     @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 清除该用户的 Refresh Token；已颁发的 Access Token 仍会在自然过期前有效；默认关闭，需通过 me.auth.admin.logout-enabled=true 开启，开启后必须自行配置路径规则保护")
-    @PostMapping("/admin/logout/{userId}")
+    @PostMapping("/admin/{userId}/logout")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)
             @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
