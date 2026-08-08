@@ -13,14 +13,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /**
- * {@link RedissonLockAutoConfiguration} 条件与校验测试.
+ * {@link RedissonAutoConfiguration} 条件与校验测试.
  *
  * @author frame-me
  */
-class RedissonLockAutoConfigurationTest {
+class RedissonAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(RedissonLockAutoConfiguration.class));
+            .withConfiguration(AutoConfigurations.of(RedissonAutoConfiguration.class));
 
     /**
      * 业务自定义 RedissonClient 时，meRedissonClient 不再创建（避免覆盖自定义配置）.
@@ -45,8 +45,8 @@ class RedissonLockAutoConfigurationTest {
         sentinel.setMaster("mymaster");
         dataRedisProperties.setSentinel(sentinel);
 
-        RedissonLockAutoConfiguration configuration = new RedissonLockAutoConfiguration();
-        Method buildConfig = RedissonLockAutoConfiguration.class.getDeclaredMethod(
+        RedissonAutoConfiguration configuration = new RedissonAutoConfiguration();
+        Method buildConfig = RedissonAutoConfiguration.class.getDeclaredMethod(
                 "buildConfig", DataRedisProperties.class);
         buildConfig.setAccessible(true);
 

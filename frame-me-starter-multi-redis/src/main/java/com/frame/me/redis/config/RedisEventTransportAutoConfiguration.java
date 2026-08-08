@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Configuration;
  * {@link RedisEventTransport}。</p>
  *
  * <p>{@link ConditionalOnBean} 依赖 {@link AutoConfigureAfter} 保证处理顺序：
- * {@link RedissonClient} bean 由 {@link RedissonLockAutoConfiguration} 创建（同时完成
+ * {@link RedissonClient} bean 由 {@link RedissonAutoConfiguration} 创建（同时完成
  * {@code RedissonTopic} 静态初始化），{@link EventBridgeProperties} 由
  * {@link EventBridgeAutoConfiguration} 注册；不依赖类名字典序的偶然正确。</p>
  *
@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
-@AutoConfigureAfter({EventBridgeAutoConfiguration.class, RedissonLockAutoConfiguration.class})
+@AutoConfigureAfter({EventBridgeAutoConfiguration.class, RedissonAutoConfiguration.class})
 @ConditionalOnClass(RedissonClient.class)
 @ConditionalOnBean({RedissonClient.class, EventBridgeProperties.class})
 @ConditionalOnProperty(prefix = "me.event-bridge", name = "enabled", havingValue = "true", matchIfMissing = true)

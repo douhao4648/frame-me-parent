@@ -3,6 +3,8 @@ package com.frame.me.auth.config;
 import com.frame.me.auth.core.HeaderAuthUserResolver;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.auth.spi.IServiceInstanceProbe;
+import com.frame.me.base.limit.InMemoryLoginRateLimiter;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
@@ -115,6 +117,33 @@ class AuthAutoConfigurationTest {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(IServiceInstanceProbe.class);
                     assertThat(context.getBean(IServiceInstanceProbe.class)).isSameAs(customProbe);
+                });
+    }
+
+    /**
+     * 默认装配内存版登录限流器.
+     */
+    @Test
+    void loginRateLimiterDefaultsToInMemory() {
+        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(LoginRateLimiter.class);
+                    assertThat(context.getBean(LoginRateLimiter.class))
+                            .isInstanceOf(InMemoryLoginRateLimiter.class);
+                });
+    }
+
+    /**
+     * me.auth.login-rate-limit.enabled=false 时不装配任何登录限流器.
+     */
+    @Test
+    void loginRateLimiterDisabledBySwitch() {
+        runner.withPropertyValues("me.auth.header-resolver.enabled=true",
+                        "me.auth.login-rate-limit.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean(LoginRateLimiter.class);
                 });
     }
 

@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
  * 分布式锁工具类入口.
  *
  * <p>基于 Redisson {@link RLock} 实现，提供可重入锁与看门狗自动续期，仅作用于默认 Redis 实例。
- * 仅当 classpath 引入 Redisson 时由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration}
+ * 仅当 classpath 引入 Redisson 时由 {@link com.frame.me.redis.config.RedissonAutoConfiguration}
  * 在启动时通过 {@link #init(RedissonClient)} 注入客户端；未引入时请改用
  * {@link com.frame.me.redis.util.RedisClient#tryLock} 的简单锁。</p>
  */
@@ -23,7 +23,7 @@ public final class RedissonLock {
     /**
      * 初始化 Redisson 客户端.
      *
-     * <p>由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration} 调用。</p>
+     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
      *
      * @param client 默认实例的 Redisson 客户端
      */

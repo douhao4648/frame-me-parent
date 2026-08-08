@@ -103,7 +103,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 - `frame-me-starter-doc-openapi` 注册 `com.frame.me.doc.openapi.config.DocOpenApiAutoConfiguration`
   - 文件路径：`frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
   - 注册 Bean：`OpenAPI`、`GroupedOpenApi`（分组）。
-- `frame-me-starter-multi-redis` 注册 `com.frame.me.redis.config.RedisAutoConfiguration`、`RedissonLockAutoConfiguration`
+- `frame-me-starter-multi-redis` 注册 `com.frame.me.redis.config.RedisAutoConfiguration`、`RedissonAutoConfiguration`
   - 注册 Bean：`StringRedisTemplate`/`RedisTemplate` 并初始化 `RedisUtils`；引入 Redisson 后创建 `RedissonClient` 并初始化各 Redisson 工具类。
 - `frame-me-starter-l1l2-cache` 注册 `com.frame.me.cache.config.CacheAutoConfiguration`
   - 启用 JetCache 方法级缓存注解（`me.cache.enabled=true` 开启）。

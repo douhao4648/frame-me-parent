@@ -30,7 +30,7 @@ class RedisEventTransportAutoConfigurationTest {
 
     /**
      * Redisson jar 在 classpath 但 RedissonClient bean 未创建（如 me.redis.enabled=false
-     * 关闭了 RedissonLockAutoConfiguration）时不装配 transport，
+     * 关闭了 RedissonAutoConfiguration）时不装配 transport，
      * 避免运行时 RedissonTopic 未初始化才炸.
      */
     @Test

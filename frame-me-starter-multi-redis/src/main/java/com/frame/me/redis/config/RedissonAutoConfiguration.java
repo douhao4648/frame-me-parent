@@ -15,14 +15,12 @@ import org.springframework.boot.data.redis.autoconfigure.DataRedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Duration;
 import java.util.List;
 
 /**
@@ -60,8 +58,8 @@ import java.util.List;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(name = "org.redisson.api.RedissonClient")
 @ConditionalOnProperty(prefix = "me.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(RedissonProperties.class)
-public class RedissonLockAutoConfiguration {
+@EnableConfigurationProperties({RedissonProperties.class, LoginRateLimitProperties.class})
+public class RedissonAutoConfiguration {
 
     private volatile RedissonClient redissonClient;
 
@@ -170,20 +168,13 @@ public class RedissonLockAutoConfiguration {
     /**
      * 基于 Redisson 的分布式登录限流器，覆盖 {@code InMemoryLoginRateLimiter}.
      *
-     * <p>配置复用 {@code me.auth.login-rate-limit.*}，与内存版参数一致.</p>
+     * <p>配置复用 {@code me.auth.login-rate-limit.*}，与内存版参数一致（类型化绑定见
+     * {@link LoginRateLimitProperties}）。</p>
      */
     @Bean
     @Primary
     @ConditionalOnProperty(prefix = "me.auth.login-rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public LoginRateLimiter redissonLoginRateLimiter(Environment env) {
-        int maxAttempts;
-        try {
-            maxAttempts = Integer.parseInt(env.getProperty("me.auth.login-rate-limit.max-attempts", "5"));
-        } catch (NumberFormatException e) {
-            log.warn("me.auth.login-rate-limit.max-attempts 配置非数字，回退默认值 5: {}", e.getMessage());
-            maxAttempts = 5;
-        }
-        Duration window = env.getProperty("me.auth.login-rate-limit.window", Duration.class, Duration.ofSeconds(60));
-        return new RedissonLoginRateLimiter(maxAttempts, window);
+    public LoginRateLimiter redissonLoginRateLimiter(LoginRateLimitProperties properties) {
+        return new RedissonLoginRateLimiter(properties.getMaxAttempts(), properties.getWindow());
     }
 }

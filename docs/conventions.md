@@ -144,7 +144,7 @@ starter 模块对 **optional 依赖**（`<optional>true</optional>` 或 `provide
 - **模式 A：`@ConditionalOnClass` + 隔离内部配置类**（推荐，optional 依赖提供替代实现时）
   - 把引用 optional 类的 Bean 装配放进**独立 `static` 内部配置类**，类上加 `@ConditionalOnClass`。Spring 在 ASM 阶段评估条件，optional 类缺席时整个内部类被跳过，其引用的 Bean 类不会被类加载器加载，从而不触发 NCDFE。
   - 外层配置类提供**降级 Bean**（`@ConditionalOnMissingBean` 兜底）。示例见 `frame-me-starter-auth-jwt` 的 `JwtAutoConfiguration`：optional `multi-redis` 缺席时 `RedisRefreshTokenStoreConfiguration` 跳过，`InMemoryRefreshTokenStore` 兜底。
-  - `@ConditionalOnClass` 的 `value`（`.class`）与 `name`（字符串）在 ASM 评估下功能等价，均安全；**同一模块内尽量统一写法**（`RedissonLockAutoConfiguration` 用 `name`、`RedisEventTransportAutoConfiguration` 用 `.class`，混用不影响功能但不统一）。
+  - `@ConditionalOnClass` 的 `value`（`.class`）与 `name`（字符串）在 ASM 评估下功能等价，均安全；**同一模块内尽量统一写法**（`RedissonAutoConfiguration` 用 `name`、`RedisEventTransportAutoConfiguration` 用 `.class`，混用不影响功能但不统一）。
 
 - **模式 B：`ClassUtils.isPresent` + 反射加载**（optional 依赖提供增强能力、无替代实现时）
   - 装配期用 `ClassUtils.isPresent("fully.qualified.Name", classLoader)` 判定 optional 类是否在 classpath，在则用反射 `Class.forName(...).getDeclaredConstructor().newInstance()` 实例化增强实现，不在则跳过。

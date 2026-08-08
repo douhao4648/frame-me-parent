@@ -333,12 +333,16 @@ me:
   - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。按**应用内路径**匹配（不含 `server.servlet.context-path`）；配置误带 context-path 前缀时自动剥离前缀平滑兼容。
   - `me.auth.header-resolver.enabled` — 是否启用基于请求头（`X-User-Id`）的兜底用户解析器，默认 `false`。该解析器无条件信任客户端传入的身份头，仅适用于前置网关已剥离外部身份头的内网服务间调用，开启时启动日志会输出 WARN。
   - `me.auth.propagate.allowed-hosts` — 认证头传播的目标主机白名单（精确主机名 / `*.example.com` 后缀通配 / `*`），默认空。未命中白名单时按服务名调用甄别放行：注册中心服务名（Spring Cloud LoadBalancer 可解析，经专用 SPI `IServiceInstanceProbe` 判定，业务可自定义覆盖）与单标签内网主机名默认放行，外部多标签域名/IP 一律不传播；`me.auth.propagate.service-discovery.enabled=false` 可关闭豁免回到严格白名单模式。
+  - `me.auth.login-rate-limit.enabled` — 是否启用登录限流（按客户端 IP，固定窗口），默认 `true`。
+  - `me.auth.login-rate-limit.max-attempts` — 窗口内最大登录尝试次数，默认 `5`。
+  - `me.auth.login-rate-limit.window` — 限流窗口时长，默认 `60s`。
 - **设计约定**：
   - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得认证上下文能力。
   - **fail-closed**：容器中没有任何 `IAuthUserResolver` 实现且未开启 `me.auth.header-resolver.enabled` 时，`AuthFilter` 装配直接抛出带指引的异常（提示引入 auth-jwt / auth-sa-token 或显式开启 header-resolver），不会静默退化为不安全默认行为。
   - **仅 Servlet Web 应用装配**（`@ConditionalOnWebApplication(SERVLET)`）：非 Web 应用下整个模块退避。
   - `HeaderAuthUserResolver` 无条件信任 `X-User-Id` 头，仅限内网服务间调用；对外应用必须引入 `frame-me-starter-auth-jwt` 或 `frame-me-starter-auth-sa-token`（两者均 `@AutoConfigureBefore(AuthAutoConfiguration)`，先于抽象层注册解析器使其退避）。
   - 通过 `@AutoConfigureBefore(AuditAutoConfiguration.class)` 保证审计模块能拿到当前登录用户 ID。
+  - **登录限流双实现**：默认注册 base 的 `InMemoryLoginRateLimiter`（单实例内存版）；引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，由 multi-redis 侧以 `@Primary` 注册 `RedissonLoginRateLimiter`（Redis 分布式版）覆盖，配置与内存版共用 `me.auth.login-rate-limit.*`（multi-redis 本地 `LoginRateLimitProperties` 绑定同前缀，默认值与 `AuthProperties.LoginRateLimit` 保持一致）。
 
 ## `frame-me-starter-auth-rbac`
 
@@ -555,8 +559,9 @@ spring:
 - **关键类**：
   - `com.frame.me.redis.config.RedisAutoConfiguration` — Spring Data Redis 自动装配入口，创建 `StringRedisTemplate` / `RedisTemplate` 并初始化 `RedisUtils`；额外实例（`me.redis.clients.*`）的 `LettuceConnectionFactory` 由本类管理生命周期（实现 `DisposableBean`，容器关闭时销毁，避免连接泄漏）。
   - `com.frame.me.redis.config.RedisProperties` — `me.redis` 配置属性绑定（多实例、开关等）。
-  - `com.frame.me.redis.config.RedissonLockAutoConfiguration` — Redisson 自动装配入口，创建 `RedissonClient` 并初始化所有 Redisson 工具类；`meRedissonClient` 标 `@ConditionalOnMissingBean(RedissonClient.class)`，业务自定义 RedissonClient 时自动退避。
+  - `com.frame.me.redis.config.RedissonAutoConfiguration` — Redisson 自动装配入口，创建 `RedissonClient` 并初始化所有 Redisson 工具类；`meRedissonClient` 标 `@ConditionalOnMissingBean(RedissonClient.class)`，业务自定义 RedissonClient 时自动退避；另以 `@Primary` 注册 `RedissonLoginRateLimiter` 覆盖 auth 的内存版登录限流。
   - `com.frame.me.redis.config.RedissonProperties` — `spring.data.redis.redisson` 配置属性绑定。
+  - `com.frame.me.redis.config.LoginRateLimitProperties` — `me.auth.login-rate-limit` 配置属性绑定（供 Redisson 登录限流器；默认值与 auth 侧 `AuthProperties.LoginRateLimit` 保持一致，改动需同步）。
   - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、简单分布式锁等。
   - `com.frame.me.redis.util.RedisClient` — 单实例 Redis 操作封装，供 `RedisUtils` 委托。
   - `com.frame.me.redis.util.RedissonLock` — Redisson 可重入锁静态入口（需引入 Redisson），支持看门狗续期。
@@ -564,10 +569,10 @@ spring:
   - `com.frame.me.redis.util.RedissonTopic` — Redisson 消息能力：Topic、PatternTopic、ReliableTopic、Stream。
   - `com.frame.me.redis.util.RedissonLimiter` — Redisson 限流：基于 `RRateLimiter` 的令牌桶限流。
   - `com.frame.me.redis.RedisConstant` — 占位常量类。
-- **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`、`RedissonLockAutoConfiguration`。
+- **自动装配**：通过 `frame-me-starter-multi-redis/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RedisAutoConfiguration`、`RedissonAutoConfiguration`。
 - **启用条件**：
   - `RedisAutoConfiguration`：类路径存在 `StringRedisTemplate`，`me.redis.enabled=true`（默认开启，可显式关闭）。
-  - `RedissonLockAutoConfiguration`：类路径存在 `org.redisson.api.RedissonClient`，`me.redis.enabled=true`（默认开启）。
+  - `RedissonAutoConfiguration`：类路径存在 `org.redisson.api.RedissonClient`，`me.redis.enabled=true`（默认开启）。
 - **可配置项**：
   - `me.redis.enabled` — 是否启用 Redis 自动配置，默认 `true`。
   - `me.redis.clients` — 多 Redis 实例配置，key 为实例名；默认实例仍由 `spring.data.redis.*` 提供。

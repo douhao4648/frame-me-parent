@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>在 {@link RedissonLock} 已封装 {@link RLock} 的基础上，进一步提供读写锁、公平锁、
  * 红锁、信号量、门闩等同步能力。所有方法均委托给 {@link RedissonClient}，
- * 由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration} 在启动时初始化。</p>
+ * 由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 在启动时初始化。</p>
  *
  * <p>未引入 Redisson 时，调用本类任何方法都会抛出 {@link IllegalStateException}。</p>
  */
@@ -34,7 +34,7 @@ public final class RedissonSync {
     /**
      * 初始化 Redisson 客户端.
      *
-     * <p>由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration} 调用。</p>
+     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
      *
      * @param client 默认实例的 Redisson 客户端
      */

@@ -22,7 +22,7 @@ public final class RedissonLimiter {
     /**
      * 初始化 Redisson 客户端.
      *
-     * <p>由 {@link com.frame.me.redis.config.RedissonLockAutoConfiguration} 调用。</p>
+     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
      *
      * @param client 默认实例的 Redisson 客户端
      */

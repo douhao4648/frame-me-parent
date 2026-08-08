@@ -53,7 +53,7 @@ graph TD
 - `frame-me-api`：只放事件契约，让业务 `xx-api` 模块能定义事件。
 - `frame-me-starter-base`：放桥接核心，不依赖 Redis/MQ。
 - `frame-me-starter-multi-redis` / `frame-me-starter-mq`：只放具体 transport 实现。
-- `RedisEventTransport` 装配条件：classpath 存在 Redisson、容器中**同时**存在 `RedissonClient` 与 `EventBridgeProperties` bean、`me.event-bridge.enabled=true`。依赖 `RedissonClient` bean（而非仅 classpath）是为了保证 `RedissonLockAutoConfiguration` 已完成 `RedissonTopic` 静态初始化——`me.redis.enabled=false` 时 transport 不装配，`EventBridgePublisher` / `EventBridgeListener` 对缺失 transport 走 WARN 降级。装配顺序由 `@AutoConfigureAfter` 显式声明，不依赖类名字典序。
+- `RedisEventTransport` 装配条件：classpath 存在 Redisson、容器中**同时**存在 `RedissonClient` 与 `EventBridgeProperties` bean、`me.event-bridge.enabled=true`。依赖 `RedissonClient` bean（而非仅 classpath）是为了保证 `RedissonAutoConfiguration` 已完成 `RedissonTopic` 静态初始化——`me.redis.enabled=false` 时 transport 不装配，`EventBridgePublisher` / `EventBridgeListener` 对缺失 transport 走 WARN 降级。装配顺序由 `@AutoConfigureAfter` 显式声明，不依赖类名字典序。
 
 ## 调用关系图
 

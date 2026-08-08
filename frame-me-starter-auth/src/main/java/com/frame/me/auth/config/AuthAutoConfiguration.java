@@ -69,6 +69,9 @@ public class AuthAutoConfiguration {
 
     /**
      * 登录速率限制器（按客户端 IP）.
+     *
+     * <p>引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，
+     * 由 multi-redis 侧注册 Redis 分布式版（{@code @Primary}）覆盖本实现。</p>
      */
     @Bean
     @ConditionalOnMissingBean(LoginRateLimiter.class)
