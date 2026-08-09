@@ -108,6 +108,8 @@ public class AuthFilter implements Filter {
 
             User user = resolveAndSetUser(httpRequest);
             if (user == null) {
+                // 拒绝必留痕：最高频的 401 路径，无日志则无法定位是哪一层拒绝的
+                log.warn("认证失败，拒绝请求: method={}, uri={}", httpRequest.getMethod(), httpRequest.getRequestURI());
                 writeUnauthorized(httpResponse);
                 return;
             }

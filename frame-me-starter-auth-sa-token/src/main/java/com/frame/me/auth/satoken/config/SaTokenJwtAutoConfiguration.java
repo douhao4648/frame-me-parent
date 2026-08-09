@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.sa-token", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.sa-token.jwt", name = "enabled", havingValue = "true")
 @ConditionalOnClass(cn.dev33.satoken.jwt.StpLogicJwtForSimple.class)

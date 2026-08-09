@@ -70,7 +70,7 @@ class SaTokenAuthControllerTest {
         admin.setLogoutEnabled(true);
         when(authProperties.getAdmin()).thenReturn(admin);
 
-        mockMvc.perform(post("/api/auth/admin/logout/123"))
+        mockMvc.perform(post("/api/auth/admin/123/logout"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value(true));
@@ -81,7 +81,7 @@ class SaTokenAuthControllerTest {
     @Test
     void testAdminLogoutByUserId_disabledReturnsNotFound() throws Exception {
         // 默认 me.auth.admin.logout.enabled=false，未启用时返回 404
-        mockMvc.perform(post("/api/auth/admin/logout/123"))
+        mockMvc.perform(post("/api/auth/admin/123/logout"))
                 .andExpect(status().isNotFound());
     }
 

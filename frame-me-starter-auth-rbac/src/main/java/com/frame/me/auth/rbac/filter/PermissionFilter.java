@@ -89,6 +89,8 @@ public class PermissionFilter implements Filter {
             User user = AuthContext.getUser();
             if (user == null) {
                 // 命中权限规则但未登录：401 未认证
+                log.warn("命中权限规则但未登录，拒绝请求: method={}, uri={}, expr={}",
+                        httpRequest.getMethod(), httpRequest.getRequestURI(), expr);
                 writeError(httpResponse, ResultCode.UNAUTHORIZED);
                 return;
             }
@@ -104,6 +106,8 @@ public class PermissionFilter implements Filter {
             if (AuthExpressionRoot.evaluate(expr)) {
                 chain.doFilter(request, response);
             } else {
+                log.warn("权限校验未通过，拒绝请求: method={}, uri={}, expr={}, userId={}",
+                        httpRequest.getMethod(), httpRequest.getRequestURI(), expr, user.getId());
                 writeError(httpResponse, ResultCode.FORBIDDEN);
             }
         } finally {

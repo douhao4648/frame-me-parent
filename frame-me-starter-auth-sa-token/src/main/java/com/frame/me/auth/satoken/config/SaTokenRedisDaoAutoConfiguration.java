@@ -26,7 +26,8 @@ import org.springframework.context.annotation.Configuration;
 // multi-redis 为 optional 依赖：RedisUtils 缺席时整个配置类在 ASM 元数据阶段跳过。
 // 护栏：本条件必须保持在类级（类级 Class 字面量安全）；若改到方法级须换成 name 字符串形式，否则缺席场景会 NCDFE
 @ConditionalOnClass(RedisUtils.class)
-// 与 SaTokenAuthAutoConfiguration 同走总开关：me.auth.sa-token.enabled=false 时本配置一并退避
+// 与 SaTokenAuthAutoConfiguration 同走总开关：me.auth.enabled=false 或 me.auth.sa-token.enabled=false 时本配置一并退避
+@ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.sa-token", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.sa-token.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(SaTokenAuthProperties.class)

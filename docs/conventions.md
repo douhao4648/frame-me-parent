@@ -123,7 +123,8 @@ throw new InternalException("数据库连接失败");
 | `handleConstraintViolationException` | `ConstraintViolationException`（`@PathVariable`/`@RequestParam` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条约束错误消息)` |
 | `handleBindException` | `BindException`（表单/查询参数绑定失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
 | `handleHttpMessageNotReadableException` | `HttpMessageNotReadableException`（请求体缺失或不可读） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, "请求体不能为空")` |
-| `handleException` | `Exception` | 默认 200 | `error` | `Result.error(ERROR, message, exception)` / `Result.error(ERROR, message)`；`me.exception.mask-unknown-message=true` 时 message 收敛为通用文案（"系统错误"） |
+| `handleResponseStatusException` | `ResponseStatusException`（控制器主动抛出的带状态异常） | 异常自带状态码 | `warn` | `Result.error(statusCode, reason)` |
+| `handleException` | `Exception` | 默认 200；实现 `ErrorResponse` 的 Spring MVC 请求侧异常族（`NoResourceFoundException`/`HttpRequestMethodNotSupportedException` 等，Spring 7 起不再继承 `ResponseStatusException`）按其自带状态码（404/405/415...）透传 | `error`；`ErrorResponse` 族为 `warn`（`NoResourceFoundException` 404 降级 `debug`，多为 DevTools .map 探测等客户端自发请求，无可动作） | `Result.error(ERROR, message, exception)` / `Result.error(ERROR, message)`；`me.exception.mask-unknown-message=true` 时 message 收敛为通用文案（"系统错误"）；`ErrorResponse` 族为 `Result.error(statusCode, message)` |
 
 是否把异常完整堆栈写入 `Result.err` 由 `me.exception.include-stacktrace` 控制，默认 `false`（fail-closed，避免堆栈中的类路径、参数等敏感信息随响应体泄漏）；排查问题时可显式设为 `true`，异常详情仍可通过服务端日志定位。
 

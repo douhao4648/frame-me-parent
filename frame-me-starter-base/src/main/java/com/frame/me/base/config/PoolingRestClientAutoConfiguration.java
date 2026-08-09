@@ -13,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.HttpRedirects;
 import org.springframework.boot.http.client.autoconfigure.HttpClientsProperties;
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -153,12 +154,17 @@ public class PoolingRestClientAutoConfiguration {
             // 新建轻量 HttpClient，复用共享 ConnectionManager（连接池共享）；
             // shared 标记保证本 wrapper 被 close 时不连带关闭共享池。
             // 驱逐不在此开启——多个 evictor 操作同一池只会空转，统一由 poolingRestClientRequestFactory 承担
-            HttpClient httpClient = HttpClientBuilder.create()
+            HttpClientBuilder httpClientBuilder = HttpClientBuilder.create()
                     .setConnectionManager(poolingConnectionManager)
                     .setConnectionManagerShared(true)
-                    .setDefaultRequestConfig(requestConfig)
-                    .build();
-            return new HttpComponentsClientHttpRequestFactory(httpClient);
+                    .setDefaultRequestConfig(requestConfig);
+            // 必须响应 settings.redirects()：HC5 默认跟随重定向，不处理则
+            // TestRestTemplate.withRedirects(DONT_FOLLOW) 等调用静默失效
+            // （302 被跟随成 200/外部 DNS 解析），FOLLOW_WHEN_POSSIBLE/FOLLOW 即 HC5 默认行为
+            if (settings != null && settings.redirects() == HttpRedirects.DONT_FOLLOW) {
+                httpClientBuilder.disableRedirectHandling();
+            }
+            return new HttpComponentsClientHttpRequestFactory(httpClientBuilder.build());
         };
     }
 }

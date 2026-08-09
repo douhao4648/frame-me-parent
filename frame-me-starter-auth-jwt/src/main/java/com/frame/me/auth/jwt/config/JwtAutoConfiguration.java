@@ -24,6 +24,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.jwt", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(JwtAuthProperties.class)
 @AutoConfigureBefore(name = "com.frame.me.auth.config.AuthAutoConfiguration")
@@ -66,10 +67,18 @@ public class JwtAutoConfiguration {
         return new JwtAuthUserResolver(properties, authService);
     }
 
+    /**
+     * 默认认证接口（登录/登出/刷新/当前用户）.
+     *
+     * <p>SuppressWarnings：{@code AuthProperties} 由 frame-me-starter-auth 的
+     * {@code AuthAutoConfiguration} 通过 {@code @EnableConfigurationProperties} 注册，
+     * IDEA 跨模块索引不到该 Bean，自动注入检查属误报。</p>
+     */
     @Bean
     @ConditionalOnMissingBean
+    @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public JwtAuthController jwtAuthController(IAuthService authService, JwtAuthProperties properties,
-                                               AuthProperties authProperties,
+                                               ObjectProvider<AuthProperties> authProperties,
                                                ObjectProvider<LoginRateLimiter> loginRateLimiter) {
         return new JwtAuthController(authService, properties, authProperties, loginRateLimiter);
     }

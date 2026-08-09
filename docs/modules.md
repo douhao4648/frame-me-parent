@@ -52,8 +52,8 @@
   - `com.frame.me.base.notify.INotifySender` — 通用通知发送接口，业务代码通过它发送通知而无需关心底层通道。
   - `com.frame.me.base.config.AsyncAutoConfiguration` / `com.frame.me.base.config.AsyncProperties` — 默认 `@Async` 线程池与未捕获异常处理；异常通知发送失败仅降级为 warn，不会逃逸出异常处理器。
   - `com.frame.me.base.config.SchedulingAutoConfiguration` / `com.frame.me.base.config.SchedulingProperties` — 默认 `@Scheduled` 调度线程池；调度异常处理同上，通知故障不影响后续调度。
-  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 HTTP 客户端自动配置。注册共享 `PoolingHttpClientConnectionManager`（maxTotal=200/maxPerRoute=50，空闲/过期连接驱逐由 HC5 原生 `IdleConnectionEvictor` 承担）+ `ClientHttpRequestFactoryBuilder`，让所有 HTTP 调用方式（注入 `RestClient.Builder`、`@ImportHttpServices` 声明式接口、`RestTemplateBuilder` → `RestTemplate`）复用同一连接池；所有产出的 HttpClient 均标记 `connectionManagerShared`，单个 factory 被 close 不会连带关闭共享池。超时优先级：`read-timeout` → `spring.http.serviceclient.<group>.read-timeout`（group 级）→ `spring.http.clients.read-timeout`（全局级）→ `me.restclient.pool.response-timeout`（池化默认）；`connect-timeout` → `spring.http.clients.connect-timeout`（全局级）→ `me.restclient.pool.connect-timeout`（池化默认），group 级 connect-timeout 无法 per-request 覆盖（ConnectionConfig 绑共享 ConnectionManager），统一用全局值。
-  - `com.frame.me.base.user.User` — 通用用户模型占位类；`password` 字段标记 `@ToString.Exclude`，口令哈希不随日志打印落盘。
+  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 HTTP 客户端自动配置。注册共享 `PoolingHttpClientConnectionManager`（maxTotal=200/maxPerRoute=50，空闲/过期连接驱逐由 HC5 原生 `IdleConnectionEvictor` 承担）+ `ClientHttpRequestFactoryBuilder`，让所有 HTTP 调用方式（注入 `RestClient.Builder`、`@ImportHttpServices` 声明式接口、`RestTemplateBuilder` → `RestTemplate`）复用同一连接池；所有产出的 HttpClient 均标记 `connectionManagerShared`，单个 factory 被 close 不会连带关闭共享池。超时优先级：`read-timeout` → `spring.http.serviceclient.<group>.read-timeout`（group 级）→ `spring.http.clients.read-timeout`（全局级）→ `me.restclient.pool.response-timeout`（池化默认）；`connect-timeout` → `spring.http.clients.connect-timeout`（全局级）→ `me.restclient.pool.connect-timeout`（池化默认），group 级 connect-timeout 无法 per-request 覆盖（ConnectionConfig 绑共享 ConnectionManager），统一用全局值。重定向：builder 响应 `HttpClientSettings.redirects()`，`DONT_FOLLOW` 时 `disableRedirectHandling()`（HC5 默认跟随；`FOLLOW_WHEN_POSSIBLE`/`FOLLOW` 即默认行为），保证 `TestRestTemplate.withRedirects(DONT_FOLLOW)` 等调用生效。
+  - `com.frame.me.base.user.User` — 通用用户模型占位类；`password` 字段标记 `@ToString.Exclude` + `@JsonProperty(WRITE_ONLY)`，口令哈希不随日志打印落盘，且任何 Jackson 序列化输出（接口响应、sa-token 会话缓存 JSON）一律剥离、仅允许反序列化写入。
   - `com.frame.me.base.util.SnowflakeUtils` — 雪花 ID 生成工具，优先使用 MyBatis-Plus / MyBatis-Flex 的生成器实例，其次使用 base 的 `Snowflake` Bean，最后回退到 Hutool 默认生成器。
   - `com.frame.me.base.web.IFilterErrorResponseWriter` — Filter 层错误响应写入器 SPI，允许业务模块自定义 Filter 层错误消息体格式。
   - `com.frame.me.base.web.ResultFilterErrorResponseWriter` — 默认实现，输出 `Result` 格式 JSON。
@@ -329,7 +329,7 @@ me:
   - `com.frame.me.auth.audit.AuditAuthOperatorSupplier` — 审计操作人提供者实现。
 - **自动装配**：通过 `frame-me-starter-auth/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `AuthAutoConfiguration`。
 - **可配置项**：
-  - `me.auth.enabled` — 是否启用认证模块，默认 `true`。
+  - `me.auth.enabled` — 是否启用认证模块，默认 `true`。**总闸：为 `false` 时 `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac` 的自动配置一并退避**（各模块类级叠加 `@ConditionalOnProperty(me.auth.enabled)`）。
   - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。按**应用内路径**匹配（不含 `server.servlet.context-path`）；配置误带 context-path 前缀时自动剥离前缀平滑兼容。
   - `me.auth.header-resolver.enabled` — 是否启用基于请求头（`X-User-Id`）的兜底用户解析器，默认 `false`。该解析器无条件信任客户端传入的身份头，仅适用于前置网关已剥离外部身份头的内网服务间调用，开启时启动日志会输出 WARN。
   - `me.auth.propagate.allowed-hosts` — 认证头传播的目标主机白名单（精确主机名 / `*.example.com` 后缀通配 / `*`），默认空。未命中白名单时按服务名调用甄别放行：注册中心服务名（Spring Cloud LoadBalancer 可解析，经专用 SPI `IServiceInstanceProbe` 判定，业务可自定义覆盖）与单标签内网主机名默认放行，外部多标签域名/IP 一律不传播；`me.auth.propagate.service-discovery.enabled=false` 可关闭豁免回到严格白名单模式。
@@ -370,7 +370,7 @@ me:
   - `com.frame.me.auth.rbac.redis.store.IPermissionCacheStore` / `RedisPermissionCacheStore` — 二级缓存存储 SPI 与 Redis 实现。契约：`get`/`set` 允许可用性降级（读失败回源、写失败下次重建），`delete` 服务权限吊销属安全动作，失败必须抛异常，不得静默降级。
 - **自动装配**：通过 `frame-me-starter-auth-rbac/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `RbacAutoConfiguration`、`RbacRedisAutoConfiguration`。
 - **可配置项**：
-  - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。**总开关，为 `false` 时 Redis 后端一并退避。**
+  - `me.auth.permission.enabled` — 是否启用权限控制，默认 `true`。**总开关，为 `false` 时 Redis 后端一并退避。**另受父开关 `me.auth.enabled` 总闸级联控制。
   - `me.auth.permission.rules` — Filter 层「Ant 路径 → SpEL 表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 会剥离 `/`、`*` 导致规则静默失效（详见 `docs/conventions.md`）。按**应用内路径**匹配（不含 `server.servlet.context-path`）；规则 key 误带 context-path 前缀时自动剥离前缀平滑兼容。
   - `me.auth.permission.roles` — 角色到权限映射（逗号分隔 `resource:action`，action 可省略默认 `*`）。启动期 eager 解析，配置段 resource 为空直接启动 fail-fast（与 `data-scopes` 同标准），避免笔误静默变成永不匹配的死条目。
   - `me.auth.permission.users` — 用户 ID 到角色映射（逗号分隔）。
@@ -410,7 +410,7 @@ me:
   - `com.frame.me.auth.util.PasswordUtils` — **位于抽象层**：BCrypt 密码加解密工具。
 - **自动装配**：通过 `frame-me-starter-auth-jwt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `JwtAutoConfiguration`。
 - **可配置项**：
-  - `me.auth.jwt.enabled` — 是否启用，默认 `true`。
+  - `me.auth.jwt.enabled` — 是否启用，默认 `true`。另受父开关 `me.auth.enabled` 总闸级联控制。
   - `me.auth.jwt.secret` — JWT 签名密钥，**必须配置**，长度不少于 32 字符。启动期校验：未配置/为空白直接启动 fail-fast，弱密钥（不满足 HS 系列强度）同样在启动期抛出，不会延迟到首次请求。
   - `me.auth.jwt.issuer` — 签发者，默认 `me`。签发端写入 `iss` claim，解析端用 `requireIssuer` 校验：iss 不匹配的 token 一律拒绝（validate 返回 false / getUser 返回 null / refresh/logout 抛 401）。防护多服务/多环境共用同一 secret 时 token 跨签发者穿透；issuer 不匹配抛 `IncorrectClaimException`，已被各解析方法的 catch 覆盖不会逃逸。
   - `me.auth.jwt.access-token-expires` — Access Token 有效期，默认 `PT2H`。
@@ -445,7 +445,7 @@ me:
   - `com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice` — sa-token 异常到 401/403 语义的映射（`@Order(HIGHEST_PRECEDENCE)`，先于 `GlobalExceptionHandler` 的通用处理器）。
 - **自动装配**：通过 `frame-me-starter-auth-sa-token/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `SaTokenAuthAutoConfiguration`、`SaTokenRedisDaoAutoConfiguration`、`SaTokenNoRedisWarnAutoConfiguration`。
 - **可配置项**：sa-token 原生参数（`token-name` / `timeout` / `active-timeout` / `is-concurrent` / `is-share` / `cookie.*` 等）走官方 `sa-token.*` 配置路径（秒数 long 形式，见 sa-token 官方文档），由官方 starter 的 `SaBeanRegister` 绑定；本模块 `me.auth.sa-token.*` 仅承载框架自有配置（默认值以 `SaTokenAuthProperties` 源码为准）：
-  - `me.auth.sa-token.enabled` — 是否启用 Sa-Token 认证，默认 `true`；为 `false` 时 Redis 会话后端配置一并退避。
+  - `me.auth.sa-token.enabled` — 是否启用 Sa-Token 认证，默认 `true`；为 `false` 时 Redis 会话后端配置一并退避。另受父开关 `me.auth.enabled` 总闸级联控制。
   - `me.auth.sa-token.path` — 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/续期/当前用户接口均迁移到该路径下。
   - `me.auth.sa-token.rules` — Interceptor 层「Ant 路径 → 简化鉴权表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 剥离 `/`、`*` 导致规则匹配不上；启动时校验到不以 `/` 开头的 key 会直接抛异常，阻止应用启动（fail-fast）。
   - `me.auth.sa-token.authorization.enabled` — 是否启用 sa-token 原生鉴权能力（路径规则 + `@SaCheck*` 注解），默认 `true`；关闭后仍保留登录/登出/续期/强制登出/踢人/在线会话等认证与会话治理能力，可把鉴权交给 RBAC 等其它模块。

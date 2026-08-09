@@ -68,7 +68,7 @@ me:
     whitelist:
       - /base/auth/login
       - /base/auth/refresh
-      - /sso-login.html
+      - /sso-login.*
       - /favicon.ico
       - /swagger-ui/**
       - /swagger-ui.html
@@ -76,7 +76,7 @@ me:
       - /v3/api-docs
       - /actuator/**
     header-resolver:
-      enabled: false
+      enabled: true
     propagate:
       enabled: false
     sa-token:
@@ -103,7 +103,7 @@ me:
     login-page:
       enabled: true
     auth-code:
-      expires: 60s
+      expires: 600s
     token:
       app-timeout: P1D
 

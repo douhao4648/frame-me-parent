@@ -207,24 +207,26 @@ class SsoAuthFlowTest {
     }
 
     /**
-     * scope 越权（请求 admin 不在应用注册的 openid profile 内）→ 400.
+     * scope 越权（请求 admin 不在应用注册的 openid profile 内）→ 400 + 原因 message.
      */
     @Test
     void scopeOutsideWhitelistRejected() {
-        ResponseEntity<Void> res = rest.getForEntity(
-                authorizeUrl(internalApp.getAppId(), "openid admin", null), Void.class);
+        ResponseEntity<String> res = rest.getForEntity(
+                authorizeUrl(internalApp.getAppId(), "openid admin", null), String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.getBody()).contains("scope 超出应用授权范围");
     }
 
     /**
-     * redirectUri 不在白名单 → 400.
+     * redirectUri 不在白名单 → 400 + 原因 message（禁止重定向回跳，RFC 6749 §4.1.2.1）.
      */
     @Test
     void redirectUriNotWhitelistedRejected() {
         String url = "/api/auth/authorize?appId=" + internalApp.getAppId()
                 + "&redirectUri=http://evil.com/cb&scope=openid";
-        ResponseEntity<Void> res = rest.getForEntity(url, Void.class);
+        ResponseEntity<String> res = rest.getForEntity(url, String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.getBody()).contains("redirectUri 不在应用白名单");
     }
 
     /**

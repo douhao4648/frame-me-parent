@@ -2,47 +2,27 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SSO 登录</title>
-    <style>
-        body { font-family: sans-serif; max-width: 320px; margin: 80px auto; }
-        input { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #2563eb; color: #fff; border: none; cursor: pointer; }
-    </style>
+    <link rel="stylesheet" href="/sso-login.css">
 </head>
 <body>
-    <h2>SSO 统一登录</h2>
-    <form id="loginForm">
-        <input type="text" id="account" placeholder="账号" required>
-        <input type="password" id="password" placeholder="密码" required>
-        <button type="submit">登录</button>
-    </form>
-    <p id="msg" style="color:red;"></p>
-    <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const account = document.getElementById('account').value;
-            const password = document.getElementById('password').value;
-            const res = await fetch('/base/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ account, password })
-            });
-            const data = await res.json();
-            if (data.code === 200) {
-                const params = new URLSearchParams(location.search);
-                const redirect = params.get('redirect');
-                // 防 open redirect：只允许站内相对路径，拒绝 //evil.com 这类协议相对地址
-                if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
-                    location.href = redirect;
-                } else if (redirect) {
-                    document.getElementById('msg').textContent = '非法的回跳地址';
-                } else {
-                    location.href = '/';
-                }
-            } else {
-                document.getElementById('msg').textContent = data.msg || '登录失败';
-            }
-        });
-    </script>
+    <main class="card">
+        <h1 class="title">SSO 统一登录</h1>
+        <p class="subtitle">一个账号，访问所有应用</p>
+        <form id="loginForm">
+            <label class="field">
+                <span class="label">账号</span>
+                <input type="text" id="account" placeholder="请输入账号" autocomplete="username" required autofocus>
+            </label>
+            <label class="field">
+                <span class="label">密码</span>
+                <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password" required>
+            </label>
+            <button type="submit" id="submitBtn">登 录</button>
+        </form>
+        <p id="msg" role="alert"></p>
+    </main>
+    <script src="/sso-login.js"></script>
 </body>
 </html>

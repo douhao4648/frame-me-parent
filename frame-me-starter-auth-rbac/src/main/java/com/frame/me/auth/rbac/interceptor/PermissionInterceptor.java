@@ -66,6 +66,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
         User user = AuthContext.getUser();
         if (user == null) {
             // 声明了权限要求但未登录：401 未认证（语义上区别于 403 已认证无权限）
+            log.warn("接口声明权限要求但未登录，拒绝请求: method={}, uri={}, expr={}",
+                    request.getMethod(), request.getRequestURI(), annotation.value());
             AuthPermissionHolder.clear();
             writeError(response, ResultCode.UNAUTHORIZED);
             return false;
@@ -85,6 +87,8 @@ public class PermissionInterceptor implements HandlerInterceptor {
         }
 
         // 已登录但无权限：403。preHandle 返回 false 时 Spring 不会回调 afterCompletion，需自行清理
+        log.warn("权限校验未通过，拒绝请求: method={}, uri={}, expr={}, userId={}",
+                request.getMethod(), request.getRequestURI(), annotation.value(), user.getId());
         AuthPermissionHolder.clear();
         try {
             writeError(response, ResultCode.FORBIDDEN);

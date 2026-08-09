@@ -62,6 +62,22 @@ class SaTokenAuthAutoConfigurationTest {
     }
 
     /**
+     * 父开关级联：me.auth.enabled=false 时本模块同样整体退避（总闸语义）.
+     */
+    @Test
+    void masterSwitchDisabled_backsOffEntirely() {
+        runner.withPropertyValues("me.auth.enabled=false")
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean(IAuthService.class);
+                    assertThat(context).doesNotHaveBean(IAuthUserResolver.class);
+                    assertThat(context).doesNotHaveBean(SaTokenAuthController.class);
+                    assertThat(context).doesNotHaveBean(SaTokenExceptionAdvice.class);
+                    assertThat(context).doesNotHaveBean(StpInterface.class);
+                    assertThat(context).doesNotHaveBean(SaTokenDao.class);
+                });
+    }
+
+    /**
      * 总开关关闭：me.auth.sa-token.enabled=false 时两个配置类一并退避.
      */
     @Test

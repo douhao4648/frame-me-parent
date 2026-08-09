@@ -1,5 +1,6 @@
 package com.frame.me.base.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.ToString;
 
@@ -42,8 +43,13 @@ public class User implements Serializable {
      *
      * <p>排除在 {@code toString()} 之外：口令哈希落入日志会抬高离线爆破面，
      * 打印 user 对象排查问题时不得带出本字段。
+     *
+     * <p>{@code WRITE_ONLY}：Jackson 只允许反序列化写入（用户创建/改密请求体），
+     * 任何序列化输出（{@code /user} 等接口响应、sa-token 会话缓存 JSON）一律剥离本字段，
+     * 口令哈希不出服务端。
      */
     @ToString.Exclude
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     /**

@@ -39,6 +39,20 @@ class RbacAutoConfigurationTest {
     }
 
     /**
+     * 父开关级联：me.auth.enabled=false 时本模块整体退避（总闸语义）.
+     */
+    @Test
+    void masterSwitchDisabled_backsOff() {
+        webRunner.withPropertyValues("me.auth.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean("authPermissionSource");
+                    assertThat(context).doesNotHaveBean("permissionFilter");
+                    assertThat(context).doesNotHaveBean("permissionInterceptorConfigurer");
+                });
+    }
+
+    /**
      * 非 Servlet Web 应用整体退避：权限校验是 Web 请求关注点，Filter/拦截器无挂载点.
      */
     @Test

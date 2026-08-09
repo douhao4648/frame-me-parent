@@ -1,16 +1,16 @@
 package com.frame.me.base.config;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import tools.jackson.databind.ObjectMapper;
 import com.frame.me.base.advice.GlobalExceptionHandler;
 import com.frame.me.base.env.EnvironmentHelper;
 import com.frame.me.base.result.ResultJacksonModule;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.base.web.ResultFilterErrorResponseWriter;
+import com.frame.me.validation.validator.TimeRangeValidator;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +19,7 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.Environment;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * frame-me-starter-base 自动配置.
@@ -27,6 +28,15 @@ import org.springframework.core.env.Environment;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties({ExceptionProperties.class, SecurityHeadersProperties.class})
 public class BaseAutoConfiguration {
+
+    /**
+     * 值非空白时才设置响应头，空字符串表示业务方主动关闭该头.
+     */
+    private static void setHeaderIfNotBlank(HttpServletResponse res, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            res.setHeader(name, value);
+        }
+    }
 
     @Bean
     public GlobalExceptionHandler globalExceptionHandler(ExceptionProperties exceptionProperties) {
@@ -37,7 +47,6 @@ public class BaseAutoConfiguration {
     public EnvironmentHelper environmentHelper(Environment environment) {
         return new EnvironmentHelper(environment);
     }
-
 
     @Bean
     @ConditionalOnMissingBean(ResultJacksonModule.class)
@@ -92,16 +101,7 @@ public class BaseAutoConfiguration {
      */
     @EventListener
     public void onContextClosed(ContextClosedEvent event) {
-        com.frame.me.validation.validator.TimeRangeValidator.cleanup();
-    }
-
-    /**
-     * 值非空白时才设置响应头，空字符串表示业务方主动关闭该头.
-     */
-    private static void setHeaderIfNotBlank(HttpServletResponse res, String name, String value) {
-        if (value != null && !value.isBlank()) {
-            res.setHeader(name, value);
-        }
+        TimeRangeValidator.cleanup();
     }
 
 }

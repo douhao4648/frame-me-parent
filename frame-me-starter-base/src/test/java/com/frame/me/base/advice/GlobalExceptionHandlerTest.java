@@ -6,6 +6,9 @@ import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.exception.InternalException;
 import com.frame.me.base.result.ResultCode;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -59,10 +62,28 @@ class GlobalExceptionHandlerTest {
     @Test
     void genericException_excludeStacktraceWhenDisabled() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler(disabled);
-        IResult<Void> result = handler.handleException(new RuntimeException("系统挂了"));
+        IResult<Void> result = handler.handleException(new RuntimeException("系统挂了"), null);
         assertThat(result.getCode()).isEqualTo(ResultCode.ERROR.getCode());
         assertThat(result.getMsg()).isEqualTo("系统挂了");
         assertThat(result.getErr()).isNull();
+    }
+
+    /**
+     * Spring 7 的 MVC 请求侧异常族（NoResourceFoundException 等）仅实现 ErrorResponse、
+     * 不再继承 ResponseStatusException，落入兜底分支后应按其自带状态码透传（404），而非 500.
+     */
+    @Test
+    void noResourceFound_transparent404() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(new ExceptionProperties());
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        IResult<Void> result = handler.handleException(
+                new NoResourceFoundException(HttpMethod.GET,
+                        ".well-known/appspecific/com.chrome.devtools.json",
+                        "/.well-known/appspecific/com.chrome.devtools.json"),
+                response);
+        assertThat(response.getStatus()).isEqualTo(404);
+        assertThat(result.getCode()).isEqualTo(404);
+        assertThat(result.getMsg()).contains("No static resource");
     }
 
     /**
@@ -71,7 +92,7 @@ class GlobalExceptionHandlerTest {
     @Test
     void genericException_masksMessageByDefault() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler(new ExceptionProperties());
-        IResult<Void> result = handler.handleException(new RuntimeException("系统挂了"));
+        IResult<Void> result = handler.handleException(new RuntimeException("系统挂了"), null);
         assertThat(result.getMsg()).isEqualTo(ResultCode.ERROR.getMsg());
     }
 
@@ -84,7 +105,7 @@ class GlobalExceptionHandlerTest {
         masked.setMaskUnknownMessage(true);
         GlobalExceptionHandler handler = new GlobalExceptionHandler(masked);
         IResult<Void> result = handler.handleException(
-                new RuntimeException("Table 't_secret_user' doesn't exist"));
+                new RuntimeException("Table 't_secret_user' doesn't exist"), null);
         assertThat(result.getCode()).isEqualTo(ResultCode.ERROR.getCode());
         assertThat(result.getMsg()).isEqualTo(ResultCode.ERROR.getMsg());
         assertThat(result.getMsg()).doesNotContain("t_secret_user");

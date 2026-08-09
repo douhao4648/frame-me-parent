@@ -6,19 +6,22 @@ import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.exception.InternalException;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理.
@@ -116,12 +119,32 @@ public class GlobalExceptionHandler {
     /**
      * 处理其他未知异常.
      *
-     * <p>默认对外返回异常自身 message；当 {@code me.exception.mask-unknown-message=true}
-     * 时收敛为通用文案（"系统错误"），真实异常信息只进服务端日志，避免未知异常
-     * 携带的 SQL、类路径、内网地址等内部细节泄漏给调用方。</p>
+     * <p>Spring Framework 7 起，MVC 请求侧异常族（{@code NoResourceFoundException} /
+     * {@code HttpRequestMethodNotSupportedException} 等）不再继承 {@code ResponseStatusException}，
+     * 仅实现 {@link ErrorResponse} 契约，会落入本兜底；此类异常自带客户端错误状态码
+     * （404/405/415...）与请求级 message（无内部细节），按状态码原样透传，
+     * 不适用未知异常的 500 与掩码语义。</p>
+     *
+     * <p>其余未知异常：默认对外返回通用文案（"系统错误"），真实异常信息只进服务端日志，
+     * 避免 SQL、类路径、内网地址等内部细节泄漏；{@code me.exception.mask-unknown-message=false}
+     * 时对外返回异常自身 message。</p>
+     *
+     * <p>日志级别：{@code NoResourceFoundException}（404，多为 DevTools .map 探测等客户端自发请求）
+     * 降级 DEBUG，其余请求侧异常 WARN。</p>
      */
     @ExceptionHandler(Exception.class)
-    public IResult<Void> handleException(Exception e) {
+    public IResult<Void> handleException(Exception e, HttpServletResponse response) {
+        if (e instanceof ErrorResponse errorResponse) {
+            HttpStatusCode statusCode = errorResponse.getStatusCode();
+            if (e instanceof NoResourceFoundException) {
+                // 客户端请求了不存在的路径（高频是 DevTools 的 .map 探测），404 已透传，服务端无可动作，不刷 WARN
+                log.debug("静态资源不存在: {}", e.getMessage());
+            } else {
+                log.warn("请求异常: {} - {}", statusCode, e.getMessage());
+            }
+            response.setStatus(statusCode.value());
+            return Result.error(statusCode.value(), e.getMessage());
+        }
         log.error("系统异常: {}", e.getMessage(), e);
         String message = exceptionProperties.isMaskUnknownMessage()
                 ? ResultCode.ERROR.getMsg()

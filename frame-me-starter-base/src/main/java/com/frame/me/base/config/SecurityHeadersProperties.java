@@ -47,11 +47,11 @@ public class SecurityHeadersProperties {
     /**
      * {@code Permissions-Policy} 响应头值，默认禁用一组高敏浏览器 API.
      *
-     * <p>纯后端 API 服务用不到浏览器敏感能力，默认禁用地理定位/麦克风/摄像头/支付/凭据/
+     * <p>纯后端 API 服务用不到浏览器敏感能力，默认禁用地理定位/麦克风/摄像头/支付/
      * USB/陀螺仪/磁力计/加速度计，缩小攻击面。空字符串表示不设置该头.</p>
      */
     private String permissionsPolicy =
-            "geolocation=(), microphone=(), camera=(), payment=(), credentials=(), usb=(), "
+            "geolocation=(), microphone=(), camera=(), payment=(), usb=(), "
                     + "gyroscope=(), magnetometer=(), accelerometer=()";
 
     /**

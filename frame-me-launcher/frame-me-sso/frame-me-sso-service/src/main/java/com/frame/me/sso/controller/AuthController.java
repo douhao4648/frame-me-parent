@@ -19,11 +19,13 @@ import com.frame.me.sso.service.LogoutService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -68,13 +70,15 @@ public class AuthController implements IAuthApi {
                                           @RequestParam(required = false) String state) {
         AppEntity app = appService.findByAppId(appId);
         if (app == null || !"ACTIVE".equals(app.getStatus())) {
-            return ResponseEntity.badRequest().build();
+            // 显式状态码 + Result body（GlobalExceptionHandler 透传），三个 400 分支靠 message 区分
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "应用不存在或已禁用");
         }
         if (!appService.isRedirectAllowed(app, redirectUri)) {
-            return ResponseEntity.badRequest().build();
+            // redirectUri 校验失败时禁止重定向回跳（RFC 6749 §4.1.2.1），只能原地报错
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "redirectUri 不在应用白名单");
         }
         if (!appService.isScopeAllowed(app, scope)) {
-            return ResponseEntity.badRequest().build();
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "scope 超出应用授权范围");
         }
         if (!StpUtil.isLogin()) {
             String target = "/sso-login.html?redirect=" +

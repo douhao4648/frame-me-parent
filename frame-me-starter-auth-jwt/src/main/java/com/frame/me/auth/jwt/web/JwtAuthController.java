@@ -37,7 +37,7 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * JWT 认证控制器.
  *
- * <p><b>管理员强制登出接口（{@code /admin/logout/{userId}}）默认不做权限校验</b>，
+ * <p><b>管理员强制登出接口（{@code /admin/{userId}/logout}）默认不做权限校验</b>，
  * 由业务方通过 {@code me.auth.permission.rules} 自行配置访问控制，
  * 避免 starter 强制依赖 RBAC 模块。</p>
  *
@@ -55,7 +55,7 @@ public class JwtAuthController {
 
     private final IAuthService authService;
     private final JwtAuthProperties properties;
-    private final AuthProperties authProperties;
+    private final ObjectProvider<AuthProperties> authProperties;
     private final ObjectProvider<LoginRateLimiter> loginRateLimiter;
 
     /**
@@ -123,7 +123,11 @@ public class JwtAuthController {
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)
             @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
-        AuthProperties.Admin admin = authProperties.getAdmin();
+        AuthProperties ifAvailable = authProperties.getIfAvailable();
+        if(ifAvailable == null) {
+            return Result.error(ResultCode.UNAUTHORIZED);
+        }
+        AuthProperties.Admin admin = ifAvailable.getAdmin();
         if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");
         }
