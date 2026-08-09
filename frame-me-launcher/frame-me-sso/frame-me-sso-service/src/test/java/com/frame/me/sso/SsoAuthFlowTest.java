@@ -123,6 +123,21 @@ class SsoAuthFlowTest {
     }
 
     /**
+     * {@code @LoginUser} 参数经元注解 {@code @Parameter(hidden = true)} 从 OpenAPI 文档忽略：
+     * /base/auth/user 的 user 入参由服务端从认证上下文解析，不应出现在文档参数里.
+     *
+     * <p>springdoc 由 {@code -Pswagger} profile 引入，默认 profile 下 api-docs 404，此时跳过.</p>
+     */
+    @Test
+    void loginUserParameterHiddenFromApiDocs() {
+        ResponseEntity<String> res = rest.getForEntity("/v3/api-docs/base-api", String.class);
+        Assumptions.assumeTrue(res.getStatusCode() == HttpStatus.OK,
+                "springdoc 未启用（需 -Pswagger），跳过 api-docs 断言");
+        assertThat(res.getBody()).contains("/base/auth/user");
+        assertThat(res.getBody()).doesNotContain("\"name\":\"user\"");
+    }
+
+    /**
      * 未登录 authorize → 302 登录页，回跳地址携带原始参数（含 state，逐值编码）.
      */
     @Test

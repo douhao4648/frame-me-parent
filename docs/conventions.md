@@ -478,7 +478,7 @@ me:
 `frame-me-boot` 已默认引入 `frame-me-starter-auth`，业务 `xx-service` 无需额外配置即可获得以下能力：
 
 - **`AuthContext`**：ThreadLocal 当前用户上下文，提供 `getUser()` / `getUserId()` / `getAccount()` / `setUser(User)` / `clear()`。
-- **`@LoginUser`**：标注在 Controller 方法参数上，自动注入当前登录用户。
+- **`@LoginUser`**：标注在 Controller 方法参数上，自动注入当前登录用户。注解上带 `@Parameter(hidden = true)` 元注解（springdoc 经 `findMergedAnnotation` 识别），该参数不出现在 OpenAPI 文档入参中；swagger-annotations 经 `frame-me-api` 传递引入（全项目非 optional），下游未启用 springdoc 时注解被 JVM 忽略，不影响运行时。
 - **`@Anonymous`**：标注在 Controller 类或方法上，表示该接口允许匿名访问。
 - **`AuthFilter`**：全局认证过滤器，默认拦截 `/*`。
   - 配置白名单路径（`me.auth.whitelist`）或 `@Anonymous` 注解可放行。白名单按**应用内路径**匹配（不含 `server.servlet.context-path`，配置误带 context-path 前缀时自动剥离兼容）。
