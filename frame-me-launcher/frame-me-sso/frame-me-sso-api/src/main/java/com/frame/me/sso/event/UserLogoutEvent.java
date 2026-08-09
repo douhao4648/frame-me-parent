@@ -1,4 +1,4 @@
-package com.frame.me.sso.infrastructure.event;
+package com.frame.me.sso.event;
 
 import com.frame.me.event.MeApplicationEvent;
 import lombok.Getter;
@@ -10,12 +10,12 @@ import java.time.LocalDateTime;
 /**
  * 用户登出事件（踢人通知）.
  *
- * <p>SSO 踢人时通过 {@link com.frame.me.base.event.EventBridgePublisher} 发布，
- * 先本地发布（同进程监听），再跨进程广播（Redis pub/sub）供下游订阅.
+ * <p>SSO 踢人时通过事件桥接发布，先本地发布（同进程监听），
+ * 再跨进程广播（Redis pub/sub）供下游订阅.
  * 下游收到后清自己 sa-token session 实现即时踢人.</p>
  *
- * <p>下游订阅 type={@value #EVENT_TYPE}，收到 {@link com.frame.me.base.event.EventBridgeMessage}
- * 后还原 payload 取 userId 清本地 session.</p>
+ * <p>下游订阅 type={@value #EVENT_TYPE}：{@code @Import(UserLogoutEventConfiguration.class)}
+ * 注册事件类型后，以 {@code @EventListener} 监听本事件，取 userId 清本地 session.</p>
  *
  * @author frame-me
  */

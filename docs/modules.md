@@ -1139,6 +1139,7 @@ public class AlertService {
 | `UserService` | `sso/service/UserService` | 用户查询/保存/更新/逻辑删除 |
 | `AuthCodeService` | `sso/service/AuthCodeService` | 授权码签发/消费（Redis GETDEL 原子防重放） |
 | `LogoutService` | `sso/service/LogoutService` | 踢人（按用户/按应用）+ 发 `UserLogoutEvent` |
+| `UserLogoutEvent`/`UserLogoutEventType`/`UserLogoutEventConfiguration` | `sso/event/`（`frame-me-sso-api`） | 踢人事件契约 + 类型注册项 + 显式注册配置（SSO 侧组件扫描自动注册；下游 `@Import` 即订阅） |
 | `SsoTokenUtils` | `sso/infrastructure/satoken/SsoTokenUtils` | app token 身份收口（`app:` loginId 前缀、Bearer 解析） |
 | `DefaultDeviceInterceptor` | `sso/infrastructure/satoken/DefaultDeviceInterceptor` | 管理端点设备闸：仅认默认设备会话，匿名放行 |
 | `SsoStpInterface` | `sso/infrastructure/satoken/SsoStpInterface` | sa-token 角色源，读 `UserEntity.roles`（app loginId 空列表 fail-closed） |

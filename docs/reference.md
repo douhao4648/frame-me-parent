@@ -262,7 +262,7 @@
 | `SsoLogoutService` | SSO 踢人 + 发 `UserLogoutEvent` |
 | `IJwtSigner` / `Rs256JwtSigner` | SSO JWT 签名器接口 + RS256 实现（可插拔，预留 JWKS 演进） |
 | `SsoProperties` | `me.sso.*` 配置属性绑定 |
-| `UserLogoutEvent` | SSO 踢人事件（下游订阅做本地黑名单/清缓存） |
+| `UserLogoutEvent` | SSO 踢人事件（`frame-me-sso-api`；下游 `@Import(UserLogoutEventConfiguration)` 注册 `UserLogoutEventType` 后 `@EventListener` 订阅） |
 | `PageParam` | 老规范分页查询参数（`frame-me-adapter-api`） |
 | `PageResult<T>` | 老规范分页结果（`frame-me-adapter-api`） |
 | `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |

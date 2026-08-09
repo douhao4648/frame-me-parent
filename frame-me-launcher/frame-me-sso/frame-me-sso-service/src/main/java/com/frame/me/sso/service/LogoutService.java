@@ -5,7 +5,7 @@ import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.session.SaTerminalInfo;
 import cn.dev33.satoken.stp.StpUtil;
 import com.frame.me.base.event.EventBridgePublisher;
-import com.frame.me.sso.infrastructure.event.UserLogoutEvent;
+import com.frame.me.sso.event.UserLogoutEvent;
 import com.frame.me.sso.infrastructure.satoken.SsoTokenUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

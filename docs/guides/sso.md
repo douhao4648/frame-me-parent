@@ -128,10 +128,11 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 
 ### 档3事件（即时清下游 session）
 
-SSO 踢人时通过事件桥接发布 `UserLogoutEvent`（type=`sso:user-logout`），经 Redis pub/sub 跨进程广播。下游订阅：
+SSO 踢人时通过事件桥接发布 `UserLogoutEvent`（type=`sso:user-logout`），经 Redis pub/sub 跨进程广播。事件契约在 `frame-me-sso-api`（`com.frame.me.sso.event`），下游订阅：
 
-- 引 `frame-me-starter-multi-redis`（提供 `RedisEventTransport`）+ `frame-me-starter-base`（事件桥接核心）
-- 订阅 type=`sso:user-logout`，收到后从 payload 取 `userId`，清本地 sa-token session（`StpUtil.logout(userId)`）
+- 引 `frame-me-sso-api`（事件契约）+ `frame-me-starter-multi-redis`（提供 `RedisEventTransport`）
+- `@Import(UserLogoutEventConfiguration.class)` 注册事件类型（SSO 服务自身无需显式引入：该配置类包 `com.frame.me.sso.event` 在启动类扫描根包 `com.frame.me.sso` 之下，组件扫描自动注册，保证多实例广播互通）
+- `@EventListener` 监听 `UserLogoutEvent`，取 `userId` 清本地 sa-token session（`StpUtil.logout(userId)`；`userId=null` 时按 `appId` 清该应用全部本地 session）
 
 事件 payload：`{ userId, appId, logoutTime, reason }`。消费方需幂等（跨服务事件"至少一次"语义）。
 
