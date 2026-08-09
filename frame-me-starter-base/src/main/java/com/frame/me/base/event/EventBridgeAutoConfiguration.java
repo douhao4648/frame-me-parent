@@ -1,7 +1,6 @@
 package com.frame.me.base.event;
 
 import com.frame.me.base.env.EnvironmentHelper;
-import com.frame.me.base.event.IEventErrorHandler;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -15,6 +14,7 @@ import org.springframework.util.StringUtils;
 import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -43,6 +43,47 @@ public class EventBridgeAutoConfiguration {
         this.eventBridgeProperties = eventBridgeProperties;
         this.environmentHelper = environmentHelper;
         this.environment = environment;
+    }
+
+    /**
+     * 解析本机主机名：HOSTNAME 环境变量优先（k8s 中为 Pod 名，可读且稳定），
+     * 缺失时 InetAddress 兜底；任何异常（DNS、SecurityManager）都返回 null 走 UUID 档，
+     * 不允许因主机名解析导致启动失败.
+     *
+     * @return 主机名，解析失败返回 {@code null}
+     */
+    private static String resolveHostName() {
+        String host = System.getenv("HOSTNAME");
+        if (StringUtils.hasText(host)) {
+            return host;
+        }
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            log.debug("EventBridge instanceId 无法解析本机主机名，将回退为随机 UUID", e);
+            return null;
+        }
+    }
+
+    /**
+     * 规范化 transport 名称.
+     *
+     * <p>例如 {@code redisEventTransport} 同时支持以 {@code redis} 作为 key 查找，
+     * 让配置中可以使用简洁名称。注意 Bean 名按实现类命名，仍以 {@code EventTransport} 结尾，
+     * 而非接口 {@link IEventTransport} 的 {@code I} 前缀。</p>
+     *
+     * @param transports 原始 transport Bean Map
+     * @return 规范化后的 Map
+     */
+    private static Map<String, IEventTransport> normalizeTransports(Map<String, IEventTransport> transports) {
+        Map<String, IEventTransport> result = new HashMap<>(transports);
+        transports.forEach((name, transport) -> {
+            if (name.endsWith("EventTransport")) {
+                String shortName = name.substring(0, name.length() - "EventTransport".length());
+                result.putIfAbsent(shortName, transport);
+            }
+        });
+        return result;
     }
 
     /**
@@ -97,26 +138,6 @@ public class EventBridgeAutoConfiguration {
                 + "建议显式配置 me.event-bridge.instance-id 或确保 HOSTNAME 环境变量与 server.port 可用", generated);
     }
 
-    /**
-     * 解析本机主机名：HOSTNAME 环境变量优先（k8s 中为 Pod 名，可读且稳定），
-     * 缺失时 InetAddress 兜底；任何异常（DNS、SecurityManager）都返回 null 走 UUID 档，
-     * 不允许因主机名解析导致启动失败.
-     *
-     * @return 主机名，解析失败返回 {@code null}
-     */
-    private static String resolveHostName() {
-        String host = System.getenv("HOSTNAME");
-        if (StringUtils.hasText(host)) {
-            return host;
-        }
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (Exception e) {
-            log.debug("EventBridge instanceId 无法解析本机主机名，将回退为随机 UUID", e);
-            return null;
-        }
-    }
-
     @Bean
     public EventBridgePublisher eventBridgePublisher(ApplicationEventPublisher publisher,
                                                      EventBridgeProperties properties,
@@ -130,27 +151,6 @@ public class EventBridgeAutoConfiguration {
                                                    Map<String, IEventTransport> transports,
                                                    org.springframework.beans.factory.ObjectProvider<IEventErrorHandler> errorHandlerProvider) {
         return new EventBridgeListener(publisher, properties, normalizeTransports(transports),
-                java.util.Optional.ofNullable(errorHandlerProvider.getIfAvailable()));
-    }
-
-    /**
-     * 规范化 transport 名称.
-     *
-     * <p>例如 {@code redisEventTransport} 同时支持以 {@code redis} 作为 key 查找，
-     * 让配置中可以使用简洁名称。注意 Bean 名按实现类命名，仍以 {@code EventTransport} 结尾，
-     * 而非接口 {@link IEventTransport} 的 {@code I} 前缀。</p>
-     *
-     * @param transports 原始 transport Bean Map
-     * @return 规范化后的 Map
-     */
-    private static Map<String, IEventTransport> normalizeTransports(Map<String, IEventTransport> transports) {
-        Map<String, IEventTransport> result = new HashMap<>(transports);
-        transports.forEach((name, transport) -> {
-            if (name.endsWith("EventTransport")) {
-                String shortName = name.substring(0, name.length() - "EventTransport".length());
-                result.putIfAbsent(shortName, transport);
-            }
-        });
-        return result;
+                Optional.ofNullable(errorHandlerProvider.getIfAvailable()));
     }
 }
