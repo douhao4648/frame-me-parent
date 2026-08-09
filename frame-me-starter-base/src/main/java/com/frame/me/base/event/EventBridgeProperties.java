@@ -32,6 +32,34 @@ public class EventBridgeProperties {
     private String serviceName = "unknown";
 
     /**
+     * 当前实例标识（JVM 进程级），用于实例级自过滤.
+     *
+     * <p>默认 {@code null}；启动时由 {@code EventBridgeAutoConfiguration} 依次回退为
+     * {@code <host>:<server.port>}、启动随机 UUID（全段），保证实例级自过滤始终可用。
+     * 显式配置时必须保证实例唯一，多实例配相同值会互吞消息。</p>
+     */
+    private String instanceId;
+
+    /**
+     * 自身消息过滤模式，默认 {@link SelfFilter#INSTANCE}.
+     */
+    private SelfFilter selfFilter = SelfFilter.INSTANCE;
+
+    /**
+     * 自身消息过滤模式.
+     */
+    enum SelfFilter {
+        /**
+         * 仅丢弃本 JVM 实例发出的回声消息（默认），同服务名其他实例的消息放行.
+         */
+        INSTANCE,
+        /**
+         * 丢弃同服务名的所有消息（旧语义，同服务多实例互收不到）.
+         */
+        SERVICE
+    }
+
+    /**
      * Redis Topic 前缀，默认 {@code "me:event:"}.
      */
     private String topicPrefix = "me:event:";

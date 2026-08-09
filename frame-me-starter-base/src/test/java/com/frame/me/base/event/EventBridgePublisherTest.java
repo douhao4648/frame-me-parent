@@ -131,7 +131,8 @@ class EventBridgePublisherTest {
 
         verify(redisTransport).subscribe(eq("user:created"), any(Consumer.class));
 
-        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}", "producer-service");
+        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
+                "producer-service", "producer-instance");
         listener.onMessage(message);
 
         ArgumentCaptor<TestEvent> captor = ArgumentCaptor.forClass(TestEvent.class);
@@ -143,6 +144,7 @@ class EventBridgePublisherTest {
     void shouldCarryTargetFieldsInMessage() {
         EventBridgeProperties properties = new EventBridgeProperties();
         properties.setServiceName("producer-service");
+        properties.setInstanceId("producer-instance-1");
         Map<String, IEventTransport> transports = new HashMap<>();
         transports.put("redis", redisTransport);
 
@@ -156,6 +158,7 @@ class EventBridgePublisherTest {
         verify(redisTransport).send(eq("user:notify"), captor.capture());
 
         EventBridgeMessage message = captor.getValue();
+        assertThat(message.getSourceInstanceId()).isEqualTo("producer-instance-1");
         assertThat(message.getTargetService()).isEqualTo("notification-service");
         assertThat(message.getTargetId()).isEqualTo("user:123");
     }
@@ -171,7 +174,7 @@ class EventBridgePublisherTest {
         listener.register(new TestEventType());
 
         EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
-                "producer-service", "other-service", null);
+                "producer-service", "producer-instance", "other-service", null);
         listener.onMessage(message);
 
         verify(localPublisher, never()).publishEvent(any());
@@ -188,7 +191,7 @@ class EventBridgePublisherTest {
         listener.register(new TestEventType());
 
         EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
-                "producer-service", "consumer-service", "user:123");
+                "producer-service", "producer-instance", "consumer-service", "user:123");
         listener.onMessage(message);
 
         ArgumentCaptor<TestEvent> captor = ArgumentCaptor.forClass(TestEvent.class);
@@ -271,7 +274,7 @@ class EventBridgePublisherTest {
         }
 
         @Override
-        public MeApplicationEvent toLocalEvent(TestPayload payload, String source) {
+        public MeApplicationEvent toLocalEvent(TestPayload payload, String source, String sourceInstanceId) {
             return new TestEvent(source, type(), payload.getValue());
         }
     }

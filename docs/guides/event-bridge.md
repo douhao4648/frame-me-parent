@@ -89,7 +89,7 @@ sequenceDiagram
     Transport->>Listener: dispatcher.accept(message)
     Listener->>Listener: registry.get(type)
     Listener->>Listener: JSON.parseObject(payload)
-    Listener->>Listener: eventType.toLocalEvent(payload, source)
+    Listener->>Listener: eventType.toLocalEvent(payload, source, sourceInstanceId)
     Listener->>Local: publishEvent(localEvent)
     Local-->>Handler: UserCreatedEvent 消费
 ```
@@ -114,15 +114,24 @@ sequenceDiagram
 
 ### 自身消息过滤
 
-Redis Pub/Sub 会把消息广播给所有订阅者，包括发布者自己。`EventBridgeListener` 会对比 `message.sourceService` 与当前 `me.event-bridge.service-name`：若相同则忽略，避免同服务实例重复消费。
+Redis Pub/Sub 会把消息广播给所有订阅者，包括发布者自己。`EventBridgeListener` 按 `me.event-bridge.self-filter` 二选一过滤"自产"回声：
 
-> 自过滤依赖一个非 `"unknown"` 的服务名：若 `service-name` 与 `spring.application.name` 都未配置，启动时会自动生成 `unknown-<uuid>` 实例唯一名（并打出 warn 提示），保证自身回声可被过滤、且不同实例唯一名不同不会互吞事件；仍建议显式配置 `spring.application.name` 以便事件追踪可读。
+- **`instance`（默认）**：比较 `message.sourceInstanceId` 与本实例 `me.event-bridge.instance-id`，仅丢弃本 JVM 发出的回声；**同服务名的其他实例消息放行**——多实例部署（如 SSO 实例 A 踢人广播）可以互通。
+- **`service`**（旧语义）：比较 `sourceService` 与 `service-name`，同服务名的消息全部丢弃（同服务多实例互收不到）。
+
+> `instance-id` 未配置时启动期自动兜底：`<HOSTNAME>:<server.port>`（HOSTNAME 环境变量优先，k8s 中为 Pod 名；缺失走 InetAddress）→ 启动随机 UUID（warn 提示）。`server.port=0`（随机端口）时读到的是字面值，同机多实例会撞成相同 `host:0` 互吞消息，故该场景也降级 UUID。显式配置 `instance-id` 必须保证实例唯一，多实例配相同值会互吞消息。
+>
+> `service-name` 仍用于事件追踪、service 模式自过滤与点对点路由：未配置时取 `spring.application.name`，再未配置时生成 `unknown-<uuid>`（warn 提示）。
 
 ```mermaid
 graph LR
-    A[EventBridgeListener.onMessage] --> B{sourceService == currentService?}
-    B -->|是| C[忽略]
-    B -->|否| D[还原并本地发布]
+    A[EventBridgeListener.onMessage] --> B{self-filter == instance?}
+    B -->|是| C{sourceInstanceId == 本实例 instanceId?}
+    B -->|否| D{sourceService == currentService?}
+    C -->|是| E[忽略]
+    C -->|否| F[还原并本地发布]
+    D -->|是| E
+    D -->|否| F
 ```
 
 ### 点对点路由
@@ -254,7 +263,7 @@ public class UserCreatedEventType implements IEventType<UserCreatedPayload> {
     }
 
     @Override
-    public MeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source) {
+    public MeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source, String sourceInstanceId) {
         return new UserCreatedEvent(source, payload);
     }
 }
@@ -325,6 +334,10 @@ me:
     # 若 spring.application.name 也未配置，则生成 unknown-<uuid> 实例唯一名（warn 提示），
     # 保证自过滤可用。
     service-name:                       # 默认 spring.application.name
+    # instance-id 未配置时，回退 <HOSTNAME>:<server.port>，再不可用则启动随机 UUID（warn 提示）；
+    # 显式配置必须实例唯一，多实例配相同值会互吞消息。
+    instance-id:                        # 默认 host:server.port
+    self-filter: instance               # 自身消息过滤模式：instance（默认，只丢本 JVM 回声）/ service（旧语义，同服务名全丢）
     topic-prefix: "me:event:"           # Redis Topic 前缀
     default-transport: redis            # 未配置 type 时的默认通道
     transports:
@@ -335,7 +348,9 @@ me:
 | 配置项 | 说明 |
 |---|---|
 | `enabled` | 是否启用事件桥接 |
-| `service-name` | 当前服务名，用于追踪来源与自身消息过滤；未配置时默认取 `spring.application.name`，再未配置时生成 `unknown-<uuid>` 实例唯一名（warn 提示，保证自过滤可用） |
+| `service-name` | 当前服务名，用于追踪来源、service 模式自过滤与点对点路由；未配置时默认取 `spring.application.name`，再未配置时生成 `unknown-<uuid>` 实例唯一名（warn 提示） |
+| `instance-id` | 当前实例标识（JVM 进程级），用于 instance 模式自过滤；未配置时回退 `<HOSTNAME>:<server.port>`，再不可用（含 `server.port=0`）时生成启动随机 UUID（warn 提示）；显式配置必须实例唯一 |
+| `self-filter` | 自身消息过滤模式：`instance`（默认，仅丢本 JVM 回声，同服务多实例互通）/ `service`（旧语义，同服务名全丢） |
 | `topic-prefix` | Redis Topic 前缀 |
 | `default-transport` | 默认 transport 名称，对应 Bean 名或去掉 `IEventTransport` 后缀的名称 |
 | `transports.{type}` | 按事件类型指定 transport |

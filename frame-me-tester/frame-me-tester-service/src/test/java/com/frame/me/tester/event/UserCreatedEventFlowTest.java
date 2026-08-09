@@ -111,7 +111,7 @@ class UserCreatedEventFlowTest {
         // 模拟另一个服务通过 Redis 广播的事件消息
         UserCreatedPayload payload = new UserCreatedPayload(2L, "bob");
         String json = com.alibaba.fastjson2.JSON.toJSONString(payload);
-        EventBridgeMessage message = EventBridgeMessage.of("user:created", json, "other-service");
+        EventBridgeMessage message = EventBridgeMessage.of("user:created", json, "other-service", "other-instance");
 
         RedissonTopic.topicPublish("me:event:user:created", message);
 

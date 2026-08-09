@@ -24,7 +24,7 @@ public class AuditLogEventType implements IEventType<AuditLogRecord> {
     }
 
     @Override
-    public MeApplicationEvent toLocalEvent(AuditLogRecord payload, String source) {
-        return new AuditLogEvent(source, payload, payload.getTargetService());
+    public MeApplicationEvent toLocalEvent(AuditLogRecord payload, String source, String sourceInstanceId) {
+        return new AuditLogEvent(source, payload, payload.getTargetService(), sourceInstanceId);
     }
 }

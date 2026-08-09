@@ -45,10 +45,11 @@ class AuditLogEventTypeTest {
         record.setAction("删除用户");
         record.setTargetService("audit-service");
 
-        AuditLogEvent event = (AuditLogEvent) eventType.toLocalEvent(record, "order-service");
+        AuditLogEvent event = (AuditLogEvent) eventType.toLocalEvent(record, "order-service", "order-instance-1");
 
         assertThat(event.getEventType()).isEqualTo("audit:log");
         assertThat(event.getTargetService()).isEqualTo("audit-service");
+        assertThat(event.getSourceInstanceId()).isEqualTo("order-instance-1");
         assertThat(event.getRecord().getAction()).isEqualTo("删除用户");
     }
 }

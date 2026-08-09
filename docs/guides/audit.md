@@ -31,7 +31,7 @@ public class UserService {
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
 | `enabled` | `true` | 是否启用审计模块 |
-| `log-enabled` | `true` | 是否在本地打印审计日志（仅打印本服务产生的事件；其他服务广播来的事件由审计中心专用消费者处理，不在各服务重复打印） |
+| `log-enabled` | `true` | 是否在本地打印审计日志（仅打印本实例产生的事件，按 `sourceInstanceId` 与 `me.event-bridge.instance-id` 比对；其他实例广播来的事件由审计中心专用消费者处理，不在各实例重复打印） |
 | `target-service` | `""` | 为空时通过事件桥接广播；配置为审计服务名时定向发送 |
 | `max-param-length` | `0` | 参数与返回值 JSON 的最大字节长度，0 表示不限制；超限按 UTF-8 字节截断并追加 `...`，多字节字符不会被截半 |
 

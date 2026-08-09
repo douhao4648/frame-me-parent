@@ -9,8 +9,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
 
+import java.net.InetAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -33,10 +35,14 @@ public class EventBridgeAutoConfiguration {
 
     private final EnvironmentHelper environmentHelper;
 
+    private final Environment environment;
+
     public EventBridgeAutoConfiguration(EventBridgeProperties eventBridgeProperties,
-                                        EnvironmentHelper environmentHelper) {
+                                        EnvironmentHelper environmentHelper,
+                                        Environment environment) {
         this.eventBridgeProperties = eventBridgeProperties;
         this.environmentHelper = environmentHelper;
+        this.environment = environment;
     }
 
     /**
@@ -61,6 +67,53 @@ public class EventBridgeAutoConfiguration {
                 log.warn("EventBridge serviceName 未配置且 spring.application.name 为空，已生成临时唯一名 {}；"
                         + "建议显式配置 spring.application.name 或 me.event-bridge.service-name", generated);
             }
+        }
+    }
+
+    /**
+     * 若用户未显式配置 me.event-bridge.instance-id，则回退为 {@code <host>:<server.port>}；
+     * 主机名或端口不可用（含 server.port=0 随机端口场景）时生成启动随机 UUID，
+     * 保证实例级自过滤（{@link EventBridgeProperties.SelfFilter#INSTANCE}，默认）始终可用.
+     *
+     * <p>server.port=0 时本阶段读到的是字面值而非真实端口，同机多实例会撞成相同
+     * {@code host:0} 互吞消息，必须降级 UUID。</p>
+     */
+    @PostConstruct
+    public void applyInstanceIdDefault() {
+        if (StringUtils.hasText(eventBridgeProperties.getInstanceId())) {
+            return;
+        }
+        String host = resolveHostName();
+        String port = environment.getProperty("server.port");
+        if (StringUtils.hasText(host) && StringUtils.hasText(port) && !"0".equals(port)) {
+            String derived = host + ":" + port;
+            eventBridgeProperties.setInstanceId(derived);
+            log.debug("EventBridge instanceId default to host:port: {}", derived);
+            return;
+        }
+        String generated = UUID.randomUUID().toString();
+        eventBridgeProperties.setInstanceId(generated);
+        log.warn("EventBridge instanceId 未配置且无法从 HOSTNAME/server.port 推导，已生成启动随机 UUID {}；"
+                + "建议显式配置 me.event-bridge.instance-id 或确保 HOSTNAME 环境变量与 server.port 可用", generated);
+    }
+
+    /**
+     * 解析本机主机名：HOSTNAME 环境变量优先（k8s 中为 Pod 名，可读且稳定），
+     * 缺失时 InetAddress 兜底；任何异常（DNS、SecurityManager）都返回 null 走 UUID 档，
+     * 不允许因主机名解析导致启动失败.
+     *
+     * @return 主机名，解析失败返回 {@code null}
+     */
+    private static String resolveHostName() {
+        String host = System.getenv("HOSTNAME");
+        if (StringUtils.hasText(host)) {
+            return host;
+        }
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            log.debug("EventBridge instanceId 无法解析本机主机名，将回退为随机 UUID", e);
+            return null;
         }
     }
 

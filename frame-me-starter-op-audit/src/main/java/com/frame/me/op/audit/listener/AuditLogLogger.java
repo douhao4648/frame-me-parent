@@ -17,8 +17,8 @@ import java.util.Objects;
  * {@code me.audit.log-enabled=false} 关闭。</p>
  *
  * <p>审计事件默认向跨服务通道广播，所有订阅方都会本地重发布该事件；
- * 本监听器只打印本服务自己产生的事件（事件源等于当前服务名），
- * 避免每个服务实例都重复打印全量审计日志。跨服务聚合应由审计中心
+ * 本监听器只打印<b>本实例</b>产生的事件（事件源实例标识等于当前实例 ID），
+ * 避免同服务多实例部署时每个实例重复打印全量审计日志。跨服务聚合应由审计中心
  * 注册专用消费者负责。</p>
  *
  * @author frame-me
@@ -31,7 +31,7 @@ public class AuditLogLogger {
     private final EventBridgeProperties eventBridgeProperties;
 
     /**
-     * 监听审计事件并打印结构化日志（仅限本服务产生的事件）.
+     * 监听审计事件并打印结构化日志（仅限本实例产生的事件）.
      *
      * @param event 审计事件
      */
@@ -40,8 +40,9 @@ public class AuditLogLogger {
         if (!properties.isLogEnabled()) {
             return;
         }
-        if (!Objects.equals(eventBridgeProperties.getServiceName(), event.getSource())) {
-            log.debug("跳过其他服务广播的审计事件: source={}", event.getSource());
+        if (!Objects.equals(eventBridgeProperties.getInstanceId(), event.getSourceInstanceId())) {
+            log.debug("跳过其他实例广播的审计事件: source={}, sourceInstanceId={}",
+                    event.getSource(), event.getSourceInstanceId());
             return;
         }
         log.info("[AUDIT] {}", JSON.toJSONString(event.getRecord()));

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.util.StringUtils;
 
 import java.util.Map;
 import java.util.Optional;
@@ -133,12 +134,10 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             return;
         }
 
-        String sourceService = message.getSourceService();
         String currentService = properties.getServiceName();
-        if (sourceService != null && !sourceService.isEmpty()
-                && !"unknown".equals(currentService)
-                && sourceService.equals(currentService)) {
-            log.debug("Ignore self-produced event: type={}, source={}", type, sourceService);
+        if (isSelfProduced(message, currentService)) {
+            log.debug("Ignore self-produced event: type={}, source={}, sourceInstanceId={}",
+                    type, message.getSourceService(), message.getSourceInstanceId());
             return;
         }
 
@@ -155,7 +154,8 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             @SuppressWarnings("unchecked")
             IEventType<Object> typedEventType = (IEventType<Object>) eventType;
             Object payload = JSON.parseObject(message.getPayload(), typedEventType.payloadClass());
-            MeApplicationEvent localEvent = typedEventType.toLocalEvent(payload, message.getSourceService());
+            MeApplicationEvent localEvent = typedEventType.toLocalEvent(payload,
+                    message.getSourceService(), message.getSourceInstanceId());
             localPublisher.publishEvent(localEvent);
             log.debug("Event dispatched locally: type={}, source={}", type, message.getSourceService());
         } catch (Exception e) {
@@ -169,5 +169,31 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
                 }
             });
         }
+    }
+
+    /**
+     * 判断消息是否本服务/本实例自产（回声），按 {@code me.event-bridge.self-filter} 二选一.
+     *
+     * <ul>
+     *   <li>{@code instance}（默认）：仅比较实例 ID，只丢本 JVM 发出的回声；
+     *       同服务名其他实例的消息放行（多实例广播互通）。发布方必经
+     *       {@code EventBridgePublisher} 写入 instanceId，不存在 null 分支</li>
+     *   <li>{@code service}：旧语义，按服务名比较，同服务名的消息全部丢弃</li>
+     * </ul>
+     *
+     * @param message        桥接消息
+     * @param currentService 当前服务名
+     * @return 自产消息返回 {@code true}
+     */
+    private boolean isSelfProduced(EventBridgeMessage message, String currentService) {
+        if (properties.getSelfFilter() == EventBridgeProperties.SelfFilter.INSTANCE) {
+            String sourceInstanceId = message.getSourceInstanceId();
+            return StringUtils.hasText(sourceInstanceId)
+                    && sourceInstanceId.equals(properties.getInstanceId());
+        }
+        String sourceService = message.getSourceService();
+        return sourceService != null && !sourceService.isEmpty()
+                && !"unknown".equals(currentService)
+                && sourceService.equals(currentService);
     }
 }

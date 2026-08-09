@@ -38,7 +38,7 @@ class RedisEventTransportTest {
         RedissonTopic.init(client);
 
         RedisEventTransport transport = new RedisEventTransport("me:event:");
-        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{}", "svc-a");
+        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{}", "svc-a", "inst-a");
         transport.send("user:created", message);
 
         verify(topic).publish(message);
@@ -57,7 +57,7 @@ class RedisEventTransportTest {
 
         verify(topic).addListener(eq(EventBridgeMessage.class), any(MessageListener.class));
 
-        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{}", "svc-b");
+        EventBridgeMessage message = EventBridgeMessage.of("user:created", "{}", "svc-b", "inst-b");
         transport.onMessage("me:event:user:created", message);
 
         verify(dispatcher).accept(message);
@@ -78,8 +78,8 @@ class RedisEventTransportTest {
         transport.subscribe("type:a", dispatcherA);
         transport.subscribe("type:b", dispatcherB);
 
-        EventBridgeMessage messageA = EventBridgeMessage.of("type:a", "{}", "svc");
-        EventBridgeMessage messageB = EventBridgeMessage.of("type:b", "{}", "svc");
+        EventBridgeMessage messageA = EventBridgeMessage.of("type:a", "{}", "svc", "inst");
+        EventBridgeMessage messageB = EventBridgeMessage.of("type:b", "{}", "svc", "inst");
         transport.onMessage("me:event:type:a", messageA);
         transport.onMessage("me:event:type:b", messageB);
 

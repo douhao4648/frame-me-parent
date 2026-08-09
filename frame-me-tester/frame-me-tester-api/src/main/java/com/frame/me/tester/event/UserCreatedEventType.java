@@ -24,7 +24,7 @@ public class UserCreatedEventType implements IEventType<UserCreatedPayload> {
     }
 
     @Override
-    public MeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source) {
+    public MeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source, String sourceInstanceId) {
         return new UserCreatedEvent(source, payload);
     }
 }

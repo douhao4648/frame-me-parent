@@ -85,7 +85,9 @@
   - `me.exception.mask-unknown-message` — 兜底未知异常对外是否屏蔽真实 message，默认 `false`（返回异常自身 message，兼容原行为）；设为 `true` 时对外固定返回通用文案（"系统错误"），真实 message 只进服务端日志，对外服务建议开启。
   - `me.restclient.pool.max-per-route` — 每个路由的最大连接数，默认 `50`。
   - `me.event-bridge.enabled` — 是否启用事件桥接，默认 `true`。
-  - `me.event-bridge.service-name` — 当前服务名，默认取 `spring.application.name`；两者都未配置时生成 `unknown-<uuid>` 实例唯一名（warn 提示）。用于事件来源追踪与自身消息过滤，自过滤依赖非 `unknown` 的服务名。
+  - `me.event-bridge.service-name` — 当前服务名，默认取 `spring.application.name`；两者都未配置时生成 `unknown-<uuid>` 实例唯一名（warn 提示）。用于事件来源追踪、service 模式自过滤与点对点路由。
+  - `me.event-bridge.instance-id` — 当前实例标识（JVM 进程级），用于 instance 模式自过滤；未配置时回退 `<HOSTNAME>:<server.port>`，再不可用（含 `server.port=0`）时生成启动随机 UUID（warn 提示）；显式配置必须实例唯一，多实例配相同值会互吞消息。
+  - `me.event-bridge.self-filter` — 自身消息过滤模式，默认 `instance`（仅丢本 JVM 回声，同服务名多实例互通）；`service` 为旧语义（同服务名消息全丢）。
   - `me.event-bridge.topic-prefix` — Redis Topic 前缀，默认 `me:event:`。
   - `me.event-bridge.default-transport` — 默认传输通道名称，默认 `redis`。
   - `me.event-bridge.transports` — 按事件类型指定传输通道，key 为事件类型，value 为 transport Bean 名称。
@@ -884,7 +886,7 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`；操作人 SPI 异常降级为 `anonymous`，不阻断业务；`maxParamLength` 同时约束参数与返回值。
   - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `MeApplicationEvent`。
   - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
-  - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志；仅打印本服务产生的事件（按事件源与当前服务名比对），不重复打印其他服务广播来的事件。
+  - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志；仅打印本实例产生的事件（按 `sourceInstanceId` 与 `me.event-bridge.instance-id` 比对），不重复打印其他实例广播来的事件。
   - `com.frame.me.op.audit.spi.IAuditLogOperatorSupplier` — 操作人提供接口，默认返回 `anonymous`。
   - `com.frame.me.op.audit.config.AuditAutoConfiguration` — 自动装配入口。
   - `com.frame.me.op.audit.config.AuditProperties` — `me.audit` 配置属性绑定。

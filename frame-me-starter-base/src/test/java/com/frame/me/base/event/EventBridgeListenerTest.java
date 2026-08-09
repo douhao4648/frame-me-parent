@@ -1,6 +1,5 @@
 package com.frame.me.base.event;
 
-import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,48 +15,75 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
- * {@link EventBridgeListener} 自过滤单元测试.
+ * {@link EventBridgeListener} 自过滤单元测试（实例级默认 + service 回程）.
  *
  * @author frame-me
  */
 class EventBridgeListenerTest {
 
-    private static final String SELF_NAME = "unknown-abc12345";
+    private static final String SELF_NAME = "frame-me-sso";
+    private static final String SELF_INSTANCE = "self-instance-1";
 
     private final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
 
+    private EventBridgeProperties properties;
     private EventBridgeListener listener;
 
     @BeforeEach
     void setUp() {
-        EventBridgeProperties properties = new EventBridgeProperties();
+        properties = new EventBridgeProperties();
         properties.setServiceName(SELF_NAME);
+        properties.setInstanceId(SELF_INSTANCE);
         listener = new EventBridgeListener(publisher, properties, Map.of());
         listener.register(new StubEventType());
     }
 
     /**
-     * 服务名为生成的唯一名时，自过滤生效：自身回声消息不再触发本地二次分发.
+     * 实例级（默认）：instanceId 相同（本 JVM 回声）→ 丢弃，不触发本地二次分发.
      */
     @Test
-    void selfProducedMessageIsFilteredWithGeneratedUniqueName() {
-        listener.onMessage(message(SELF_NAME));
+    void sameInstanceMessageIsFilteredInInstanceMode() {
+        listener.onMessage(message(SELF_NAME, SELF_INSTANCE));
 
         verifyNoInteractions(publisher);
     }
 
     /**
-     * 来自其他服务的消息正常分发到本地管道.
+     * 实例级（默认）：同服务名但 instanceId 不同（同服务其他实例的广播）→ 放行分发.
+     * 多实例互通的核心回归（SSO A 实例踢人广播可达 B 实例）.
      */
     @Test
-    void messageFromOtherServiceIsDispatched() {
-        listener.onMessage(message("other-service"));
+    void sameServiceOtherInstanceIsDispatchedInInstanceMode() {
+        listener.onMessage(message(SELF_NAME, "other-instance"));
 
         verify(publisher).publishEvent(any(MeApplicationEvent.class));
     }
 
-    private static EventBridgeMessage message(String sourceService) {
-        return new EventBridgeMessage("test:event", "\"hello\"", sourceService, null, null, Instant.now());
+    /**
+     * service 回程：self-filter=service 时同服务名消息全部丢弃（旧语义）.
+     */
+    @Test
+    void sameServiceMessageIsFilteredInServiceMode() {
+        properties.setSelfFilter(EventBridgeProperties.SelfFilter.SERVICE);
+
+        listener.onMessage(message(SELF_NAME, "other-instance"));
+
+        verifyNoInteractions(publisher);
+    }
+
+    /**
+     * 来自其他服务的消息两种模式下都正常分发到本地管道.
+     */
+    @Test
+    void messageFromOtherServiceIsDispatched() {
+        listener.onMessage(message("other-service", "other-instance"));
+
+        verify(publisher).publishEvent(any(MeApplicationEvent.class));
+    }
+
+    private static EventBridgeMessage message(String sourceService, String sourceInstanceId) {
+        return new EventBridgeMessage("test:event", "\"hello\"", sourceService, sourceInstanceId,
+                null, null, Instant.now());
     }
 
     /**
@@ -76,7 +102,7 @@ class EventBridgeListenerTest {
         }
 
         @Override
-        public MeApplicationEvent toLocalEvent(String payload, String source) {
+        public MeApplicationEvent toLocalEvent(String payload, String source, String sourceInstanceId) {
             return new MeApplicationEvent(payload) {
                 @Override
                 public String getEventType() {

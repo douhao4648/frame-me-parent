@@ -24,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AuditLogLoggerTest {
 
+    private static final String SELF_INSTANCE = "self-instance-1";
+
     private Logger logger;
     private ListAppender<ILoggingEvent> appender;
 
@@ -42,14 +44,14 @@ class AuditLogLoggerTest {
 
     @Test
     void shouldLogWhenEnabled() {
-        AuditLogLogger loggerListener = new AuditLogLogger(enabledProperties(), currentService());
+        AuditLogLogger loggerListener = new AuditLogLogger(enabledProperties(), currentInstance());
 
         AuditLogRecord record = new AuditLogRecord();
         record.setAction("创建用户");
         record.setSuccess(true);
         record.setTimestamp(Instant.now());
 
-        loggerListener.onAuditLog(new AuditLogEvent("test-service", record, null));
+        loggerListener.onAuditLog(new AuditLogEvent("test-service", record, null, SELF_INSTANCE));
 
         assertThat(appender.list).hasSize(1);
         ILoggingEvent event = appender.list.get(0);
@@ -61,27 +63,27 @@ class AuditLogLoggerTest {
     void shouldSkipWhenDisabled() {
         AuditProperties properties = new AuditProperties();
         properties.setLogEnabled(false);
-        AuditLogLogger loggerListener = new AuditLogLogger(properties, currentService());
+        AuditLogLogger loggerListener = new AuditLogLogger(properties, currentInstance());
 
         AuditLogRecord record = new AuditLogRecord();
         record.setAction("删除用户");
 
-        loggerListener.onAuditLog(new AuditLogEvent("test-service", record, null));
+        loggerListener.onAuditLog(new AuditLogEvent("test-service", record, null, SELF_INSTANCE));
 
         assertThat(appender.list).isEmpty();
     }
 
     /**
-     * 其他服务广播的审计事件（远程重发布）不打印，避免跨服务日志泛滥.
+     * 其他实例广播的审计事件（桥接重发布）不打印，避免同服务多实例重复记录.
      */
     @Test
     void shouldSkipRemoteBroadcastEvent() {
-        AuditLogLogger loggerListener = new AuditLogLogger(enabledProperties(), currentService());
+        AuditLogLogger loggerListener = new AuditLogLogger(enabledProperties(), currentInstance());
 
         AuditLogRecord record = new AuditLogRecord();
-        record.setAction("其他服务的操作");
+        record.setAction("其他实例的操作");
 
-        loggerListener.onAuditLog(new AuditLogEvent("order-service", record, null));
+        loggerListener.onAuditLog(new AuditLogEvent("test-service", record, null, "other-instance"));
 
         assertThat(appender.list).isEmpty();
     }
@@ -92,9 +94,10 @@ class AuditLogLoggerTest {
         return properties;
     }
 
-    private EventBridgeProperties currentService() {
+    private EventBridgeProperties currentInstance() {
         EventBridgeProperties eventBridgeProperties = new EventBridgeProperties();
         eventBridgeProperties.setServiceName("test-service");
+        eventBridgeProperties.setInstanceId(SELF_INSTANCE);
         return eventBridgeProperties;
     }
 }

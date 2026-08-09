@@ -239,7 +239,8 @@ public class AuditLogAspect {
 
     private void doPublish(AuditLogRecord record) {
         try {
-            AuditLogEvent event = new AuditLogEvent(record.getSourceService(), record, record.getTargetService());
+            AuditLogEvent event = new AuditLogEvent(record.getSourceService(), record,
+                    record.getTargetService(), eventBridgeProperties.getInstanceId());
             EventBridgePublisher bridge = bridgePublisherProvider.getIfAvailable();
             if (bridge != null) {
                 bridge.publish(event);

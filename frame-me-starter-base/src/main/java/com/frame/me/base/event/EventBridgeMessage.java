@@ -39,6 +39,14 @@ public class EventBridgeMessage implements Serializable {
     private String sourceService;
 
     /**
+     * 来源实例标识（JVM 进程级），用于实例级自过滤.
+     *
+     * <p>由发布方从 {@code me.event-bridge.instance-id} 写入（启动期兜底：
+     * 显式配置 → host:server.port → 启动 UUID）。</p>
+     */
+    private String sourceInstanceId;
+
+    /**
      * 目标服务名，默认 {@code null} 表示广播给所有服务.
      */
     private String targetService;
@@ -54,29 +62,33 @@ public class EventBridgeMessage implements Serializable {
     private Instant timestamp;
 
     /**
-     * 快速构造方法（向后兼容，无目标路由）.
+     * 快速构造方法（无目标路由）.
      *
-     * @param type          事件类型
-     * @param payload       负载 JSON
-     * @param sourceService 来源服务名
+     * @param type             事件类型
+     * @param payload          负载 JSON
+     * @param sourceService    来源服务名
+     * @param sourceInstanceId 来源实例标识
      * @return 消息实例
      */
-    public static EventBridgeMessage of(String type, String payload, String sourceService) {
-        return of(type, payload, sourceService, null, null);
+    public static EventBridgeMessage of(String type, String payload, String sourceService,
+                                        String sourceInstanceId) {
+        return of(type, payload, sourceService, sourceInstanceId, null, null);
     }
 
     /**
      * 快速构造方法（支持目标路由）.
      *
-     * @param type          事件类型
-     * @param payload       负载 JSON
-     * @param sourceService 来源服务名
-     * @param targetService 目标服务名
-     * @param targetId      目标标识
+     * @param type             事件类型
+     * @param payload          负载 JSON
+     * @param sourceService    来源服务名
+     * @param sourceInstanceId 来源实例标识
+     * @param targetService    目标服务名
+     * @param targetId         目标标识
      * @return 消息实例
      */
     public static EventBridgeMessage of(String type, String payload, String sourceService,
-                                        String targetService, String targetId) {
-        return new EventBridgeMessage(type, payload, sourceService, targetService, targetId, Instant.now());
+                                        String sourceInstanceId, String targetService, String targetId) {
+        return new EventBridgeMessage(type, payload, sourceService, sourceInstanceId,
+                targetService, targetId, Instant.now());
     }
 }
