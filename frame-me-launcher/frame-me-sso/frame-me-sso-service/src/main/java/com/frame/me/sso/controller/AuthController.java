@@ -1,5 +1,6 @@
 package com.frame.me.sso.controller;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
@@ -204,6 +205,27 @@ public class AuthController implements IAuthApi {
     @Override
     public IResult<Boolean> forceLogout(Long userId, String appId, String reason) {
         logoutService.logout(userId, appId, reason);
+        return Result.success(true);
+    }
+
+    /**
+     * 全局登出：当前登录用户一键全退（SSO 会话 + 全部应用 token），广播档3事件.
+     *
+     * <p>应用 token（loginId="app:"+appId）无用户维度，拒绝调用；
+     * 不受设备闸限制（gate path-pattern 为 {@code /api/auth/*&#47;logout}，本端点不匹配）。</p>
+     *
+     * <p>{@code @SaCheckLogin} 在 AuthFilter（enforce-login）之后确属二道校验，
+     * 但作为端点级自保护契约保留：防止白名单误配或 enforce-login 关闭时
+     * 这个清全量会话的端点静默裸奔（与 @SaCheckRole 隐含 login 校验同思路）。</p>
+     */
+    @SaCheckLogin
+    @Override
+    public IResult<Boolean> logout() {
+        Object loginId = StpUtil.getLoginId();
+        if (SsoTokenUtils.isAppLoginId(loginId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "应用 token 不支持全局登出");
+        }
+        logoutService.logout(StpUtil.getLoginIdAsLong(), null, "user-logout");
         return Result.success(true);
     }
 

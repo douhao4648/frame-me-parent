@@ -58,8 +58,8 @@ sa-token:
   is-share: true
   is-read-cookie: true
   is-read-header: true
-  # cookie:
-  #   domain: .example.com
+#  cookie:
+#    domain: .example.com
 
 me:
   auth:
@@ -84,6 +84,8 @@ me:
       path: /base/auth
 #      authorization:
 #        enabled: false
+#      jwt:
+#        enabled: true
   swagger:
     title: Frame Me Sso API
     description: Frame Me Sso 接口文档
@@ -107,3 +109,24 @@ me:
     token:
       app-timeout: P1D
 
+jetcache:
+  decodeFilterAllowPatterns:
+    - com.frame.me.
+  statIntervalMinutes: 15
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson2
+      limit: 1000
+      expireAfterWriteInMillis: 120000
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson2
+      valueEncoder: kryo5
+      valueDecoder: kryo5
+      expireAfterWriteInMillis: 120000
+      broadcastChannel: ${spring.application.name}
+      uri: redis://${spring.data.redis.host:localhost}:${spring.data.redis.port:6379}/${spring.data.redis.database:0}
+#      # @符号得替换成编码符
+#      uri: redis://u:p@host:port/db

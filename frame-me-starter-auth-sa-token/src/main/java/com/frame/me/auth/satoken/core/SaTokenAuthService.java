@@ -163,7 +163,16 @@ public class SaTokenAuthService implements IAuthService {
                 return cached;
             }
         }
-        User user = userDetailsService.loadUserById(Long.valueOf(String.valueOf(loginId)));
+        User user;
+        try {
+            user = userDetailsService.loadUserById(Long.valueOf(String.valueOf(loginId)));
+        } catch (NumberFormatException e) {
+            // 非数字 loginId（如 SSO client_credentials 的 "app:"+appId 应用主体）：
+            // 无用户维度，按"无此用户"返回 null，调用方按未登录/无权限处理，
+            // 不能让 NumberFormatException 逸出过滤器层变成 500
+            log.debug("loginId 非数字用户 ID，按无用户处理: {}", loginId);
+            return null;
+        }
         if (user != null && !User.STATUS_ENABLED.equals(user.getStatus())) {
             log.debug("用户已禁用，拒绝加载: userId={}", user.getId());
             return null;

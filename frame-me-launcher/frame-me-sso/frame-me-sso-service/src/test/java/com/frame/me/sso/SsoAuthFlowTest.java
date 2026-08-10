@@ -448,6 +448,40 @@ class SsoAuthFlowTest {
     }
 
     /**
+     * 全局登出（用户触发）：清 SSO 会话 + 全部应用 token（/userinfo 立即 401）；
+     * 应用 token（client_credentials，loginId="app:"+appId）调用 → 403.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void globalLogoutKicksAllSessionsAndRejectsAppToken() {
+        String browserToken = login("alice", "123456");
+        String userToken = exchangeUserToken(internalApp);
+        assertThat(userinfoCode(userToken)).isEqualTo(200);
+
+        // 应用 token（loginId="app:"+appId）无用户维度 → AuthFilter 解析不到用户 → 401
+        Map<String, Object> cc = postForMap("/api/auth/token", Map.of(
+                "grantType", "client_credentials", "appId", internalApp.getAppId(),
+                "appSecret", internalApp.getAppSecretPlain()));
+        String appToken = (String) ((Map<String, Object>) cc.get("data")).get("accessToken");
+        ResponseEntity<Map> rejected = rest.exchange("/api/auth/logout",
+                HttpMethod.POST, new HttpEntity<>(satokenHeaders(appToken)), Map.class);
+        boolean appRejected = rejected.getStatusCode().value() == 401
+                || (rejected.getBody() != null
+                        && Integer.valueOf(401).equals(rejected.getBody().get("code")));
+        assertThat(appRejected).as("应用 token 调全局登出应 401（无用户维度）").isTrue();
+
+        // 浏览器会话触发全局登出 → 200，SSO 会话与该用户全部应用 token 同时失效
+        assertThat(postForMap("/api/auth/logout", Map.of(), browserToken).get("code")).isEqualTo(200);
+        assertThat(userinfoCode(userToken)).isEqualTo(401);
+        ResponseEntity<Map> afterLogout = rest.exchange("/api/apps/",
+                HttpMethod.POST, new HttpEntity<>(satokenHeaders(browserToken)), Map.class);
+        boolean unauthorized = afterLogout.getStatusCode().value() == 401
+                || (afterLogout.getBody() != null
+                        && Integer.valueOf(401).equals(afterLogout.getBody().get("code")));
+        assertThat(unauthorized).as("全局登出后浏览器会话应失效").isTrue();
+    }
+
+    /**
      * 禁用应用即生效：disable 联动踢出存量会话，已颁发 token 立即 401.
      */
     @Test

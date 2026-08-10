@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -45,6 +46,8 @@ class AuditLogAspectTest {
         bridgePublisherProvider = mock(ObjectProvider.class);
         operatorSupplier = mock(IAuditLogOperatorSupplier.class);
         properties = new AuditProperties();
+        // 默认走桥接路径（定向发送），验证远程闸门的用例自行覆盖此配置
+        properties.setTargetService("audit-center");
         eventBridgeProperties = new EventBridgeProperties();
         eventBridgeProperties.setServiceName("test-service");
         when(operatorSupplier.getOperatorId()).thenReturn("operator-1");
@@ -72,6 +75,34 @@ class AuditLogAspectTest {
         verify(publisher, times(0)).publish(any());
         assertThat(captor.getValue().getRecord().getAction())
                 .isEqualTo(AuditService.class.getName() + "#simpleAction");
+    }
+
+    /**
+     * 未配 target-service 且 broadcast=false（生产默认）：桥接在场也仅本地发布，
+     * 不向 Redis 空发消息.
+     */
+    @Test
+    void shouldPublishLocallyOnlyWhenNoRemoteTarget() {
+        properties.setTargetService("");
+
+        service.simpleAction();
+
+        verify(localPublisher).publishEvent(any(AuditLogEvent.class));
+        verify(publisher, times(0)).publish(any());
+    }
+
+    /**
+     * broadcast=true 时即使 target-service 为空也经桥接广播（全员送达语义）.
+     */
+    @Test
+    void shouldBroadcastWhenEnabledWithoutTargetService() {
+        properties.setTargetService("");
+        properties.setBroadcast(true);
+
+        service.simpleAction();
+
+        verify(publisher, times(1)).publish(any());
+        verifyNoInteractions(localPublisher);
     }
 
     @Test

@@ -38,3 +38,24 @@ me:
     # 端到端测试同 IP 高频登录，关闭固定窗口限流（生产配置保持开启）
     login-rate-limit:
       enabled: false
+
+# 测试同主配置启用两级缓存；remote 地址由 SsoAuthFlowTest @DynamicPropertySource 指向 Testcontainers
+jetcache:
+  decodeFilterAllowPatterns:
+    - com.frame.me.
+  statIntervalMinutes: 0
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson2
+      limit: 1000
+      expireAfterWriteInMillis: 120000
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson2
+      valueEncoder: kryo5
+      valueDecoder: kryo5
+      expireAfterWriteInMillis: 120000
+      broadcastChannel: ${spring.application.name}
+      uri: redis://${spring.data.redis.host:localhost}:${spring.data.redis.port:6379}/${spring.data.redis.database:0}

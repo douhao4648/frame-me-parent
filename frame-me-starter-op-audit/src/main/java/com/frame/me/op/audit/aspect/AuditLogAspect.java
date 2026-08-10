@@ -242,12 +242,19 @@ public class AuditLogAspect {
             AuditLogEvent event = new AuditLogEvent(record.getSourceService(), record,
                     record.getTargetService(), eventBridgeProperties.getInstanceId());
             EventBridgePublisher bridge = bridgePublisherProvider.getIfAvailable();
-            if (bridge != null) {
+            // 远程闸门：桥接 bean 在场只是"能发"，还要"想发"——配了 target-service（定向）
+            // 或显式 broadcast=true（全员广播）才桥接；否则仅本地发布，避免无接收方时
+            // 每次审计都向 Redis 空发消息
+            String targetService = record.getTargetService();
+            boolean remoteWanted = (targetService != null && !targetService.isBlank())
+                    || properties.isBroadcast();
+            if (bridge != null && remoteWanted) {
                 bridge.publish(event);
             } else {
-                // me.event-bridge.enabled=false 时无桥接发布器：降级为仅本地发布，
-                // 本进程 @EventListener（如 AuditLogLogger）照常消费，审计中心收不到
-                log.debug("EventBridge 未启用，审计事件仅本地发布: action={}", record.getAction());
+                if (bridge == null) {
+                    // me.event-bridge.enabled=false 时无桥接发布器：降级为仅本地发布
+                    log.debug("EventBridge 未启用，审计事件仅本地发布: action={}", record.getAction());
+                }
                 localPublisher.publishEvent(event);
             }
         } catch (Exception e) {

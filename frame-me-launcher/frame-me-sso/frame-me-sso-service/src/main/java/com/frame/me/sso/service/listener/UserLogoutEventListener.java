@@ -21,7 +21,7 @@ public class UserLogoutEventListener {
 
     @EventListener
     public void onUserLogout(UserLogoutEvent event) {
-        log.info("sso 登出事件: {}", JSON.toJSONString(event.getPayload()));
+        log.info("sso 登出事件已发出: {}", JSON.toJSONString(event.getPayload()));
     }
 
 }

@@ -32,10 +32,11 @@ public class UserService {
 |---|---|---|
 | `enabled` | `true` | 是否启用审计模块 |
 | `log-enabled` | `true` | 是否在本地打印审计日志（仅打印本实例产生的事件，按 `sourceInstanceId` 与 `me.event-bridge.instance-id` 比对；其他实例广播来的事件由审计中心专用消费者处理，不在各实例重复打印） |
-| `target-service` | `""` | 为空时通过事件桥接广播；配置为审计服务名时定向发送 |
-| `max-param-length` | `0` | 参数与返回值 JSON 的最大字节长度，0 表示不限制；超限按 UTF-8 字节截断并追加 `...`，多字节字符不会被截半 |
+| `target-service` | `""` | 配置为审计服务名时经事件桥接定向发送；为空且 `broadcast=false` 时仅本地发布（不产生跨服务流量） |
+| `broadcast` | `false` | 为 `true` 时即使 `target-service` 为空也经事件桥接广播（全员送达）；接收侧需 `@Import(AuditLogEventConfiguration.class)` 才会订阅通道 |
+| `max-param-length` | `8192` | 参数与返回值 JSON 的最大字节长度，0 表示不限制；超限按 UTF-8 字节截断并追加 `...`，多字节字符不会被截半 |
 
-> 与事件桥接的关系：桥接开启（`me.event-bridge.enabled=true`，默认）时审计事件经 `EventBridgePublisher` 本地发布 + 跨服务广播；桥接关闭时审计模块仍正常装配，`AuditLogAspect` 降级为仅本地发布（`AuditLogLogger` 等本进程监听器照常消费），审计中心收不到事件。`EventBridgeProperties` 在桥接关闭时由 `AuditAutoConfiguration` 兜底注册，保证自身过滤语义一致。
+> 与事件桥接的关系：桥接开启（`me.event-bridge.enabled=true`，默认）且配置了远程目标（`target-service` 或 `broadcast=true`）时审计事件经 `EventBridgePublisher` 本地发布 + 跨服务发送；未配置远程目标或桥接关闭时仅本地发布（`AuditLogLogger` 等本进程监听器照常消费），不产生跨服务流量。`EventBridgeProperties` 在桥接关闭时由 `AuditAutoConfiguration` 兜底注册，保证自身过滤语义一致。
 
 ```yaml
 me:
@@ -70,11 +71,16 @@ public OrderUpdateResult updateOrderStatus(Long orderId, String status) { ... }
 - 或在传入对象上用 fastjson2 的 `@JSONField(serialize = false)` 排除敏感字段。
 - 或为 `AuditLogAspect` 提供自定义参数序列化扩展点（后续可加 `excludeParamNames` 配置）。
 
+## starter 预置审计点
+
+`frame-me-starter-auth-sa-token` 与 `frame-me-starter-auth-jwt` 的默认认证端点（登录/登出/续期或刷新/管理员强制登出）已预标 `@AuditLog`（op-audit 在两个认证 starter 中均为 optional 依赖，消费方未引入 op-audit 时注解被 JVM 静默忽略、无任何影响）。其中 login/refresh 刻意 `recordParams=false, recordResult=false`——明文密码与签发的 Token 不进审计，登录账号由 description 的 `#dto.account` 带出，登录失败经 `recordError` 留失败审计。业务自定义 Controller 参照此口径处理敏感字段。
+
 ## 跨服务持久化
 
-配置 `me.audit.target-service` 后，`AuditLogEvent` 会携带 `targetService` 通过事件桥接发布：
+配置 `me.audit.target-service` 后，`AuditLogEvent` 会携带 `targetService` 通过事件桥接定向发布；若要让所有订阅者都收到（而非定向中心），改配 `me.audit.broadcast: true`（两者都不配则仅本地发布，不产生跨服务流量）：
 
 - 非审计服务收到消息后，因 `targetService` 不匹配而忽略，避免重复落库。
+- **审计中心（接收侧）需显式启用订阅**：在启动类或任意配置类加 `@Import(AuditLogEventConfiguration.class)`（`com.frame.me.op.audit`），注册 `AuditLogEventType` 后 `EventBridgeListener` 才会订阅 `audit:op-log` 通道并还原消息。该配置刻意不随自动装配生效——发送侧经 `EventBridgePublisher` 直发不查注册表，自动注册只会让无关服务白订阅通道。
 - 审计服务还原 `AuditLogEvent` 后，可自定义 `@EventListener` 或持久化监听器写入数据库/ES。
 
 ```java

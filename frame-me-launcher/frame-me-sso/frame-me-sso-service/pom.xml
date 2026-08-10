@@ -35,6 +35,10 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-multi-redis</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-l1l2-cache</artifactId>
+        </dependency>
         <!-- 敏感配置加密 -->
         <dependency>
             <groupId>com.frame.me</groupId>
@@ -59,6 +63,10 @@
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>cn.dev33</groupId>-->
+<!--            <artifactId>sa-token-jwt</artifactId>-->
+<!--        </dependency>-->
 <!--        <dependency>-->
 <!--            <groupId>org.freemarker</groupId>-->
 <!--            <artifactId>freemarker</artifactId>-->

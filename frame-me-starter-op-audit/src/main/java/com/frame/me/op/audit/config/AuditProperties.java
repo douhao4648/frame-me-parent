@@ -23,9 +23,19 @@ public class AuditProperties {
     private boolean logEnabled = true;
 
     /**
-     * 审计服务名. 为空时通过事件桥接广播；配置为具体服务名时定向发送.
+     * 审计服务名. 配置为具体服务名时经事件桥接定向发送；为空且 {@link #broadcast} 为
+     * false 时仅本地发布（不产生跨服务流量）.
      */
     private String targetService = "";
+
+    /**
+     * 是否广播到所有订阅者，默认 false.
+     *
+     * <p>为 true 时即使 {@link #targetService} 为空也经事件桥接广播（全员送达语义）；
+     * 与 target-service 互斥不冲突——target-service 非空时优先生效定向发送。
+     * 接收侧需 {@code @Import(AuditLogEventConfiguration.class)} 才会订阅通道。</p>
+     */
+    private boolean broadcast = false;
 
     /**
      * 参数 JSON 最大长度，默认 8192（8KB），0 表示不限制.

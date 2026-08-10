@@ -18,5 +18,6 @@
     <modules>
         <module>frame-me-sso-api</module>
         <module>frame-me-sso-service</module>
+        <module>frame-me-sso-starter</module>
     </modules>
 </project>

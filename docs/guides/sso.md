@@ -93,7 +93,7 @@ curl -X POST http://sso:10010/api/auth/token \
    ```
    返回 `{ "data": { "sub":"1001", "account":"alice", "name":"Alice", "roles":"admin" } }`。
    - SSO 用 `StpUtil.getLoginIdByToken` 验 token（查 sa-token Redis），无效返 401
-   - 用户信息现查库，改名不需重签 token
+   - 用户信息走 L1/L2 缓存（60s，写路径同步失效），改名不需重签 token
    - 下游不自己验 token，零验签代码、零密钥管理
 
 2. **建下游自己的 sa-token session**：
@@ -125,6 +125,11 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 `POST /api/apps/{appId}/logout?reason=xxx`（按应用踢，admin）：
 - 注销该 appId 下**全部**会话：client_credentials 应用 token（loginId="app:"+appId）+ 所有用户 token（deviceType=appId 的 terminal，遍历会话精确匹配）
 - 返回踢掉的会话数；档3事件 payload 的 userId 为 null，下游应以 appId 清该应用全部本地 session
+
+`POST /api/auth/logout`（全局登出，用户触发，OIDC single logout 对应物）：
+- 当前登录用户一键全退：清 SSO 浏览器会话 + 全部应用 token，广播档3事件（userId 有值、appId=null）通知所有下游清本地 session
+- `@SaCheckLogin` 保护；应用 token（client_credentials，无用户维度）调用在 AuthFilter 层即 401
+- 与 `/base/auth/logout` 的区别：后者只注销当前单条 token 会话、**无事件通知**，适合应用级局部登出
 
 ### 档3事件（即时清下游 session）
 

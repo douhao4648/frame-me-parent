@@ -13,6 +13,7 @@ import com.frame.me.auth.web.vo.TokenVO;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
+import com.frame.me.op.audit.annotation.AuditLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,6 +42,12 @@ import org.springframework.web.server.ResponseStatusException;
  * 由业务方通过 {@code me.auth.permission.rules} 自行配置访问控制，
  * 避免 starter 强制依赖 RBAC 模块。</p>
  *
+ * <p><b>审计</b>：登录/登出/刷新/强制登出均标 {@code @AuditLog}（op-audit 为 optional
+ * 依赖，消费方未引入时注解被 JVM 静默忽略、无任何影响；引入后自动记录审计）。
+ * login/refresh 刻意 {@code recordParams=false, recordResult=false}——
+ * 防止明文密码与签发的 Token 对进入审计记录，登录账号由 description 的 SpEL 带出；
+ * 登录失败经 {@code recordError} 留失败审计。</p>
+ *
  * @author frame-me
  */
 @Tag(name = "JWT 认证", description = "登录、登出、刷新 Token、获取当前用户、管理员强制登出")
@@ -62,6 +69,8 @@ public class JwtAuthController {
      * 用户登录.
      */
     @Operation(summary = "登录", description = "账号密码登录，返回 Access Token；若配置了 cookie-domain，Refresh Token 会写入 HttpOnly Cookie")
+    @AuditLog(action = "登录", category = "认证", description = "账号 #dto.account 登录",
+            recordParams = false, recordResult = false)
     @Anonymous
     @PostMapping("/login")
     public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request, HttpServletResponse response) {
@@ -74,6 +83,7 @@ public class JwtAuthController {
      * 用户登出.
      */
     @Operation(summary = "登出", description = "使当前 Access Token 对应的 Refresh Token 失效；若配置了 cookie-domain，同时清除 Refresh Token Cookie")
+    @AuditLog(action = "登出", category = "认证", description = "注销当前会话", recordParams = false)
     @PostMapping("/logout")
     public IResult<Boolean> logout(HttpServletRequest request, HttpServletResponse response) {
         String token = extractToken(request);
@@ -88,6 +98,8 @@ public class JwtAuthController {
      * 刷新 Token.
      */
     @Operation(summary = "刷新 Token", description = "使用 Refresh Token 换取新的 Token 对；优先从配置 token-header（默认 Authorization）头读取，否则尝试 HttpOnly Cookie")
+    @AuditLog(action = "刷新Token", category = "认证", description = "刷新当前 Token 对",
+            recordParams = false, recordResult = false)
     @Anonymous
     @PostMapping("/refresh")
     public IResult<TokenVO> refresh(
@@ -119,6 +131,7 @@ public class JwtAuthController {
      * {@code "[/api/auth/admin/**]": "role('admin')"}）。</p>
      */
     @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 清除该用户的 Refresh Token；已颁发的 Access Token 仍会在自然过期前有效；默认关闭，需通过 me.auth.admin.logout-enabled=true 开启，开启后必须自行配置路径规则保护")
+    @AuditLog(action = "强制登出", category = "认证", description = "踢出用户 #userId（清 Refresh Token）", recordParams = false)
     @PostMapping("/admin/{userId}/logout")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)

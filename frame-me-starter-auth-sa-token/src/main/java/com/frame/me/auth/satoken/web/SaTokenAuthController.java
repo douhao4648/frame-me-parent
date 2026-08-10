@@ -13,6 +13,7 @@ import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
+import com.frame.me.op.audit.annotation.AuditLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +44,12 @@ import org.springframework.web.server.ResponseStatusException;
  * Max-Age 由 is-lasting-cookie + timeout 派生）；Token 同时永远经 JSON body 返回，
  * 前端可继续使用 header 传递，双通道二选一。</p>
  *
+ * <p><b>审计</b>：登录/登出/续期/强制登出均标 {@code @AuditLog}（op-audit 为 optional
+ * 依赖，消费方未引入时注解被 JVM 静默忽略、无任何影响；引入后自动记录审计）。
+ * login/refresh 刻意 {@code recordParams=false, recordResult=false}——
+ * 防止明文密码与签发的 Token 进入审计记录，登录账号由 description 的 SpEL 带出；
+ * 登录失败经 {@code recordError} 留失败审计。</p>
+ *
  * @author frame-me
  */
 @Tag(name = "Sa-Token 认证", description = "登录、登出、续期 Token、获取当前用户")
@@ -60,6 +67,8 @@ public class SaTokenAuthController {
      * 用户登录.
      */
     @Operation(summary = "登录", description = "账号密码登录，返回 Sa-Token 会话 Token；开启 sa-token 原生 Cookie（sa-token.is-read-cookie=true，默认）后自动写入 Cookie")
+    @AuditLog(action = "登录", category = "认证", description = "账号 #dto.account 登录",
+            recordParams = false, recordResult = false)
     @Anonymous
     @PostMapping("/login")
     public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request) {
@@ -72,6 +81,7 @@ public class SaTokenAuthController {
      * 用户登出.
      */
     @Operation(summary = "登出", description = "注销当前 Token 对应的会话；开启 sa-token 原生 Cookie 后自动清除 Token Cookie")
+    @AuditLog(action = "登出", category = "认证", description = "注销当前会话", recordParams = false)
     @PostMapping("/logout")
     public IResult<Boolean> logout(HttpServletRequest request) {
         authService.logout(SaTokenAuthUserResolver.extractToken(request));
@@ -85,6 +95,8 @@ public class SaTokenAuthController {
      * 最后活跃时间（重置闲置冻结窗口），原 Token 保持不变。</p>
      */
     @Operation(summary = "续期 Token", description = "对当前 Token 续期绝对有效期并重置闲置冻结窗口，返回原 Token；开启 sa-token 原生 Cookie 后自动刷新 Cookie")
+    @AuditLog(action = "续期", category = "认证", description = "续期当前 Token",
+            recordParams = false, recordResult = false)
     @Anonymous
     @PostMapping("/refresh")
     public IResult<TokenVO> refresh(HttpServletRequest request) {
@@ -111,6 +123,7 @@ public class SaTokenAuthController {
      * {@code "[/api/auth/admin/**]": "role:admin"}）。</p>
      */
     @Operation(summary = "强制登出用户", description = "管理员根据用户 ID 强制踢出该用户的所有 Sa-Token 会话；默认关闭，需通过 me.auth.admin.logout-enabled=true 开启，开启后必须自行配置路径规则保护")
+    @AuditLog(action = "强制登出", category = "认证", description = "踢出用户 #userId 全部会话", recordParams = false)
     @PostMapping("/admin/{userId}/logout")
     public IResult<Boolean> logoutByUserId(
             @Parameter(description = "用户 ID", required = true)

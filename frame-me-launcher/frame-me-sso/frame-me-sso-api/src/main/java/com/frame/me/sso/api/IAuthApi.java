@@ -87,4 +87,17 @@ public interface IAuthApi {
     IResult<Boolean> forceLogout(@Parameter(description = "用户 ID", required = true) @PathVariable Long userId,
                                  @Parameter(description = "应用 ID，可选，null 表示踢所有应用") @RequestParam(required = false) String appId,
                                  @Parameter(description = "踢人原因") @RequestParam(defaultValue = "admin") String reason);
+
+    /**
+     * 全局登出（用户触发的一键全退，OIDC single logout 对应物）.
+     *
+     * <p>清当前登录用户的 SSO 浏览器会话 + 全部应用 token，并广播
+     * {@code UserLogoutEvent}（appId=null）供下游清本地 session。
+     * 与 {@code /base/auth/logout}（仅注销当前单条 token、无事件通知）互补。</p>
+     *
+     * @return 成功返回 true；应用 token（client_credentials，loginId="app:"+appId）调用返回 403
+     */
+    @Operation(summary = "全局登出", description = "当前登录用户一键全退：清 SSO 会话与全部应用 token，发 UserLogoutEvent（appId=null）供下游清 session")
+    @PostExchange("/logout")
+    IResult<Boolean> logout();
 }

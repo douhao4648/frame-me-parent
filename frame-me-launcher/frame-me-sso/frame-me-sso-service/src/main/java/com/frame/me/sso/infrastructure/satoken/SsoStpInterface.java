@@ -2,7 +2,7 @@ package com.frame.me.sso.infrastructure.satoken;
 
 import cn.dev33.satoken.stp.StpInterface;
 import com.frame.me.sso.entity.UserEntity;
-import com.frame.me.sso.mapper.UserMapper;
+import com.frame.me.sso.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -13,13 +13,16 @@ import java.util.List;
 /**
  * sa-token 权限/角色源，读 UserEntity.roles.
  *
+ * <p>走 {@link UserService#findById}（L1/L2 缓存）：{@code @SaCheckRole}
+ * 每次检查都触发本方法，是角色数据的高频读路径。</p>
+ *
  * @author frame-me
  */
 @Component
 @RequiredArgsConstructor
 public class SsoStpInterface implements StpInterface {
 
-    private final UserMapper userMapper;
+    private final UserService userService;
 
     @Override
     public List<String> getPermissionList(Object loginId, String loginType) {
@@ -34,7 +37,7 @@ public class SsoStpInterface implements StpInterface {
         }
         UserEntity user;
         try {
-            user = userMapper.selectOneById(Long.parseLong(loginId.toString()));
+            user = userService.findById(Long.parseLong(loginId.toString()));
         } catch (NumberFormatException e) {
             return Collections.emptyList();
         }

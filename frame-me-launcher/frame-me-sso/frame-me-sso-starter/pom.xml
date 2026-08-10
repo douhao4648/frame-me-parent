@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.frame.me</groupId>
+        <artifactId>frame-me-sso</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>frame-me-sso-starter</artifactId>
+    <name>frame-me-sso-starter</name>
+    <description>SSO 客户端 starter：下游应用一键接入 SSO（空骨架，待实现）</description>
+</project>
