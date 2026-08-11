@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -11,13 +11,12 @@
     </parent>
 
     <artifactId>frame-me-audit</artifactId>
+    <packaging>pom</packaging>
     <name>frame-me-audit</name>
-    <description>审计服务工程（占位）：挂 frame-me-launcher 下，后续按需补充审计服务实现（接收审计日志并持久化）</description>
+    <description>审计中心聚合工程（api 契约 + service 启动服务）：接收 frame-me-starter-op-audit 桥接来的审计日志并持久化，骨架待实现</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-    </dependencies>
+    <modules>
+        <module>frame-me-audit-api</module>
+        <module>frame-me-audit-service</module>
+    </modules>
 </project>

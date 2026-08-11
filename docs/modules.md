@@ -1117,6 +1117,8 @@ public class AlertService {
 | `frame-me-sso-api` | `frame-me-api` |
 | `frame-me-sso-starter` | 无（空骨架） |
 | `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（`frame-me-starter-doc-openapi` 在 swagger profile） |
+| `frame-me-audit-api` | `frame-me-api` |
+| `frame-me-audit-service` | `frame-me-audit-api` |
 
 ## frame-me-sso（SSO 单点登录服务）
 
@@ -1159,3 +1161,14 @@ public class AlertService {
 | `me.sso.token.app-timeout` | `P1D` | 下发给下游应用 token 的独立时效 |
 | `me.sso.device-gate.enabled` | `true` | 管理端点设备闸开关 |
 | `me.sso.device-gate.path-patterns` | `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**` | 设备闸拦截路径 |
+
+## frame-me-audit（审计中心）
+
+`frame-me-launcher/frame-me-audit` 是审计中心聚合工程，聚合 `frame-me-audit-api`（契约）+ `frame-me-audit-service`（启动服务），当前为**骨架待实现**。定位：订阅 `audit:op-log` 通道，接收 `frame-me-starter-op-audit` 桥接来的审计事件并持久化（接收侧需 `@Import(AuditLogEventConfiguration.class)` 启用订阅，见 `docs/guides/audit.md` 跨服务持久化一节）。
+
+### 模块职责
+
+| 模块 | 职责 |
+|---|---|
+| `frame-me-audit-api` | 审计查询 API 契约（骨架，待实现） |
+| `frame-me-audit-service` | 启动服务：接收审计事件并持久化（骨架，`AuditConstant` 为占位类） |

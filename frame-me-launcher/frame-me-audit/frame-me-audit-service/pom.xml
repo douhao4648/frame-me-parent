@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.frame.me</groupId>
+        <artifactId>frame-me-audit</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>frame-me-audit-service</artifactId>
+    <name>frame-me-audit-service</name>
+    <description>审计中心启动服务：订阅 audit:op-log 通道接收审计事件并持久化，骨架待实现</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-audit-api</artifactId>
+        </dependency>
+    </dependencies>
+</project>
