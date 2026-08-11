@@ -23,8 +23,6 @@ logging:
   file:
     path: ./logs
     name: ${spring.application.name}
-  level:
-    com.frame.me.sso: INFO
 
 mybatis-flex:
   mapper-locations: classpath*:/mapper/**/*.xml
@@ -75,17 +73,15 @@ me:
       - /v3/api-docs/**
       - /v3/api-docs
       - /actuator/**
-    header-resolver:
-      enabled: true
     propagate:
       enabled: false
     sa-token:
       enabled: true
       path: /base/auth
-#      authorization:
-#        enabled: false
-#      jwt:
-#        enabled: true
+  #      authorization:
+  #        enabled: false
+  #      jwt:
+  #        enabled: true
   swagger:
     title: Frame Me Sso API
     description: Frame Me Sso 接口文档

@@ -26,6 +26,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -279,6 +280,55 @@ class AuthFilterTest {
 
         // 未豁免：enforceLogin=true 且非白名单，应走鉴权链（未登录会写 401，userResolver 被调用）
         verify(userResolver).resolve(request);
+    }
+
+    /**
+     * 开启访问日志时，认证主分支各出口调用 logAccess 不抛异常、不改变放行行为.
+     */
+    @Test
+    void testAccessLogEnabledDoesNotBreakFlow() throws Exception {
+        properties.getAccessLog().setEnabled(true);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        request.setQueryString("k=" + "x".repeat(3000));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        User user = new User();
+        user.setId(7L);
+        user.setAccount("alice");
+        when(userResolver.resolve(any(HttpServletRequest.class))).thenReturn(user);
+
+        java.util.concurrent.atomic.AtomicBoolean invoked = new java.util.concurrent.atomic.AtomicBoolean(false);
+        FilterChain chain = (req, res) -> invoked.set(true);
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(invoked.get());
+    }
+
+    /**
+     * Controller 抛异常逃逸到 filter 时，logAccess 在 finally 里仍执行、不吞异常：
+     * 异常照常上抛（filter 契约），AuthContext 仍被清理。
+     */
+    @Test
+    void testAccessLogInFinallyWhenChainThrows() throws Exception {
+        properties.getAccessLog().setEnabled(true);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/protected");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        when(handlerMapping.getHandler(any(HttpServletRequest.class))).thenReturn(null);
+
+        User user = new User();
+        user.setId(9L);
+        when(userResolver.resolve(any(HttpServletRequest.class))).thenReturn(user);
+
+        FilterChain chain = (req, res) -> { throw new RuntimeException("boom"); };
+
+        var ex = assertThrows(RuntimeException.class, () -> filter.doFilter(request, response, chain));
+        assertEquals("boom", ex.getMessage());
+        // finally 已清理 AuthContext（logAccess 同在 finally，能跑到此处即说明 finally 执行了）
+        assertNull(AuthContext.getUser());
     }
 
     @Anonymous

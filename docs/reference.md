@@ -80,7 +80,7 @@
 | `AuthAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/config/AuthAutoConfiguration.java` |
 | `AuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/config/AuthProperties.java` |
 | `AuthContext` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/AuthContext.java` |
-| `HeaderAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/HeaderAuthUserResolver.java` |
+|  `TrustedHeaderAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/TrustedHeaderAuthUserResolver.java` |
 | `IAuthService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthService.java` |
 | `IAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthUserResolver.java` |
 | `IServiceInstanceProbe` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IServiceInstanceProbe.java` |
@@ -308,7 +308,7 @@
 | `PermissionInterceptor` | `@RequireAuth` 注解权限拦截器 |
 | `AuthPermissionTaskDecorator` | `@Async` 权限上下文传播 TaskDecorator |
 | `RedisAuthPermissionProvider` | `@Primary` Redis 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 |
-| `HeaderAuthUserResolver` | 请求头兜底用户解析器（默认关闭，`me.auth.header-resolver.enabled=true` 开启，仅内网服务间调用） |
+|  `TrustedHeaderAuthUserResolver` | 信任身份头兜底用户解析器（`me.auth.trusted-header.enabled=true` 开启，仅内网服务间调用；显式 `false` 为空操作解析器） |
 | `JwtTokenService` | JWT 认证服务实现：登录/登出/按用户 ID 强制登出/刷新/解析 |
 | `JwtAuthUserResolver` | 从 `Authorization: Bearer ...` 解析当前用户 |
 | `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码（抽象层 `com.frame.me.auth.spi`，JWT 与 Sa-Token 实现共用） |

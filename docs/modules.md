@@ -318,7 +318,8 @@ me:
   - `com.frame.me.auth.config.AuthProperties` — `me.auth.*` 配置属性绑定。
   - `com.frame.me.auth.core.AuthContext` — ThreadLocal 当前用户上下文。
   - `com.frame.me.auth.core.AuthUserAuthenticator` — 账号密码认证器（查用户 → 401 → 校验密码 → 401），供 JWT / Sa-Token 等认证实现的 `login` 共用。
-  - `com.frame.me.auth.core.HeaderAuthUserResolver` — 基于请求头（`X-User-Id`）的兜底用户解析器，默认不装配，需 `me.auth.header-resolver.enabled=true` 显式开启。
+  - `com.frame.me.auth.core.TrustedHeaderAuthUserResolver` — 信任身份头（`X-User-Id`）的兜底用户解析器，默认不装配，需 `me.auth.trusted-header.enabled=true` 显式开启。
+  - `com.frame.me.auth.core.NoOpAuthUserResolver` — 空操作解析器（不解析任何身份），显式 `me.auth.trusted-header.enabled=false` 时装配，用于确认不需要解析行为的场景。
   - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。
   - `com.frame.me.auth.spi.IAuthUserResolver` — 请求解析当前用户接口。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — 用户详情服务 SPI（按账号/ID 查询用户、校验密码），供 JWT / Sa-Token 等认证实现共用；`matches` 为 default 方法（BCrypt），业务换算法时覆盖。
@@ -333,16 +334,19 @@ me:
 - **可配置项**：
   - `me.auth.enabled` — 是否启用认证模块，默认 `true`。**总闸：为 `false` 时 `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac` 的自动配置一并退避**（各模块类级叠加 `@ConditionalOnProperty(me.auth.enabled)`）。
   - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。按**应用内路径**匹配（不含 `server.servlet.context-path`）；配置误带 context-path 前缀时自动剥离前缀平滑兼容。
-  - `me.auth.header-resolver.enabled` — 是否启用基于请求头（`X-User-Id`）的兜底用户解析器，默认 `false`。该解析器无条件信任客户端传入的身份头，仅适用于前置网关已剥离外部身份头的内网服务间调用，开启时启动日志会输出 WARN。
+  - `me.auth.trusted-header.enabled` — 信任身份头（`X-User-Id`）兜底解析器的三态开关：`true` 启用（无条件信任客户端传入的身份头，仅适用于前置网关已剥离外部身份头的内网服务间调用，启动日志输出 WARN）；显式 `false` 装配空操作解析器（不解析任何身份，受保护端点一律 401，仅 `@Anonymous`/白名单可达）；**不配置（unset）保持 fail-closed**——缺少 resolver 时启动直接失败，防漏配静默裸奔。
+  - `me.auth.trusted-header.warn-enabled` — 启用/关闭解析器时的启动 WARN 提醒开关，默认 `true`；确认配置无误后可设 `false` 消除日志噪音。
   - `me.auth.propagate.allowed-hosts` — 认证头传播的目标主机白名单（精确主机名 / `*.example.com` 后缀通配 / `*`），默认空。未命中白名单时按服务名调用甄别放行：注册中心服务名（Spring Cloud LoadBalancer 可解析，经专用 SPI `IServiceInstanceProbe` 判定，业务可自定义覆盖）与单标签内网主机名默认放行，外部多标签域名/IP 一律不传播；`me.auth.propagate.service-discovery.enabled=false` 可关闭豁免回到严格白名单模式。
   - `me.auth.login-rate-limit.enabled` — 是否启用登录限流（按客户端 IP，固定窗口），默认 `true`。
   - `me.auth.login-rate-limit.max-attempts` — 窗口内最大登录尝试次数，默认 `5`。
   - `me.auth.login-rate-limit.window` — 限流窗口时长，默认 `60s`。
+  - `me.auth.access-log.enabled` — 是否启用 `AuthFilter` 访问日志（method / URI 含 query / 用户 / 响应状态码，INFO 级），默认 `false`。关闭时 `logAccess` 首行短路，零日志开销；启用后输出在认证主分支各出口（匿名放行 / 非强制登录放行 / 认证拒绝 401 / 已登录放行）。
+  - `me.auth.access-log.max-length` — URI（含 query string）最大记录长度，超出截断（尾部补 `...`），默认 `2000`；`0` 表示不限制。
 - **设计约定**：
   - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得认证上下文能力。
-  - **fail-closed**：容器中没有任何 `IAuthUserResolver` 实现且未开启 `me.auth.header-resolver.enabled` 时，`AuthFilter` 装配直接抛出带指引的异常（提示引入 auth-jwt / auth-sa-token 或显式开启 header-resolver），不会静默退化为不安全默认行为。
+  - **fail-closed**：容器中没有任何 `IAuthUserResolver` 实现且未显式配置 `me.auth.trusted-header.enabled`（true/false 均可）时，`AuthFilter` 装配直接抛出带指引的异常（提示引入 auth-jwt / auth-sa-token 或显式配置 trusted-header），不会静默退化为不安全默认行为。
   - **仅 Servlet Web 应用装配**（`@ConditionalOnWebApplication(SERVLET)`）：非 Web 应用下整个模块退避。
-  - `HeaderAuthUserResolver` 无条件信任 `X-User-Id` 头，仅限内网服务间调用；对外应用必须引入 `frame-me-starter-auth-jwt` 或 `frame-me-starter-auth-sa-token`（两者均 `@AutoConfigureBefore(AuthAutoConfiguration)`，先于抽象层注册解析器使其退避）。
+  - `TrustedHeaderAuthUserResolver` 无条件信任 `X-User-Id` 头，仅限内网服务间调用；对外应用必须引入 `frame-me-starter-auth-jwt` 或 `frame-me-starter-auth-sa-token`（两者均 `@AutoConfigureBefore(AuthAutoConfiguration)`，先于抽象层注册解析器使其退避）。
   - 通过 `@AutoConfigureBefore(AuditAutoConfiguration.class)` 保证审计模块能拿到当前登录用户 ID。
   - **登录限流双实现**：默认注册 base 的 `InMemoryLoginRateLimiter`（单实例内存版）；引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，由 multi-redis 侧以 `@Primary` 注册 `RedissonLoginRateLimiter`（Redis 分布式版）覆盖，配置与内存版共用 `me.auth.login-rate-limit.*`（multi-redis 本地 `LoginRateLimitProperties` 绑定同前缀，默认值与 `AuthProperties.LoginRateLimit` 保持一致）。
 

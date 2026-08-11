@@ -40,7 +40,7 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
 - `frame-me-adapter`：`pom` 聚合模块，承载老接口规范的适配层，拆为 `frame-me-adapter-api`（依赖 `frame-me-api`，含 `PageParam`/`PageResult` 等契约类）与 `frame-me-adapter-starter`（依赖 `frame-me-adapter-api` + `frame-me-starter-base`，含 `Response` 适配与 `PageableUtils` 等）。集成 `frame-me-adapter-starter` 即表示遵循老规范，可被外部项目重写。
 - `frame-me-starter-dynamic-ds`：依赖 `frame-me-starter-base` + baomidou `dynamic-datasource-spring-boot4-starter`，多数据源能力，按需显式引入。
 - `frame-me-starter-doc-openapi`：依赖 `springdoc-openapi-starter-webmvc-ui`，接口文档能力，不依赖框架内部模块。
-- `frame-me-starter-auth`：依赖 `frame-me-starter-base`，认证授权抽象层，提供 `AuthContext`、 `@LoginUser` / `@Anonymous`、 `IAuthService` / `IAuthUserResolver` SPI、 `AuthFilter` 等；另提供一个基于请求头的极简兜底实现（默认关闭，`me.auth.header-resolver.enabled=true` 显式开启，仅内网服务间调用）。
+- `frame-me-starter-auth`：依赖 `frame-me-starter-base`，认证授权抽象层，提供 `AuthContext`、 `@LoginUser` / `@Anonymous`、 `IAuthService` / `IAuthUserResolver` SPI、 `AuthFilter` 等；另提供一个信任身份头的极简兜底实现（默认关闭，`me.auth.trusted-header.enabled=true` 显式开启，仅内网服务间调用；显式 `false` 则为空操作解析器，不解析任何身份）。
 - `frame-me-starter-auth-jwt`：依赖 `frame-me-starter-auth`，JWT 认证实现，完全接管 `IAuthService` / `IAuthUserResolver`，提供登录/登出/刷新/当前用户接口与默认 Controller，业务只需实现 `IAuthUserDetailsService`。
 - `frame-me-starter-auth-sa-token`：依赖 `frame-me-starter-auth` + `sa-token-spring-boot4-starter`（cn.dev33，1.45.0），sa-token 会话治理型认证实现，同样接管 `IAuthService` / `IAuthUserResolver`，提供踢人/封禁/在线会话/多端互斥能力；`frame-me-starter-multi-redis` 为 optional 依赖，显式引入即激活 Redis 会话后端（缺席退回内存 DAO，仅单实例可用）。
 - `frame-me-starter-auth-rbac`：依赖 `frame-me-starter-auth`，轻量 RBAC 授权模块，提供 `@RequireAuth`(SpEL) 注解、方法拦截器、路径 Filter、权限数据源 SPI 与数据权限能力；可选 Redis 权限后端（引入 `frame-me-starter-multi-redis` 即激活）。
@@ -113,7 +113,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 - `frame-me-starter-op-audit` 注册 `com.frame.me.op.audit.config.AuditAutoConfiguration`
   - 注册 Bean：`AuditLogAspect`、`AuditLogLogger`（`me.audit.enabled=true`，默认开启）。
 - `frame-me-starter-auth` 注册 `com.frame.me.auth.config.AuthAutoConfiguration`
-  - 注册 Bean：`AuthFilter`（注册为 FilterRegistrationBean，缺少 `IAuthUserResolver` 实现时启动直接失败并给出指引）、`HeaderAuthUserResolver`（兜底，`me.auth.header-resolver.enabled=true` 才装配）、`LoginUserArgumentResolver` 配置、`AuditAuthOperatorSupplier`（可选）。
+  - 注册 Bean：`AuthFilter`（注册为 FilterRegistrationBean，缺少 `IAuthUserResolver` 实现时启动直接失败并给出指引）、`TrustedHeaderAuthUserResolver`（兜底，`me.auth.trusted-header.enabled=true` 才装配；显式 `false` 时装配 `NoOpAuthUserResolver` 空操作解析器）、`LoginUserArgumentResolver` 配置、`AuditAuthOperatorSupplier`（可选）。
 - `frame-me-starter-auth-jwt` 注册 `com.frame.me.auth.jwt.config.JwtAutoConfiguration`
   - 注册 Bean：`JwtTokenService`（实现 `IAuthService`）、`JwtAuthUserResolver`（实现 `IAuthUserResolver`）、`JwtAuthController`、默认 `RedisRefreshTokenStore`。通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 优先于 auth 抽象层加载，从而完全接管认证实现。
 - `frame-me-starter-auth-sa-token` 注册 `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration`、`com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration`

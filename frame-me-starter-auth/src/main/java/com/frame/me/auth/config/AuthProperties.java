@@ -65,9 +65,14 @@ public class AuthProperties {
     private Admin admin = new Admin();
 
     /**
-     * 基于请求头的默认用户解析器开关配置.
+     * 信任身份头兜底解析器配置（三态，详见嵌套类）.
      */
-    private HeaderResolver headerResolver = new HeaderResolver();
+    private TrustedHeader trustedHeader = new TrustedHeader();
+
+    /**
+     * 访问日志配置（默认关闭）.
+     */
+    private AccessLog accessLog = new AccessLog();
 
     /**
      * 服务间调用时认证信息传播配置.
@@ -150,23 +155,56 @@ public class AuthProperties {
     }
 
     /**
-     * 基于请求头的默认用户解析器开关配置.
+     * 信任身份头兜底解析器配置.
      *
-     * <p>该解析器无条件信任客户端传入的 {@code X-User-Id} 请求头，
-     * 仅适用于不直接对外暴露的内网服务间调用场景，因此默认关闭、需显式开启。</p>
+     * <p>三态语义（Bean 装配由 {@code @ConditionalOnProperty} 驱动，此处仅作绑定与元数据）：
+     * 不配置（unset）fail-closed 拒绝启动；{@code true} 启用信任头解析；
+     * 显式 {@code false} 装配空操作解析器（不解析任何身份）。</p>
      */
     @Data
-    public static class HeaderResolver {
+    public static class TrustedHeader {
 
         /**
-         * 是否启用基于请求头的默认用户解析器，默认 {@code false}.
+         * 是否启用信任身份头的兜底用户解析器，默认 {@code null}（不配置）.
          *
-         * <p>仅当服务不直接对外暴露（前置网关已剥离外部请求的 {@code X-User-Id} 头）、
-         * 且调用方均为内网可信服务时才应开启。对外应用应引入
-         * {@code frame-me-starter-auth-jwt} 或 {@code frame-me-starter-auth-sa-token}
-         * 提供真实的 {@code IAuthUserResolver} 实现。</p>
+         * <p>{@code true}：无条件信任客户端传入的 {@code X-User-Id} 头，仅适用于前置网关
+         * 已剥离外部身份头的内网服务间调用；{@code false}：确认不需要任何解析行为；
+         * 不配置：缺少 resolver 时启动直接失败（fail-closed）。</p>
+         */
+        private Boolean enabled;
+
+        /**
+         * 启用/关闭解析器时是否打 WARN 提醒，默认 {@code true}.
+         *
+         * <p>确认配置无误后可设 {@code false} 关闭，消除启动日志噪音。</p>
+         */
+        private Boolean warnEnabled = true;
+    }
+
+    /**
+     * 访问日志配置.
+     *
+     * <p>默认关闭，启用后在 {@link com.frame.me.auth.filter.AuthFilter} 认证主分支各出口
+     * 输出 method / URI（含 query）/ 用户 / 响应状态码（INFO 级）。
+     * 超长 URI 按 {@link #maxLength} 截断，防止撑爆日志行。</p>
+     */
+    @Data
+    public static class AccessLog {
+
+        /**
+         * 是否启用访问日志，默认 {@code false}.
+         *
+         * <p>关闭时 {@link com.frame.me.auth.filter.AuthFilter#logAccess} 首行短路，
+         * 零日志开销。</p>
          */
         private Boolean enabled = false;
+
+        /**
+         * URI（含 query string）最大记录长度，超出截断，默认 {@code 2000}.
+         *
+         * <p>{@code 0} 表示不限制。</p>
+         */
+        private int maxLength = 200;
     }
 
     /**
@@ -213,6 +251,13 @@ public class AuthProperties {
          * 注册中心服务名调用甄别配置.
          */
         private ServiceDiscovery serviceDiscovery = new ServiceDiscovery();
+        /**
+         * 是否从 {@link com.frame.me.auth.core.AuthContext} 补充用户头.
+         *
+         * <p>开启后，若当前请求已登录，会把用户 ID 和账号作为 {@code X-User-Id} / {@code X-User-Account}
+         * 写入出站请求，使 JWT 上游调用 header-auth 下游时也能被识别。</p>
+         */
+        private UserInfo userInfo = new UserInfo();
 
         /**
          * 注册中心服务名调用甄别配置.
@@ -232,14 +277,6 @@ public class AuthProperties {
              */
             private Boolean enabled = true;
         }
-
-        /**
-         * 是否从 {@link com.frame.me.auth.core.AuthContext} 补充用户头.
-         *
-         * <p>开启后，若当前请求已登录，会把用户 ID 和账号作为 {@code X-User-Id} / {@code X-User-Account}
-         * 写入出站请求，使 JWT 上游调用 header-auth 下游时也能被识别。</p>
-         */
-        private UserInfo userInfo = new UserInfo();
 
         /**
          * 从认证上下文补充用户头的配置.

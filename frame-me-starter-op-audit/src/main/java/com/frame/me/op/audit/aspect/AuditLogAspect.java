@@ -2,13 +2,13 @@ package com.frame.me.op.audit.aspect;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONWriter;
+import com.frame.me.base.event.EventBridgeProperties;
+import com.frame.me.base.event.EventBridgePublisher;
 import com.frame.me.op.audit.annotation.AuditLog;
 import com.frame.me.op.audit.config.AuditProperties;
 import com.frame.me.op.audit.core.AuditLogEvent;
 import com.frame.me.op.audit.core.AuditLogRecord;
 import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
-import com.frame.me.base.event.EventBridgePublisher;
-import com.frame.me.base.event.EventBridgeProperties;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +49,9 @@ public class AuditLogAspect {
 
     private static final SpelExpressionParser SPEL_PARSER = new SpelExpressionParser();
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\#([a-zA-Z_][\\w.]*)");
-    /** 标记已 warn 过参数名缺失，避免刷屏. */
+    /**
+     * 标记已 warn 过参数名缺失，避免刷屏.
+     */
     private static final java.util.concurrent.atomic.AtomicBoolean WARNED_MISSING_PARAMETERS = new java.util.concurrent.atomic.AtomicBoolean(false);
 
     private final ApplicationEventPublisher localPublisher;
@@ -78,7 +80,7 @@ public class AuditLogAspect {
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy());
         executor.initialize();
         this.publishExecutor = executor;
-        log.info("AuditLogAspect 异步发布已启用: core={}, max={}, queue={}",
+        log.info("AuditLogAspect async publishing enabled: core={}, max={}, queue={}",
                 cfg.getCorePoolSize(), cfg.getMaxPoolSize(), cfg.getQueueCapacity());
     }
 
@@ -100,8 +102,8 @@ public class AuditLogAspect {
     /**
      * 拦截 {@link AuditLog} 注解方法.
      *
-     * @param point     连接点
-     * @param auditLog  注解
+     * @param point    连接点
+     * @param auditLog 注解
      * @return 方法返回值
      * @throws Throwable 方法抛出的异常
      */

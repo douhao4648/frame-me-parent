@@ -24,7 +24,14 @@ spring:
 
 logging:
   level:
-      com.zaxxer.hikari: INFO
+    com.zaxxer.hikari: INFO
+    com.frame.me.sso: DEBUG
+
+
+me:
+  auth:
+    access-log:
+      enabled: true
 
 #mybatis-flex:
 #  default-datasource-key: master
@@ -39,12 +46,15 @@ logging:
 #      minimum-idle: 5
 
 
-# auth
-# redis
+
 # 多个文件的 pom
 # snowflake my-felx
-# cache
-# notify
-# op-audit
-# nacos encrypt
 # base
+# notify
+# demo
+# jwt
+# rbac
+# ds mybatis-plus
+# nacos encrypt
+# sse
+# ws

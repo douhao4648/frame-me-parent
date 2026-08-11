@@ -1,7 +1,6 @@
 package com.frame.me.auth.propagation;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -17,15 +16,6 @@ public class AuthPropagationHolder {
     private static final ThreadLocal<Map<String, String>> HEADERS = new ThreadLocal<>();
 
     private AuthPropagationHolder() {
-    }
-
-    /**
-     * 设置当前线程需要传播的请求头.
-     *
-     * @param headers 请求头映射
-     */
-    public static void setHeaders(Map<String, String> headers) {
-        HEADERS.set(headers);
     }
 
     /**
@@ -52,6 +42,15 @@ public class AuthPropagationHolder {
         // 直接包装原 Map 视图（无需拷贝）：ThreadLocal 的 Map 仅在 setHeaders/clear 时整体替换或移除，
         // 返回的视图绑定当前那份 Map 引用，后续 set/clear 不影响本视图
         return headers == null ? Collections.emptyMap() : Collections.unmodifiableMap(headers);
+    }
+
+    /**
+     * 设置当前线程需要传播的请求头.
+     *
+     * @param headers 请求头映射
+     */
+    public static void setHeaders(Map<String, String> headers) {
+        HEADERS.set(headers);
     }
 
     /**

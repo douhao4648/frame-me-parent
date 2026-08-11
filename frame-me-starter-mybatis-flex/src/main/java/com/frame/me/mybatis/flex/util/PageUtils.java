@@ -25,6 +25,10 @@ public final class PageUtils {
      * 合法排序字段名的白名单模式：仅允许字母、数字、下划线以及点（table.column）.
      */
     private static final Pattern SAFE_COLUMN = Pattern.compile("^[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*$");
+    /**
+     * 分页最大条数，防止单次查询撑爆内存/数据库.
+     */
+    private static final long MAX_PAGE_SIZE = 1000;
 
     /**
      * 将单个排序段解析为安全的 ORDER BY SQL 片段.
@@ -72,6 +76,12 @@ public final class PageUtils {
         return safe;
     }
 
+    /**
+     * 从 {@link PageQuery} 中提取每页条数.
+     *
+     * @param query 分页查询参数
+     * @return 每页条数
+     */
 
     /**
      * 从 {@link PageQuery} 中提取当前页码（1-based）.
@@ -83,15 +93,6 @@ public final class PageUtils {
         long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1 : query.getCurrent();
         return (int) current;
     }
-
-    /**
-     * 从 {@link PageQuery} 中提取每页条数.
-     *
-     * @param query 分页查询参数
-     * @return 每页条数
-     */
-    /** 分页最大条数，防止单次查询撑爆内存/数据库. */
-    private static final long MAX_PAGE_SIZE = 1000;
 
     public static int pageSize(PageQuery query) {
         long size = query.getSize() == null || query.getSize() < 1 ? 10 : Math.min(query.getSize(), MAX_PAGE_SIZE);

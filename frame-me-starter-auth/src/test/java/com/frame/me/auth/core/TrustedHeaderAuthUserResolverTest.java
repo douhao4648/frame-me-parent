@@ -9,19 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
- * {@link HeaderAuthUserResolver} 单元测试.
+ * {@link TrustedHeaderAuthUserResolver} 单元测试.
  *
  * @author frame-me
  */
-class HeaderAuthUserResolverTest {
+class TrustedHeaderAuthUserResolverTest {
 
-    private final HeaderAuthUserResolver resolver = new HeaderAuthUserResolver();
+    private final TrustedHeaderAuthUserResolver resolver = new TrustedHeaderAuthUserResolver();
 
     @Test
     void testResolveWithValidHeader() {
         HttpServletRequest request = new MockHttpServletRequest();
-        ((MockHttpServletRequest) request).addHeader(HeaderAuthUserResolver.HEADER_USER_ID, "1001");
-        ((MockHttpServletRequest) request).addHeader(HeaderAuthUserResolver.HEADER_USER_ACCOUNT, "admin");
+        ((MockHttpServletRequest) request).addHeader(TrustedHeaderAuthUserResolver.HEADER_USER_ID, "1001");
+        ((MockHttpServletRequest) request).addHeader(TrustedHeaderAuthUserResolver.HEADER_USER_ACCOUNT, "admin");
 
         User user = resolver.resolve(request);
 
@@ -32,7 +32,7 @@ class HeaderAuthUserResolverTest {
     @Test
     void testResolveWithoutUserId() {
         HttpServletRequest request = new MockHttpServletRequest();
-        ((MockHttpServletRequest) request).addHeader(HeaderAuthUserResolver.HEADER_USER_ACCOUNT, "admin");
+        ((MockHttpServletRequest) request).addHeader(TrustedHeaderAuthUserResolver.HEADER_USER_ACCOUNT, "admin");
 
         assertNull(resolver.resolve(request));
     }
@@ -40,7 +40,7 @@ class HeaderAuthUserResolverTest {
     @Test
     void testResolveWithInvalidUserId() {
         HttpServletRequest request = new MockHttpServletRequest();
-        ((MockHttpServletRequest) request).addHeader(HeaderAuthUserResolver.HEADER_USER_ID, "not-a-number");
+        ((MockHttpServletRequest) request).addHeader(TrustedHeaderAuthUserResolver.HEADER_USER_ID, "not-a-number");
 
         assertNull(resolver.resolve(request));
     }

@@ -5,11 +5,11 @@ import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
 import com.frame.me.auth.annotation.LoginUser;
 import com.frame.me.auth.config.AuthProperties;
-import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
 import com.frame.me.auth.web.vo.TokenVO;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -27,12 +27,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -137,7 +132,7 @@ public class JwtAuthController {
             @Parameter(description = "用户 ID", required = true)
             @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties ifAvailable = authProperties.getIfAvailable();
-        if(ifAvailable == null) {
+        if (ifAvailable == null) {
             return Result.error(ResultCode.UNAUTHORIZED);
         }
         AuthProperties.Admin admin = ifAvailable.getAdmin();

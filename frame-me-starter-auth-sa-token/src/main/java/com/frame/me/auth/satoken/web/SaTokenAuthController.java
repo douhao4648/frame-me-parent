@@ -129,7 +129,7 @@ public class SaTokenAuthController {
             @Parameter(description = "用户 ID", required = true)
             @PathVariable @Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties ifAvailable = authProperties.getIfAvailable();
-        if(ifAvailable == null) {
+        if (ifAvailable == null) {
             return Result.error(ResultCode.UNAUTHORIZED);
         }
         AuthProperties.Admin admin = ifAvailable.getAdmin();

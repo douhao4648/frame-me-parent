@@ -1,12 +1,14 @@
 package com.frame.me.auth.spi;
 
+import com.frame.me.base.exception.BusinessException;
+import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 
 /**
  * 认证服务接口.
  *
  * <p>定义登录、登出、刷新 Token 等核心行为。具体实现由后续认证模块提供，
-例如 JWT、Sa-Token、Spring Security 等。</p>
+ * 例如 JWT、Sa-Token、Spring Security 等。</p>
  *
  * @author frame-me
  */
@@ -20,6 +22,21 @@ public interface IAuthService {
      * @return 登录成功后的用户凭证（如 Token、SessionId）
      */
     String login(String account, String password);
+
+    /**
+     * 按已知用户直接建立会话（RP 场景：身份已由外部 IdP 验证，无需密码校验）.
+     *
+     * <p>供 SSO 下游等"code 换用户后建本地 session"场景使用——{@link #login(String, String)}
+     * 走账号密码流程，不适用于 RP。具体认证实现按需覆盖（如 Sa-Token 的
+     * {@code StpUtil.login} + 用户快照缓存）；默认抛异常表示不支持 RP 场景。</p>
+     *
+     * @param user 已认证用户（由外部 IdP 提供身份，id 必填）
+     * @return 会话凭证（Token、SessionId）
+     * @throws BusinessException 默认实现抛 {@code UNAUTHORIZED}，表示当前认证实现不支持 RP
+     */
+    default String loginByUser(User user) {
+        throw new BusinessException(ResultCode.UNAUTHORIZED, "当前认证实现不支持按已知用户直接建立会话（RP 场景）");
+    }
 
     /**
      * 用户登出.

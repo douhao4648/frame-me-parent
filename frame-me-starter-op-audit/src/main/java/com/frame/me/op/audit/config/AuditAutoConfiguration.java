@@ -1,10 +1,10 @@
 package com.frame.me.op.audit.config;
 
+import com.frame.me.base.event.EventBridgeProperties;
+import com.frame.me.base.event.EventBridgePublisher;
 import com.frame.me.op.audit.aspect.AuditLogAspect;
 import com.frame.me.op.audit.listener.AuditLogLogger;
 import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
-import com.frame.me.base.event.EventBridgeProperties;
-import com.frame.me.base.event.EventBridgePublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -47,10 +47,10 @@ public class AuditAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public AuditLogAspect auditLogAspect(ApplicationEventPublisher localPublisher,
-                                          ObjectProvider<EventBridgePublisher> bridgePublisherProvider,
-                                          IAuditLogOperatorSupplier operatorSupplier,
-                                          AuditProperties properties,
-                                          EventBridgeProperties eventBridgeProperties) {
+                                         ObjectProvider<EventBridgePublisher> bridgePublisherProvider,
+                                         IAuditLogOperatorSupplier operatorSupplier,
+                                         AuditProperties properties,
+                                         EventBridgeProperties eventBridgeProperties) {
         log.info("AuditLogAspect initialized, targetService={}", properties.getTargetService());
         return new AuditLogAspect(localPublisher, bridgePublisherProvider, operatorSupplier,
                 properties, eventBridgeProperties);

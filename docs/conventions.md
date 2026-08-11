@@ -677,7 +677,7 @@ me:
 - 仅作用于 `@ImportHttpServices` 生成的声明式 HTTP 客户端，不影响普通 `RestClient` / `RestTemplate`（避免把内部 token 泄露给外部 webhook 等调用）。
 - 默认从当前请求原样传播以下头：
   - `Authorization`：覆盖 JWT（`Bearer ...`）场景。
-  - `X-User-Id`、`X-User-Account`：覆盖 `HeaderAuthUserResolver` 场景。
+  - `X-User-Id`、`X-User-Account`：覆盖 `TrustedHeaderAuthUserResolver` 场景。
 - 若当前请求已通过认证（无论 JWT 还是 header-auth），还会从 `AuthContext` 把用户 ID 和账号作为 `X-User-Id` / `X-User-Account` 补充到出站请求，使 **JWT 上游调用 header-auth 下游** 的混合场景也能被识别。
 
 配置示例：

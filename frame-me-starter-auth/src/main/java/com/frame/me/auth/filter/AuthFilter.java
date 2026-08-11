@@ -8,12 +8,7 @@ import com.frame.me.auth.util.ContextPathUtils;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
+import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -90,10 +85,12 @@ public class AuthFilter implements Filter {
             return;
         }
 
+        // user 提到 try 外：finally 里 logAccess 要用，401 拒绝/匿名放行路径下为 null（记 anonymous）
+        User user = null;
         try {
             if (isAnonymous(httpRequest)) {
                 if (!Boolean.TRUE.equals(properties.getSkipAnonymousContext())) {
-                    resolveAndSetUser(httpRequest);
+                    user = resolveAndSetUser(httpRequest);
                 }
                 chain.doFilter(request, response);
                 return;
@@ -101,12 +98,12 @@ public class AuthFilter implements Filter {
 
             if (!Boolean.TRUE.equals(properties.getEnforceLogin())) {
                 // 不强制登录：尝试解析用户并放行，不返回 401
-                resolveAndSetUser(httpRequest);
+                user = resolveAndSetUser(httpRequest);
                 chain.doFilter(request, response);
                 return;
             }
 
-            User user = resolveAndSetUser(httpRequest);
+            user = resolveAndSetUser(httpRequest);
             if (user == null) {
                 // 拒绝必留痕：最高频的 401 路径，无日志则无法定位是哪一层拒绝的
                 log.warn("认证失败，拒绝请求: method={}, uri={}", httpRequest.getMethod(), httpRequest.getRequestURI());
@@ -116,6 +113,9 @@ public class AuthFilter implements Filter {
 
             chain.doFilter(request, response);
         } finally {
+            // 放 finally：Controller 抛异常逃逸到 filter 时也留访问日志，
+            // 此时 status 反映容器/servlet 设的真实状态码；统一 Result 被全局异常处理器吃掉的情形仍是 200
+            logAccess(httpRequest, user, httpResponse);
             AuthContext.clear();
         }
     }
@@ -127,9 +127,37 @@ public class AuthFilter implements Filter {
         User user = userResolver.resolve(request);
         if (user != null) {
             AuthContext.setUser(user);
-            log.debug("认证上下文已设置: userId={}, account={}", user.getId(), user.getAccount());
+            log.debug("auth context set: userId={}, account={}", user.getId(), user.getAccount());
         }
         return user;
+    }
+
+    /**
+     * 访问日志：记录 method / URI（含 query）/ 用户 / 响应状态码，默认关闭.
+     *
+     * <p>ponytail: 简单 substring 截断，max-length 覆盖常规 URI 足够；
+     * 需按字段分别截断或脱敏时再扩展。</p>
+     *
+     * @param request  HTTP 请求
+     * @param user     当前解析到的用户（可能为 null，记为 anonymous）
+     * @param response HTTP 响应
+     */
+    private void logAccess(HttpServletRequest request, User user, HttpServletResponse response) {
+        if (!Boolean.TRUE.equals(properties.getAccessLog().getEnabled())) {
+            return;
+        }
+        int max = properties.getAccessLog().getMaxLength();
+        String uri = request.getRequestURI();
+        String qs = request.getQueryString();
+        String target = qs != null ? uri + "?" + qs : uri;
+        if (max > 0 && target.length() > max) {
+            target = target.substring(0, max) + "...";
+        }
+        log.info("log-access: method={}, uri={}, user={}, status={}",
+                request.getMethod(),
+                target,
+                user != null ? user.getId() : "anonymous",
+                response.getStatus());
     }
 
     /**

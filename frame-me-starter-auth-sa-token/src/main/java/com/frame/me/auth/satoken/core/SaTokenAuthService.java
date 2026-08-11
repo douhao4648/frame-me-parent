@@ -68,6 +68,32 @@ public class SaTokenAuthService implements IAuthService {
     }
 
     /**
+     * 按已知用户直接建立 sa-token 会话（RP 场景：身份已由外部 IdP 验证，无需密码校验）.
+     *
+     * <p>覆盖 {@link IAuthService#loginByUser(User)}：供 SSO 下游等"code 换用户后建本地 session"
+     * 场景使用。{@link #login(String, String)} 走账号密码流程（{@link AuthUserAuthenticator}），
+     * 不适用于 RP。本方法直接 {@code StpUtil.login} + {@code cacheUser}，语义与 {@code login}
+     * 一致，仅跳过密码校验环节；用户快照同样写入 Account-Session，后续
+     * {@link #getUser(String)} 从 session 缓存读取。</p>
+     *
+     * @param user 已认证用户（由外部 IdP 提供身份，id 必填）
+     * @return sa-token 会话 token
+     * @throws com.frame.me.base.exception.BusinessException 用户信息无效或账号已禁用
+     */
+    @Override
+    public String loginByUser(User user) {
+        if (user == null || user.getId() == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "用户信息无效");
+        }
+        if (!User.STATUS_ENABLED.equals(user.getStatus())) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED, "账号已被禁用");
+        }
+        StpUtil.login(user.getId());
+        cacheUser(user.getId(), user, null);
+        return StpUtil.getTokenValue();
+    }
+
+    /**
      * 注销当前请求 token（原生清 Cookie + 注销当前会话）.
      *
      * <p>与 JWT 实现语义一致：Controller 传入的 credential 本来就是当前请求的 token，

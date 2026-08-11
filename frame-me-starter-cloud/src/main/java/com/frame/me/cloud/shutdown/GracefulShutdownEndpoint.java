@@ -35,7 +35,9 @@ import java.util.Map;
 @Endpoint(id = "offline")
 public class GracefulShutdownEndpoint {
 
-    /** 共享密钥请求头名. */
+    /**
+     * 共享密钥请求头名.
+     */
     public static final String TOKEN_HEADER = "X-Offline-Token";
 
     private static final Logger log = LoggerFactory.getLogger(GracefulShutdownEndpoint.class);

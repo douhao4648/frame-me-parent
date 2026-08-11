@@ -7,7 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
  * 当前用户解析器接口.
  *
  * <p>从 HTTP 请求中解析当前登录用户。不同认证实现可自定义解析方式，
-例如从 Header 读取、从 JWT 解析、从 Session 获取等。</p>
+ * 例如从 Header 读取、从 JWT 解析、从 Session 获取等。</p>
  *
  * @author frame-me
  */

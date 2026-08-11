@@ -1,9 +1,12 @@
 package com.frame.me.auth.core;
 
 import com.frame.me.auth.spi.IAuthUserDetailsService;
+import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
+
+import java.util.UUID;
 
 /**
  * 账号密码认证器（JWT / Sa-Token 等认证实现共用）.
@@ -26,7 +29,7 @@ public final class AuthUserAuthenticator {
      * <p>每次 JVM 启动生成随机盐的哑 hash（而非固定公开字符串），
      * 消除「固定 hash 被识别即判断账号不存在」的理论风险.</p>
      */
-    private static final String DUMMY_BCRYPT_HASH = com.frame.me.auth.util.PasswordUtils.encode("dummy-" + java.util.UUID.randomUUID());
+    private static final String DUMMY_BCRYPT_HASH = PasswordUtils.encode("dummy-" + UUID.randomUUID());
 
     private AuthUserAuthenticator() {
     }

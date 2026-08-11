@@ -1,6 +1,7 @@
 package com.frame.me.auth.config;
 
-import com.frame.me.auth.core.HeaderAuthUserResolver;
+import com.frame.me.auth.core.NoOpAuthUserResolver;
+import com.frame.me.auth.core.TrustedHeaderAuthUserResolver;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.auth.spi.IServiceInstanceProbe;
 import com.frame.me.base.limit.InMemoryLoginRateLimiter;
@@ -21,7 +22,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * {@link AuthAutoConfiguration} 装配测试：验证 Header 解析器开关、fail-closed、业务接管与 Web 应用类型条件.
+ * {@link AuthAutoConfiguration} 装配测试：验证信任头解析器三态开关、fail-closed、业务接管与 Web 应用类型条件.
  *
  * @author frame-me
  */
@@ -63,13 +64,49 @@ class AuthAutoConfigurationTest {
      * 显式开启后装配 Header 解析器，认证过滤器正常注册.
      */
     @Test
-    void headerResolverEnabledBySwitch() {
-        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+    void trustedHeaderEnabledBySwitch() {
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context.getBean(IAuthUserResolver.class))
-                            .isInstanceOf(HeaderAuthUserResolver.class);
+                            .isInstanceOf(TrustedHeaderAuthUserResolver.class);
                     assertThat(context).hasBean("authFilter");
+                });
+    }
+
+    /**
+     * 显式 enabled=false：装配空操作解析器（不解析任何身份），启动正常、认证过滤器注册；
+     * 与不配（unset）的 fail-closed 区分.
+     */
+    @Test
+    void noOpResolverWhenExplicitlyDisabled() {
+        runner.withPropertyValues("me.auth.trusted-header.enabled=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(IAuthUserResolver.class))
+                            .isInstanceOf(NoOpAuthUserResolver.class);
+                    assertThat(context).hasBean("authFilter");
+                });
+    }
+
+    /**
+     * trusted-header 配置绑定：enabled 三态（默认 null=unset）与 warn-enabled（默认 true）
+     * 正确绑定到 {@link AuthProperties}.
+     */
+    @Test
+    void trustedHeaderPropertiesBound() {
+        runner.withPropertyValues("me.auth.trusted-header.enabled=false")
+                .run(context -> {
+                    AuthProperties props = context.getBean(AuthProperties.class);
+                    assertThat(props.getTrustedHeader().getEnabled()).isFalse();
+                    assertThat(props.getTrustedHeader().getWarnEnabled()).isTrue();
+                });
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true",
+                        "me.auth.trusted-header.warn-enabled=false")
+                .run(context -> {
+                    AuthProperties props = context.getBean(AuthProperties.class);
+                    assertThat(props.getTrustedHeader().getEnabled()).isTrue();
+                    assertThat(props.getTrustedHeader().getWarnEnabled()).isFalse();
                 });
     }
 
@@ -78,7 +115,7 @@ class AuthAutoConfigurationTest {
      */
     @Test
     void customResolverTakesPrecedence() {
-        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true")
                 .withUserConfiguration(CustomResolverConfig.class)
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -94,7 +131,7 @@ class AuthAutoConfigurationTest {
      */
     @Test
     void unrelatedPredicateBeanNotHijackedAsProbe() {
-        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true")
                 .withUserConfiguration(UnrelatedPredicateConfig.class)
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -111,7 +148,7 @@ class AuthAutoConfigurationTest {
     @Test
     void customProbeOverridesDefault() {
         IServiceInstanceProbe customProbe = host -> true;
-        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true")
                 .withBean(IServiceInstanceProbe.class, () -> customProbe)
                 .run(context -> {
                     assertThat(context).hasNotFailed();
@@ -125,7 +162,7 @@ class AuthAutoConfigurationTest {
      */
     @Test
     void loginRateLimiterDefaultsToInMemory() {
-        runner.withPropertyValues("me.auth.header-resolver.enabled=true")
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true")
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(LoginRateLimiter.class);
@@ -139,7 +176,7 @@ class AuthAutoConfigurationTest {
      */
     @Test
     void loginRateLimiterDisabledBySwitch() {
-        runner.withPropertyValues("me.auth.header-resolver.enabled=true",
+        runner.withPropertyValues("me.auth.trusted-header.enabled=true",
                         "me.auth.login-rate-limit.enabled=false")
                 .run(context -> {
                     assertThat(context).hasNotFailed();

@@ -167,7 +167,7 @@ public class AuthPropagationInterceptor implements ClientHttpRequestInterceptor 
      *
      * <p>当上游是 JWT、下游是 header-auth 时，原请求可能只有 {@code Authorization} 头，
      * 此时从上下文取出用户并写入 {@code X-User-Id} / {@code X-User-Account}，让下游的
-     * {@code HeaderAuthUserResolver} 能够识别。</p>
+     * {@code TrustedHeaderAuthUserResolver} 能够识别。</p>
      */
     private void propagateUserInfoFromContext(HttpRequest request) {
         AuthProperties.Propagate.UserInfo userInfo = properties.getPropagate().getUserInfo();

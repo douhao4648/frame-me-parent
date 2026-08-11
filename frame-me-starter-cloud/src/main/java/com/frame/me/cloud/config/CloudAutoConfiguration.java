@@ -1,21 +1,16 @@
 package com.frame.me.cloud.config;
 
-import com.frame.me.cloud.shutdown.GracefulShutdownEndpoint;
-import com.frame.me.cloud.shutdown.GracefulShutdownExecutor;
-import com.frame.me.cloud.shutdown.GracefulShutdownListener;
-import com.frame.me.cloud.shutdown.GracefulShutdownProperties;
-import com.frame.me.cloud.shutdown.ShutdownHealthIndicator;
-import com.frame.me.cloud.shutdown.ShutdownReadyFlag;
+import com.frame.me.cloud.shutdown.*;
 import com.frame.me.encrypt.env.DecryptedPropertySource;
 import org.jasypt.encryption.StringEncryptor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
-import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.cloud.client.serviceregistry.Registration;
 import org.springframework.cloud.client.serviceregistry.ServiceRegistry;
 import org.springframework.context.ApplicationListener;
@@ -115,7 +110,7 @@ public class CloudAutoConfiguration {
 
         @Bean
         public ApplicationListener<?> refreshDecryptListener(ConfigurableEnvironment environment,
-                                                            ObjectProvider<StringEncryptor> encryptorProvider) {
+                                                             ObjectProvider<StringEncryptor> encryptorProvider) {
             // @ConditionalOnBean(StringEncryptor.class) 已保证 Bean 存在时才装配，故 getIfAvailable 非空
             return new RefreshDecryptListener(environment, encryptorProvider.getIfAvailable());
         }
