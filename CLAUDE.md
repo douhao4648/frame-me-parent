@@ -21,6 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `docs/reference.md` | 查找关键类路径、已知扩展点 |
 | `docs/guides/event-bridge.md` | 专题：事件桥接、进程内事件、跨服务事件 transport |
 | `docs/guides/audit.md` | 专题：审计/行为日志、`@AuditLog`、桥接审计服务 |
+| `docs/guides/sso.md` | 专题：SSO 认证服务、下游 sso-starter 接入（RP） |
 
 检索顺序建议：先读 `docs/index.md` 定位主题，再读对应专题文档，必要时结合 `docs/reference.md` 查找具体类路径。
 

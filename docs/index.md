@@ -31,6 +31,7 @@
 |---|---|
 | [guides/event-bridge.md](./guides/event-bridge.md) | 事件桥接如何工作？进程内事件与跨服务事件如何统一？ |
 | [guides/audit.md](./guides/audit.md) | 审计/行为日志如何工作？`@AuditLog` 怎么用？如何桥接到审计服务？ |
+| [guides/sso.md](./guides/sso.md) | SSO 认证服务如何工作？下游如何用 sso-starter 一键接入（RP）？ |
 
 ## 关键约定一句话
 
