@@ -46,7 +46,7 @@ public class SsoAuthController {
      * SSO 登录：授权码换本地会话 token.
      *
      * @param dto 授权码（redirectUri 走配置，不暴露给前端）
-     * @return token（sa-token 无 refresh token，refreshToken 恒 null）
+     * @return token（JWT 拆出 access/refresh 两段；sa-token 无 refresh token，refreshToken 恒 null）
      */
     @Operation(summary = "SSO 登录", description = "SSO 授权码换本地会话")
     @AuditLog(action = "SSO登录", category = "认证", description = "SSO 授权码换会话", recordParams = false, recordResult = false)
@@ -54,6 +54,11 @@ public class SsoAuthController {
     @PostMapping("/sso-login")
     public IResult<TokenVO> ssoLogin(@Valid @RequestBody SsoLoginDTO dto) {
         String token = ssoAuthService.ssoLogin(dto.getCode());
-        return Result.success(new TokenVO(token, null));
+        // JWT 的 loginByUser 返回 "accessToken;refreshToken" 分号分隔 token 对，
+        // 与 JwtAuthController.buildTokenResponse 契约对齐拆分——整串塞 accessToken 会导致
+        // 客户端拿 "access;refresh" 当 Bearer token 用、解析失败全 401，且 refresh token 丢失。
+        // sa-token 返回单一不透明 token（无分号），拆分后 refreshToken 为 null，行为不变
+        String[] parts = token.split(";", 2);
+        return Result.success(new TokenVO(parts[0], parts.length > 1 ? parts[1] : null));
     }
 }

@@ -151,6 +151,9 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > `frame-me-sso-starter` 的 `SsoAuthController` + `SsoAuthService`，提供
 > `POST /api/auth/sso-login` 端点。下游引 `frame-me-sso-starter` + `frame-me-starter-auth-sa-token`
 > 或 `frame-me-starter-auth-jwt` 即开箱获得该端点，无需自写 controller。
+> 返回 `TokenVO`：JWT 下游把 `loginByUser` 的分号分隔 token 对拆成
+> `accessToken`/`refreshToken` 两段（与 `JwtAuthController` 契约一致）；sa-token 下游
+> 为单一不透明 token，`refreshToken` 恒 null。
 >
 > **开箱回调落地页**：starter 同时提供 `GET /index`（`SsoIndexController` + 内置
 > `sso/index.html`，匿名）。把 `me.sso.client.redirect-uri` 配为该端点
