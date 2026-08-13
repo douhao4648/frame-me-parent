@@ -6,10 +6,14 @@ import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.user.User;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -130,6 +134,56 @@ class JwtTokenServiceTest {
         String[] parts = newPair.split(";");
         assertEquals(2, parts.length);
         assertTrue(tokenService.validate(parts[0]));
+    }
+
+    /**
+     * 绝对寿命闸门：{@code auth_time} 距现在超过 max-lifetime（默认 30 天）的
+     * Refresh Token 续期被拒绝（4001），防止续期链路无限延长.
+     */
+    @Test
+    void testRefreshBeyondMaxLifetimeRejected() {
+        JwtAuthProperties props = new JwtAuthProperties();
+        props.setSecret(SECRET);
+        props.setRefreshTokenExpires(Duration.ofDays(7));
+        InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
+        JwtTokenService service = new JwtTokenService(props, new IAuthUserDetailsService() {
+            @Override
+            public User loadUserByAccount(String account) {
+                return null;
+            }
+
+            @Override
+            public User loadUserById(Long id) {
+                User user = new User();
+                user.setId(id);
+                user.setAccount("admin");
+                return user;
+            }
+
+            @Override
+            public boolean matches(String rawPassword, String encodedPassword) {
+                return false;
+            }
+        }, store);
+
+        // 手动构造 auth_time 为 40 天前、自身未过期的 Refresh Token（默认上限 30 天）
+        Date now = new Date();
+        String staleRefreshToken = Jwts.builder()
+                .subject("1")
+                .claim("userId", 1L)
+                .claim("type", "refresh")
+                .claim(JwtTokenService.CLAIM_AUTH_TIME,
+                        now.getTime() - 40L * 24 * 3600 * 1000)
+                .issuer(props.getIssuer())
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + 7L * 24 * 3600 * 1000))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+        store.save(1L, staleRefreshToken, Duration.ofDays(7));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.refresh(staleRefreshToken));
+        assertTrue(ex.getMessage().contains("最长有效期"), ex.getMessage());
     }
 
     /**
@@ -258,6 +312,75 @@ class JwtTokenServiceTest {
         assertThrows(BusinessException.class, () -> tokenService.refresh(refreshToken));
     }
 
+    /**
+     * 上游 IdP token（RP 留存）：按 appId 隔离存取（不同应用互不覆盖、按 app 取不错串）；
+     * logout / logoutByUserId 同步清除全部应用；空入参 no-op.
+     */
+    @Test
+    void testUpstreamToken_storeGetAndClearedOnLogout() {
+        tokenService.storeUpstreamToken(1L, "fm-audit", "sso-token-audit");
+        tokenService.storeUpstreamToken(1L, "fm-order", "sso-token-order");
+        assertEquals("sso-token-audit", tokenService.getUpstreamToken(1L, "fm-audit"));
+        assertEquals("sso-token-order", tokenService.getUpstreamToken(1L, "fm-order"));
+        assertNull(tokenService.getUpstreamToken(1L, "fm-other"));
+
+        String accessToken = tokenService.login("admin", "123456").split(";")[0];
+        tokenService.logout(accessToken);
+        assertNull(tokenService.getUpstreamToken(1L, "fm-audit"));
+        assertNull(tokenService.getUpstreamToken(1L, "fm-order"));
+
+        // logoutByUserId 同样清除
+        tokenService.storeUpstreamToken(1L, "fm-audit", "sso-token-def");
+        tokenService.logoutByUserId(1L);
+        assertNull(tokenService.getUpstreamToken(1L, "fm-audit"));
+
+        // 空入参静默忽略
+        tokenService.storeUpstreamToken(null, "fm-audit", "x");
+        tokenService.storeUpstreamToken(1L, null, "x");
+        tokenService.storeUpstreamToken(1L, "fm-audit", null);
+        assertNull(tokenService.getUpstreamToken(null, "fm-audit"));
+        assertNull(tokenService.getUpstreamToken(1L, null));
+        assertNull(tokenService.getUpstreamToken(1L, "fm-audit"));
+    }
+
+    /**
+     * 上游 token 随 refresh 续期：本地会话经 refresh 拉长后，上游条目不能在第一个
+     * TTL 窗口后就消失（"同生共死"语义）.
+     */
+    @Test
+    void testUpstreamToken_renewedOnRefresh() throws InterruptedException {
+        JwtAuthProperties shortProps = new JwtAuthProperties();
+        shortProps.setSecret(SECRET);
+        shortProps.setAccessTokenExpires(Duration.ofMinutes(10));
+        shortProps.setRefreshTokenExpires(Duration.ofMillis(2000));
+        JwtTokenService shortLived = new JwtTokenService(shortProps, new IAuthUserDetailsService() {
+            @Override
+            public User loadUserByAccount(String account) {
+                return null;
+            }
+
+            @Override
+            public User loadUserById(Long id) {
+                return null;
+            }
+        }, new InMemoryRefreshTokenStore());
+
+        // RP 登录（loadUserById 恒 null，refresh 走 rp 快照重建链路）
+        User rpUser = new User();
+        rpUser.setId(1L);
+        rpUser.setAccount("admin");
+        rpUser.setStatus(User.STATUS_ENABLED);
+        String refreshToken = shortLived.loginByUser(rpUser).split(";")[1];
+        shortLived.storeUpstreamToken(1L, "fm-audit", "sso-token-abc");
+
+        // t=1300ms：原 TTL（2000ms）过半，refresh 成功并把上游条目续到 t=3300ms
+        Thread.sleep(1300);
+        shortLived.refresh(refreshToken);
+        // t=2600ms：已过原 TTL，未续期的话条目已消失
+        Thread.sleep(1300);
+        assertEquals("sso-token-abc", shortLived.getUpstreamToken(1L, "fm-audit"));
+    }
+
     @Test
     void testLogout_withRefreshTokenAlsoClearsStore() {
         String tokenPair = tokenService.login("admin", "123456");
@@ -355,6 +478,95 @@ class JwtTokenServiceTest {
         expiredService.logout(expiredRefreshToken);
 
         assertNull(store.get(1L));
+    }
+
+    /**
+     * RP 快照回退：无本地用户表的 SSO 下游（loadUserById 恒 null），
+     * {@code loginByUser} 签发的 token 携带 rp 快照 claims，getUser 从 claims 重建 User，
+     * 否则 JWT 无状态下每个请求都会 401.
+     */
+    @Test
+    void testRpFallback_getUserRebuildsFromClaims() {
+        JwtTokenService rpService = rpService();
+        User rpUser = new User();
+        rpUser.setId(443549360765247488L);
+        rpUser.setAccount("cuijiji");
+        rpUser.setNickname("崔机机");
+        rpUser.setStatus(User.STATUS_ENABLED);
+
+        String accessToken = rpService.loginByUser(rpUser).split(";")[0];
+
+        User resolved = rpService.getUser(accessToken);
+        assertNotNull(resolved, "RP token 的 getUser 应从 claims 快照重建 User");
+        assertEquals(443549360765247488L, resolved.getId());
+        assertEquals("cuijiji", resolved.getAccount());
+        assertEquals("崔机机", resolved.getNickname());
+        assertEquals(User.STATUS_ENABLED, resolved.getStatus());
+    }
+
+    /**
+     * RP 续期链路：refresh 同样走快照回退，且续出的新 token 保留 rp 快照，
+     * 否则下一轮 getUser 立即 401.
+     */
+    @Test
+    void testRpFallback_refreshKeepsSnapshot() {
+        JwtTokenService rpService = rpService();
+        User rpUser = new User();
+        rpUser.setId(99L);
+        rpUser.setAccount("rp-user");
+        rpUser.setStatus(User.STATUS_ENABLED);
+
+        String refreshToken = rpService.loginByUser(rpUser).split(";")[1];
+        String newAccessToken = rpService.refresh(refreshToken).split(";")[0];
+
+        User resolved = rpService.getUser(newAccessToken);
+        assertNotNull(resolved, "续期后的新 token 应保留 rp 快照");
+        assertEquals(99L, resolved.getId());
+        assertEquals("rp-user", resolved.getAccount());
+    }
+
+    /**
+     * 快照回退的边界：密码登录签发的 token 无 rp 标记，loadUserById 返回 null
+     * （用户已删除）时 getUser 必须返回 null——"删用户即时失效"语义不被回退稀释.
+     */
+    @Test
+    void testRpFallback_passwordLoginTokenNotAffected() {
+        JwtTokenService rpService = rpService();
+        // 手工签发无 rp 标记的 token（等价于密码登录签发的 token 遇上用户被删）
+        Date now = new Date();
+        String plainToken = Jwts.builder()
+                .subject("1")
+                .claim("userId", 1L)
+                .claim("account", "admin")
+                .claim("type", "access")
+                .issuer("me")
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + 600_000))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+
+        assertNull(rpService.getUser(plainToken), "无 rp 标记的 token 不允许快照回退");
+    }
+
+    /**
+     * 构造 RP 场景服务：loadUserById 恒返回 null（无本地用户表）.
+     */
+    private JwtTokenService rpService() {
+        JwtAuthProperties properties = new JwtAuthProperties();
+        properties.setSecret(SECRET);
+        properties.setAccessTokenExpires(Duration.ofMinutes(10));
+        properties.setRefreshTokenExpires(Duration.ofMinutes(30));
+        return new JwtTokenService(properties, new IAuthUserDetailsService() {
+            @Override
+            public User loadUserByAccount(String account) {
+                return null;
+            }
+
+            @Override
+            public User loadUserById(Long id) {
+                return null;
+            }
+        }, new InMemoryRefreshTokenStore());
     }
 
     /**

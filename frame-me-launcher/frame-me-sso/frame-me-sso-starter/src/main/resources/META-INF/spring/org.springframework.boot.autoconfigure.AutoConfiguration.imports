@@ -1,0 +1,2 @@
+com.frame.me.sso.config.SsoClientAutoConfiguration
+com.frame.me.sso.config.SsoAuthAutoConfiguration

@@ -174,7 +174,7 @@ class EventBridgePublisherTest {
         listener.register(new TestEventType());
 
         EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
-                "producer-service", "producer-instance", "other-service", null);
+                "producer-service", "producer-instance", null, "other-service", null);
         listener.onMessage(message);
 
         verify(localPublisher, never()).publishEvent(any());
@@ -191,7 +191,7 @@ class EventBridgePublisherTest {
         listener.register(new TestEventType());
 
         EventBridgeMessage message = EventBridgeMessage.of("user:created", "{\"value\":\"eve\"}",
-                "producer-service", "producer-instance", "consumer-service", "user:123");
+                "producer-service", "producer-instance", null, "consumer-service", "user:123");
         listener.onMessage(message);
 
         ArgumentCaptor<TestEvent> captor = ArgumentCaptor.forClass(TestEvent.class);

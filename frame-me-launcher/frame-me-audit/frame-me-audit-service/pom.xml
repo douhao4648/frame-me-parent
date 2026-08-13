@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -12,12 +12,163 @@
 
     <artifactId>frame-me-audit-service</artifactId>
     <name>frame-me-audit-service</name>
-    <description>审计中心启动服务：订阅 audit:op-log 通道接收审计事件并持久化，骨架待实现</description>
+    <description>审计中心启动服务：订阅 audit:log 通道接收审计事件并持久化，SSO 下游 sa-token 会话治理</description>
 
     <dependencies>
+        <!-- 本工程契约 -->
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-audit-api</artifactId>
         </dependency>
+        <!-- SSO 下游接入能力（SsoClient + 踢人事件订阅） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-sso-starter</artifactId>
+        </dependency>
+        <!-- 认证：sa-token 会话治理（传递引入 auth SPI + base web 底座） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-auth-sa-token</artifactId>
+        </dependency>
+        <!-- 持久层 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-mybatis-flex</artifactId>
+        </dependency>
+        <!-- Redis（sa-token Redis DAO + RedisEventTransport + refresh token store） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-multi-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-l1l2-cache</artifactId>
+        </dependency>
+        <!-- 敏感配置加密（appSecret/JWT secret 等密文） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-sensi-encrypt</artifactId>
+        </dependency>
+        <!-- 审计（接收侧：@Import AuditLogEventConfiguration；自身：@AuditLog 注解） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-op-audit</artifactId>
+        </dependency>
+        <!-- 通知 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-msg-notify</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-resttestclient</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>com.mybatis-flex</groupId>
+                            <artifactId>mybatis-flex-processor</artifactId>
+                            <version>${mybatis-flex.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- mvn ... -Pprometheus -->
+        <profile>
+            <id>prometheus</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.micrometer</groupId>
+                    <artifactId>micrometer-registry-prometheus</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <!-- mvn ... -Pp6spy -->
+        <profile>
+            <id>p6spy</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.github.gavlyukovskiy</groupId>
+                    <artifactId>p6spy-spring-boot-starter</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <!-- mvn ... -Pswagger -->
+        <profile>
+            <id>swagger</id>
+            <dependencies>
+                <dependency>
+                    <groupId>com.frame.me</groupId>
+                    <artifactId>frame-me-starter-doc-openapi</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>Apple-M1</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-resolver-dns-native-macos</artifactId>
+                    <classifier>osx-aarch_64</classifier>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

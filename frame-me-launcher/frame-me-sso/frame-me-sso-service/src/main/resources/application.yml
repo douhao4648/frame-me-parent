@@ -50,8 +50,8 @@ sa-token:
   token-name: satoken
   # 7 天（秒）
   timeout: 604800
-  # 2 小时（秒）
-  active-timeout: 7200
+  # 2 天（秒）
+  active-timeout: 172800
   is-concurrent: true
   is-share: true
   is-read-cookie: true
@@ -64,20 +64,20 @@ me:
     enabled: true
     enforce-login: true
     whitelist:
-      - /base/auth/login
-      - /base/auth/refresh
       - /sso-login.*
       - /favicon.ico
       - /swagger-ui/**
       - /swagger-ui.html
       - /v3/api-docs/**
       - /v3/api-docs
-      - /actuator/**
     propagate:
       enabled: false
     sa-token:
       enabled: true
       path: /base/auth
+      logic-type: sso
+      # 7 天（秒）
+      max-lifetime: 604800
   #      authorization:
   #        enabled: false
   #      jwt:
@@ -103,7 +103,12 @@ me:
     auth-code:
       expires: 600s
     token:
-      app-timeout: P1D
+      # app token 时效（大于下游 satoken、jwt 的 max-lifetime）
+      app-timeout: P31D
+  audit:
+    enabled: true
+    log-enabled: true
+    target-service: frame-me-audit
 
 jetcache:
   decodeFilterAllowPatterns:

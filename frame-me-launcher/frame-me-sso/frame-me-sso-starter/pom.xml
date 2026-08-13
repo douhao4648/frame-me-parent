@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -12,5 +12,40 @@
 
     <artifactId>frame-me-sso-starter</artifactId>
     <name>frame-me-sso-starter</name>
-    <description>SSO 客户端 starter：下游应用一键接入 SSO（空骨架，待实现）</description>
+    <description>SSO 客户端 starter：下游应用一键接入 SSO（换 token / 取用户信息 / 订阅踢人事件），与认证底座解耦
+    </description>
+
+    <dependencies>
+        <!-- SSO 契约（@HttpExchange 接口 + 事件契约 + SsoLoginDTO） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-sso-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-base</artifactId>
+        </dependency>
+        <!-- 认证底座（强依赖）：RP 登录编排调 IAuthService.loginByUser 建本地会话 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-auth</artifactId>
+        </dependency>
+        <!-- 审计（optional）：SsoAuthController 的 @AuditLog 注解来源，下游引入 op-audit 后生效 -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-op-audit</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

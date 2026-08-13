@@ -156,6 +156,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             Object payload = JSON.parseObject(message.getPayload(), typedEventType.payloadClass());
             MeApplicationEvent localEvent = typedEventType.toLocalEvent(payload,
                     message.getSourceService(), message.getSourceInstanceId());
+            localEvent.setEventId(message.getEventId());
             localPublisher.publishEvent(localEvent);
             log.debug("Event dispatched locally: type={}, source={}", type, message.getSourceService());
         } catch (Exception e) {

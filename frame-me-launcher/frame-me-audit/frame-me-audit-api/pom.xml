@@ -12,12 +12,24 @@
 
     <artifactId>frame-me-audit-api</artifactId>
     <name>frame-me-audit-api</name>
-    <description>审计中心 API 契约模块（@HttpExchange 接口 + dto/vo），骨架待实现</description>
+    <description>审计中心 API 契约模块（IAuditLogApi 审计日志管理查询 + query/vo）</description>
 
     <dependencies>
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
     </dependencies>
 </project>

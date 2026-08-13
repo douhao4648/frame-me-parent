@@ -257,12 +257,27 @@
 | `SsoAuthController` | SSO 授权码流程端点（authorize/login/token/refresh/logout/jwks） |
 | `SsoAdminController` | SSO 管理端点（app CRUD + 强制登出，`@SaCheckRole("admin")`） |
 | `SsoTokenService` | SSO RS256 JWT 签发/解析 |
-| `SsoAppService` | SSO 应用注册/密钥/校验 |
-| `SsoAuthCodeService` | SSO 授权码签发/消费（Redis 原子防重放） |
-| `SsoLogoutService` | SSO 踢人 + 发 `UserLogoutEvent` |
+| `IAppService` / `AppServiceImpl`（sso-service） | SSO 应用注册/密钥/校验 |
+| `IAuthCodeService` / `AuthCodeServiceImpl`（sso-service） | SSO 授权码签发/消费（Redis 原子防重放） |
+| `ILogoutService` / `LogoutServiceImpl`（sso-service） | SSO 踢人 + 发 `UserLogoutEvent` |
 | `IJwtSigner` / `Rs256JwtSigner` | SSO JWT 签名器接口 + RS256 实现（可插拔，预留 JWKS 演进） |
 | `SsoProperties` | `me.sso.*` 配置属性绑定 |
 | `UserLogoutEvent` | SSO 踢人事件（`frame-me-sso-api`；下游 `@Import(UserLogoutEventConfiguration)` 注册 `UserLogoutEventType` 后 `@EventListener` 订阅） |
+| `SsoClientAutoConfiguration` | SSO 客户端自动配置（`frame-me-sso-starter`）：`@ImportHttpServices(group="sso")` 注册 `IAuthApi`/`IUserApi`/`IAppApi` 代理 + `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件 |
+| `SsoClientProperties` | `me.sso.client.*` 配置绑定（appId/appSecret/redirectUri） |
+| `SsoClientConstant` | SSO 客户端占位常量类（`frame-me-sso-starter`） |
+| `SsoAuthAutoConfiguration` | SSO RP 登录端点自动配置（`frame-me-sso-starter`）：`@Import(SsoAuthService/SsoAuthController)`，`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；仅 sa-token 下游可用 |
+| `SsoAuthService` | SSO RP 登录编排（`frame-me-sso-starter`）：code → SSO token → /userinfo → `IAuthService.loginByUser` 建本地会话 |
+| `SsoAuthController` | `POST /api/auth/sso-login`（`frame-me-sso-starter`）：授权码换本地会话 |
+| `SsoLoginDTO` | RP 登录请求体（`frame-me-sso-starter`：code + 可选 redirectUri） |
+| `IAuthService.loginByUser` | 按已知用户直接建立会话（RP 场景，default 抛异常；`SaTokenAuthService` 覆盖为 `StpLogic.login` + 快照缓存） |
+| `SsoStpUtil` | SSO 独立账号体系入口（`frame-me-sso-service`）：`TYPE="sso"` + `stpLogic`（`new StpLogic("sso")` 经 `SaManager.getStpLogic` 注册），SSO 全部登录/登出/验 token 动作与 `@SaCheck*(type=...)` 的统一体系标识 |
+| `Application`（audit） | 审计中心主启动类，`@Import(AuditLogEventConfiguration.class)` 订阅 `audit:log` 通道 |
+| `SsoAuthUserDetailsService` | sso-starter 的 RP 兜底 `IAuthUserDetailsService`（下游未自定义时自动装配，`loadUserById` 委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建，取不到返回 null → 401 重登） |
+| `SsoLogoutEventListener` | `@EventListener(UserLogoutEvent)`（`frame-me-sso-starter`）：调 `IAuthService.logoutByUserId` 清本地会话（走 SPI，sa-token/JWT 两套通用） |
+| `LogEntity` / `LogMapper` | audit 审计日志实体（`@Table("audit_log")` extends `BaseEntity`）+ Mapper |
+| `LogEventListener` | audit `@EventListener(AuditLogEvent)`：持久化审计记录到 MySQL；多实例以 eventId 加 Redis 锁去重 |
+| `ILogApi` / `LogController` | audit 审计日志管理查询：`/api/log` 的 `/list`、`/page`、`/{id}`，`LogQuery` 组合搜索，登录强制保护 |
 | `PageParam` | 老规范分页查询参数（`frame-me-adapter-api`） |
 | `PageResult<T>` | 老规范分页结果（`frame-me-adapter-api`） |
 | `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |
@@ -286,7 +301,7 @@
 | `AuditAutoConfiguration` | 审计自动装配入口 |
 | `AuditProperties` | `me.audit` 配置属性绑定 |
 | `AuthContext` | ThreadLocal 当前用户上下文 |
-| `AuthUserAuthenticator` | 账号密码认证器（查用户 → 401 → 校验密码 → 401），供 JWT/Sa-Token 共用 |
+| `AuthUserAuthenticator` | 账号密码认证器（查用户 → 4001 → 校验密码 → 4001，凭证错误与会话缺失 401 区分），供 JWT/Sa-Token 共用 |
 | `LoginDTO` | 登录请求 DTO（抽象层，JWT 与 Sa-Token 实现共用） |
 | `TokenVO` | Token 响应 VO（抽象层，JWT 与 Sa-Token 实现共用） |
 | `PasswordUtils` | BCrypt 密码加解密工具（抽象层） |

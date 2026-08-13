@@ -83,7 +83,7 @@ class EventBridgeListenerTest {
 
     private static EventBridgeMessage message(String sourceService, String sourceInstanceId) {
         return new EventBridgeMessage("test:event", "\"hello\"", sourceService, sourceInstanceId,
-                null, null, Instant.now());
+                null, null, null, Instant.now());
     }
 
     /**

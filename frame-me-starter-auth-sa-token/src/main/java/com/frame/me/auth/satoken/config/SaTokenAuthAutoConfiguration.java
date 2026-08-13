@@ -1,9 +1,11 @@
 package com.frame.me.auth.satoken.config;
 
+import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.interceptor.SaInterceptor;
 import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpInterface;
+import cn.dev33.satoken.stp.StpLogic;
 import com.frame.me.auth.config.AuthProperties;
 import com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice;
 import com.frame.me.auth.satoken.core.SaTokenAuthService;
@@ -57,9 +59,10 @@ public class SaTokenAuthAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(IAuthService.class)
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
-    public IAuthService saTokenAuthService(IAuthUserDetailsService userDetailsService) {
+    public IAuthService saTokenAuthService(IAuthUserDetailsService userDetailsService,
+                                           SaTokenAuthProperties properties) {
         log.info("SaTokenAuthService initialized");
-        return new SaTokenAuthService(userDetailsService);
+        return new SaTokenAuthService(userDetailsService, properties);
     }
 
     /**
@@ -123,6 +126,10 @@ public class SaTokenAuthAutoConfiguration {
         Map<String, SaTokenRuleEvaluator.Rule> parsedRules = new LinkedHashMap<>();
         properties.getRules().forEach((pattern, expression) ->
                 parsedRules.put(pattern, SaTokenRuleEvaluator.parse(expression)));
+        // 装配期解析账号体系：SaManager.getStpLogic 不存在则自动创建并注册——
+        // 非默认体系（如 SSO 的 sso）由此在启动期完成注册，@SaCheck*(type=...) 的
+        // SaManager.getStpLogic(type, false) 查找才不会抛「未能找到对应 StpLogic」
+        StpLogic stpLogic = SaManager.getStpLogic(properties.getLogicType());
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(@NonNull InterceptorRegistry registry) {
@@ -146,7 +153,7 @@ public class SaTokenAuthAutoConfiguration {
                                 return;
                             }
                             parsedRules.forEach((pattern, rule) ->
-                                    SaRouter.match(pattern).check(() -> SaTokenRuleEvaluator.check(rule)));
+                                    SaRouter.match(pattern).check(() -> SaTokenRuleEvaluator.check(rule, stpLogic)));
                         }))
                         .addPathPatterns("/**");
             }

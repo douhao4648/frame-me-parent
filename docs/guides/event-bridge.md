@@ -26,9 +26,9 @@ Spring 事件机制只能解决第一类；Redis Pub/Sub、MQ 能解决第二类
 
 | 类型 | 职责 | 所在模块 |
 |---|---|---|
-| `MeApplicationEvent` | 可桥接的本地事件基类 | `frame-me-api` |
+| `MeApplicationEvent` | 可桥接的本地事件基类（含 `eventId` 唯一 ID，缺省 UUID，可自定义） | `frame-me-api` |
 | `IEventType<T>` | 把 `type` 字符串映射到负载类与本地事件构造 | `frame-me-api` |
-| `EventBridgeMessage` | 跨服务传输的通用包装：`type + payload + sourceService + targetService + targetId + timestamp` | `frame-me-api` |
+| `EventBridgeMessage` | 跨服务传输的通用包装：`type + payload + sourceService + sourceInstanceId + targetService + targetId + eventId + timestamp` | `frame-me-api` |
 | `IEventTransport` | 传输通道抽象（`send` / `subscribe`） | `frame-me-starter-base` |
 | `EventBridgePublisher` | 发布入口：本地发布 + 选择 transport 广播 | `frame-me-starter-base` |
 | `EventBridgeListener` | 订阅通道、按 `type` 分发、还原为本地事件 | `frame-me-starter-base` |
@@ -133,6 +133,18 @@ graph LR
     D -->|是| E
     D -->|否| F
 ```
+
+### 事件唯一 ID 与消费方幂等
+
+`MeApplicationEvent` 基类带 `eventId` 字段：
+
+- **发送时**缺省生成 UUID，业务可在构造后 `setEventId` 覆盖自定义值（如业务流水号、雪花 ID）
+- **广播时** `EventBridgePublisher` 把 `eventId` 透传进 `EventBridgeMessage`
+- **接收方** `EventBridgeListener` 重建本地事件后回填 `eventId`，消费方从 `event.getEventId()` 拿
+
+使用方自行决定是否用于去重/幂等。跨服务事件"至少一次"语义下同一事件可能重复投递，消费方可按 `eventId` 加分布式锁或唯一索引保证幂等。
+
+> 示例：`frame-me-audit-service` 的 `LogEventListener` 以 `audit:log:dedup:<eventId>` 为 key 加 Redis 分布式锁，保证多实例部署时同一审计事件全局只入库一次。**锁不主动释放**，靠 TTL（30s）自动过期——覆盖 pub/sub "至少一次"语义下的重投递窗口（先后来到，非并发）；锁失败降级放行（遵"审计是旁路"原则，宁可重复不可丢失）。
 
 ### 点对点路由
 

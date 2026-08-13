@@ -45,7 +45,8 @@ return Result.error("系统错误：{}", e.getMessage());
 |---|---|---|
 | `SUCCESS` | 200 | 请求成功 |
 | `BAD_REQUEST` | 400 | 参数错误 |
-| `UNAUTHORIZED` | 401 | 未授权 |
+| `UNAUTHORIZED` | 401 | 未授权（会话缺失/失效：未登录访问、token 过期/被踢，前端跳登录页） |
+| `BAD_CREDENTIAL` | 4001 | 凭证错误（账号/密码/授权码/密钥/refresh token 失效等登录/换 token 流程本身失败，前端留登录页显示错误，避免循环重定向） |
 | `FORBIDDEN` | 403 | 禁止访问 |
 | `NOT_FOUND` | 404 | 资源不存在 |
 | `METHOD_NOT_ALLOWED` | 405 | 请求方法不支持 |
@@ -55,6 +56,17 @@ return Result.error("系统错误：{}", e.getMessage());
 | `ERROR` | 500 | 系统错误 |
 | `SERVICE_UNAVAILABLE` | 503 | 服务不可用 |
 | `BUSINESS_ERROR` | 600 | 业务异常 |
+
+### 401（未授权）与 4001（凭证错误）的区分
+
+两者都走 HTTP 200 + body 码,但语义不同,前端处理方式也不同:
+
+| 码 | 语义 | 触发场景 | 前端处理 |
+|---|---|---|---|
+| 401 `UNAUTHORIZED` | 会话缺失/失效 | 未登录访问受保护接口、token 过期/被踢/被顶、`NotLoginException` | 清本地 token,跳登录页(带 redirect);已在登录页则不跳 |
+| 4001 `BAD_CREDENTIAL` | 登录/换 token 流程本身失败 | 账号密码错、SSO 授权码/密钥错、refresh token 失效/过期 | 不跳转,留在登录页显示 `msg` 作为错误提示 |
+
+**为何分**:统一 401 时,前端无法区分"该跳登录页"和"登录页本身的凭证错",无脑跳登录页会形成循环重定向(输错密码→401→跳登录页→当前页→死循环)。分码后,登录页接口(`/login`、`/sso-login`)失败返回 4001,前端不跳转只显示错误,环消除。
 
 ## 外部响应 `Response<T>`
 
@@ -123,7 +135,7 @@ throw new InternalException("数据库连接失败");
 | `handleConstraintViolationException` | `ConstraintViolationException`（`@PathVariable`/`@RequestParam` 校验失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条约束错误消息)` |
 | `handleBindException` | `BindException`（表单/查询参数绑定失败） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, 首条字段错误消息)` |
 | `handleHttpMessageNotReadableException` | `HttpMessageNotReadableException`（请求体缺失或不可读） | 默认 200 | `warn` | `Result.error(BAD_REQUEST, "请求体不能为空")` |
-| `handleResponseStatusException` | `ResponseStatusException`（控制器主动抛出的带状态异常） | 异常自带状态码 | `warn` | `Result.error(statusCode, reason)` |
+| `handleResponseStatusException` | `ResponseStatusException`（控制器主动抛出的带状态异常） | 异常自带状态码 | `warn` | `Result.error(statusCode, reason)`。**业务代码应统一用 `BusinessException(ResultCode.X, msg)`**（HTTP 200 + body 业务码，符合"恒 200"契约）；`ResponseStatusException` 会直出 HTTP 状态码、body 塞 HTTP 码（与 `ResultCode` 业务码空间冲突），破坏契约，业务代码不应主动抛——SSE 等流式场景同样走 `BusinessException`（握手前仍是 HTTP，异常被 advice 接管）。本处理器仅兜底处理框架自身或第三方库抛出的 `ResponseStatusException` |
 | `handleException` | `Exception` | 默认 200；实现 `ErrorResponse` 的 Spring MVC 请求侧异常族（`NoResourceFoundException`/`HttpRequestMethodNotSupportedException` 等，Spring 7 起不再继承 `ResponseStatusException`）按其自带状态码（404/405/415...）透传 | `error`；`ErrorResponse` 族为 `warn`（`NoResourceFoundException` 404 降级 `debug`，多为 DevTools .map 探测等客户端自发请求，无可动作） | `Result.error(ERROR, message, exception)` / `Result.error(ERROR, message)`；`me.exception.mask-unknown-message=true` 时 message 收敛为通用文案（"系统错误"）；`ErrorResponse` 族为 `Result.error(statusCode, message)` |
 
 是否把异常完整堆栈写入 `Result.err` 由 `me.exception.include-stacktrace` 控制，默认 `false`（fail-closed，避免堆栈中的类路径、参数等敏感信息随响应体泄漏）；排查问题时可显式设为 `true`，异常详情仍可通过服务端日志定位。
@@ -552,7 +564,7 @@ public class UserDetailsServiceImpl implements IAuthUserDetailsService {
 }
 ```
 
-「查用户 → 空则 401 → 校验密码 → 失败 401」的认证步骤由抽象层
+「查用户 → 空则 4001 → 校验密码 → 失败 4001」的认证步骤由抽象层
 `com.frame.me.auth.core.AuthUserAuthenticator.authenticate(...)` 承载，
 各认证实现的 `login` 直接调用，不再各自复制。用户不存在时也会对哑 BCrypt hash
 执行一次同等耗时的 `matches`，消除响应时间差导致的账号枚举（对齐 Spring Security
@@ -604,9 +616,9 @@ me:
 ```yaml
 # sa-token 原生参数走官方 sa-token.* 配置路径（秒数 long 形式，详见 sa-token 官方文档）
 sa-token:
-  token-name: satoken        # token 请求头名（兼 Cookie 名与存储 key 前缀），默认 satoken
+  token-name: satoken        # token 请求头名（兼 Cookie 名与存储 key 第一段前缀），默认 satoken
   timeout: 604800            # token 绝对有效期（秒），默认 2592000（30 天）；≈ JWT refresh-token-expires
-  active-timeout: 7200       # 闲置冻结窗口（秒），默认 -1 不限制；≈ JWT access-token-expires
+  active-timeout: 28800       # 闲置冻结窗口（秒），默认 -1 不限制；SSO 服务端配 8h（一个工作日）
   is-concurrent: true        # 同账号多地共存，默认 true；false 时新登录挤掉旧登录
   # is-read-cookie: true     # 原生 Cookie 读写开关，默认 true：登录写 Cookie、登出清、续期刷
   # cookie:                  # 原生 Cookie 属性（可选）

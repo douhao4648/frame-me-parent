@@ -1,5 +1,6 @@
 package com.frame.me.redis.util;
 
+import com.frame.me.base.exception.BusinessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -64,7 +65,7 @@ public final class RedisUtils {
     public static RedisClient getClient(String name) {
         RedisClient client = CLIENT_MAP.get(name);
         if (client == null) {
-            throw new IllegalStateException("Redis client '" + name + "' Not registered. Please check the me.redis.clients configuration");
+            throw new BusinessException("Redis client '" + name + "' Not registered. Please check the me.redis.clients configuration");
         }
         return client;
     }
@@ -121,6 +122,21 @@ public final class RedisUtils {
 
     public static void hSet(String key, String hashKey, Object value) {
         client().hSet(key, hashKey, value);
+    }
+
+    /**
+     * 原子地写 Hash 字段并设置 key 过期时间（HSET + PEXPIRE 单脚本）.
+     *
+     * <p>避免 {@link #hSet} + {@link #expire} 分两步调用时，hSet 成功但 expire 失败
+     * 导致 hash 永久驻留无 TTL——bearer 凭证等敏感数据超期留存 Redis.</p>
+     *
+     * @param key     键
+     * @param hashKey Hash 键
+     * @param value   值
+     * @param timeout key 过期时间
+     */
+    public static void hSetWithExpire(String key, String hashKey, Object value, Duration timeout) {
+        client().hSetWithExpire(key, hashKey, value, timeout);
     }
 
     public static void hSetAll(String key, Map<String, Object> map) {

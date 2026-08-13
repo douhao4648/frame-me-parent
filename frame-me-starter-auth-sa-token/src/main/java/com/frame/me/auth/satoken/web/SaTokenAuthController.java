@@ -10,6 +10,7 @@ import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
 import com.frame.me.auth.web.vo.TokenVO;
 import com.frame.me.base.limit.LoginRateLimiter;
+import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -22,10 +23,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Sa-Token 认证控制器.
@@ -130,11 +129,11 @@ public class SaTokenAuthController {
             @PathVariable @Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties ifAvailable = authProperties.getIfAvailable();
         if (ifAvailable == null) {
-            return Result.error(ResultCode.UNAUTHORIZED);
+            throw new BusinessException(ResultCode.NOT_FOUND, "管理员强制登出接口未启用");
         }
         AuthProperties.Admin admin = ifAvailable.getAdmin();
         if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");
+            throw new BusinessException(ResultCode.NOT_FOUND, "管理员强制登出接口未启用");
         }
         authService.logoutByUserId(userId);
         return Result.success(true);

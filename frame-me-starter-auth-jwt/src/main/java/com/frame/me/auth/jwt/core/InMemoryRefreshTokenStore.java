@@ -25,6 +25,15 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
     private final Map<Long, Entry> store = new ConcurrentHashMap<>();
     private final Object evictLock = new Object();
 
+    /**
+     * 上游 token 与 refresh token 同用户量级（仅 RP 登录会写入），复用惰性过期，
+     * 不单独做容量闸门——{@code store} 的 MAX_SIZE 已间接约束.
+     *
+     * <p>结构：userId → (appId → token)，按应用隔离；TTL 挂在用户级（与 Redis hash
+     * 实现的共享 TTL 语义对齐）。</p>
+     */
+    private final Map<Long, UpstreamEntry> upstreamStore = new ConcurrentHashMap<>();
+
     @Override
     public void save(Long userId, String refreshToken, Duration expires) {
         // ponytail: 扫一遍 ConcurrentHashMap 找最早过期项 + 顺路清除已过期条目，O(N) 但 N≤10k 可接受；
@@ -69,6 +78,45 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
     @Override
     public void delete(Long userId) {
         store.remove(userId);
+    }
+
+    @Override
+    public void saveUpstreamToken(Long userId, String appId, String upstreamToken, Duration expires) {
+        upstreamStore.compute(userId, (id, entry) -> {
+            Map<String, String> tokens = entry == null ? new ConcurrentHashMap<>() : entry.tokens();
+            tokens.put(appId, upstreamToken);
+            return new UpstreamEntry(tokens, System.currentTimeMillis() + expires.toMillis());
+        });
+    }
+
+    @Override
+    public String getUpstreamToken(Long userId, String appId) {
+        UpstreamEntry entry = upstreamStore.get(userId);
+        if (entry == null) {
+            return null;
+        }
+        if (System.currentTimeMillis() > entry.expireAtMillis()) {
+            upstreamStore.remove(userId, entry);
+            return null;
+        }
+        return entry.tokens().get(appId);
+    }
+
+    @Override
+    public void deleteUpstreamTokens(Long userId) {
+        upstreamStore.remove(userId);
+    }
+
+    @Override
+    public void renewUpstreamTokens(Long userId, Duration expires) {
+        upstreamStore.computeIfPresent(userId, (id, entry) ->
+                new UpstreamEntry(entry.tokens(), System.currentTimeMillis() + expires.toMillis()));
+    }
+
+    /**
+     * 上游 token 条目：appId → token 的映射 + 用户级过期时间戳（毫秒）.
+     */
+    private record UpstreamEntry(Map<String, String> tokens, long expireAtMillis) {
     }
 
     /**

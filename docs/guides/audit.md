@@ -82,6 +82,7 @@ public OrderUpdateResult updateOrderStatus(Long orderId, String status) { ... }
 - 非审计服务收到消息后，因 `targetService` 不匹配而忽略，避免重复落库。
 - **审计中心（接收侧）需显式启用订阅**：在启动类或任意配置类加 `@Import(AuditLogEventConfiguration.class)`（`com.frame.me.op.audit`），注册 `AuditLogEventType` 后 `EventBridgeListener` 才会订阅 `audit:op-log` 通道并还原消息。该配置刻意不随自动装配生效——发送侧经 `EventBridgePublisher` 直发不查注册表，自动注册只会让无关服务白订阅通道。
 - 审计服务还原 `AuditLogEvent` 后，可自定义 `@EventListener` 或持久化监听器写入数据库/ES。
+- **多实例去重**：audit 多实例部署时，同一广播事件会被每个实例收到。`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），全局只入库一次。**锁不主动释放**，靠 TTL（30s）自动过期——覆盖 pub/sub "至少一次"语义下的重投递窗口（先后来到，非并发）；Redis 故障降级放行（审计是旁路，宁可重复不可丢失）。`eventId` 由事件层 `MeApplicationEvent` 提供（缺省 UUID，业务可自定义）。
 
 ```java
 @Component
@@ -120,3 +121,68 @@ me:
     log-enabled: false
     target-service: audit-service
 ```
+
+## 审计中心接收侧实现（frame-me-audit-service）
+
+`frame-me-audit-service` 是审计中心启动服务，订阅 `audit:log` 事件通道，接收 `frame-me-starter-op-audit` 桥接来的审计事件并持久化到 MySQL。
+
+### 启用订阅
+
+启动类 `@Import(AuditLogEventConfiguration.class)` 注册 `AuditLogEventType`，`EventBridgeListener` 自动订阅 `audit:log` 通道：
+
+```java
+@SpringBootApplication
+@Import(AuditLogEventConfiguration.class)
+public class Application { ... }
+```
+
+### 持久化监听器
+
+```java
+@Component
+@RequiredArgsConstructor
+public class AuditLogPersistenceHandler {
+    private final LogMapper auditLogMapper;
+
+    @EventListener
+    public void onAuditLog(AuditLogEvent event) {
+        try {
+            AuditLogRecord record = event.getRecord();
+            auditLogMapper.insert(toEntity(record));
+        } catch (Exception e) {
+            // 持久化失败不阻断事件链路（审计是旁路）
+            log.error("审计日志持久化失败", e);
+        }
+    }
+}
+```
+
+### 持久化实体
+
+`LogEntity extends BaseEntity`，`@Table("audit_log")`，字段映射 `AuditLogRecord`（action/category/description/operatorId/targetId/params/result/success/errorMsg/durationMs/timestamp/sourceService/targetService）。
+
+### 管理查询接口
+
+`frame-me-audit-api` 提供 `ILogApi` 契约（`@HttpExchange("/api/log")`），`frame-me-audit-service` 的 `LogController` 实现：
+
+| 端点 | 说明 |
+|---|---|
+| `GET /api/log/list` | 按条件搜索列表（不分页），默认 `timestamp desc` |
+| `GET /api/log/page` | 按条件搜索分页（`PageQuery` + `PageData`） |
+| `GET /api/log/{id}` | 详情，不存在抛 `NOT_FOUND`；走 `mapper/LogMapper.xml` 自定义 SQL（`LogMapper.getById`） |
+
+搜索条件（`LogQuery extends PageQuery`，`@QueryMap` 绑定）：`action`/`operatorId`/`description` 模糊，`category`/`sourceService`/`success` 精确，`startTime`/`endTime` 按 `timestamp` 列圈区间（`@TimeRange` 校验起始 ≤ 截止）；排序走 `PageUtils.toOrderBy` 字段白名单，默认 `timestamp desc`。端点由全局 `me.auth.enforce-login` 强制登录保护，未单独加角色闸。
+
+### 配置
+
+```yaml
+me:
+  audit:
+    target-service: frame-me-audit   # 自身审计事件定向发给自己
+  event-bridge:
+    enabled: true
+    service-name: frame-me-audit
+```
+
+> 幂等：Redis pub/sub 至少一次语义可能重复投递，重复写入影响小；`when` 重复成为问题再加唯一索引。
+> 通道名：实际 type 是 `audit:log`（`AuditLogEventType.type()` 返回值），非注释里的 `audit:op-log`。

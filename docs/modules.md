@@ -317,10 +317,10 @@ me:
   - `com.frame.me.auth.config.AuthAutoConfiguration` — 自动装配入口。
   - `com.frame.me.auth.config.AuthProperties` — `me.auth.*` 配置属性绑定。
   - `com.frame.me.auth.core.AuthContext` — ThreadLocal 当前用户上下文。
-  - `com.frame.me.auth.core.AuthUserAuthenticator` — 账号密码认证器（查用户 → 401 → 校验密码 → 401），供 JWT / Sa-Token 等认证实现的 `login` 共用。
+  - `com.frame.me.auth.core.AuthUserAuthenticator` — 账号密码认证器（查用户 → 4001 → 校验密码 → 4001，凭证错误与会话缺失 401 区分），供 JWT / Sa-Token 等认证实现的 `login` 共用。
   - `com.frame.me.auth.core.TrustedHeaderAuthUserResolver` — 信任身份头（`X-User-Id`）的兜底用户解析器，默认不装配，需 `me.auth.trusted-header.enabled=true` 显式开启。
   - `com.frame.me.auth.core.NoOpAuthUserResolver` — 空操作解析器（不解析任何身份），显式 `me.auth.trusted-header.enabled=false` 时装配，用于确认不需要解析行为的场景。
-  - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。
+  - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。含 RP 上游 token 留存 SPI：`storeUpstreamToken`/`getUpstreamToken`（default no-op/null），供 SSO 下游留存 IdP token 回源调上游接口；安全约定为只存服务端、不得写入下发客户端的凭证（如 JWT claims）。
   - `com.frame.me.auth.spi.IAuthUserResolver` — 请求解析当前用户接口。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — 用户详情服务 SPI（按账号/ID 查询用户、校验密码），供 JWT / Sa-Token 等认证实现共用；`matches` 为 default 方法（BCrypt），业务换算法时覆盖。
   - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — 登录请求与 Token 响应，JWT / Sa-Token 实现共用。
@@ -407,10 +407,10 @@ me:
 - **关键类**：
   - `com.frame.me.auth.jwt.config.JwtAutoConfiguration` — 自动装配入口，通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 保证优先于 auth 抽象层加载。
   - `com.frame.me.auth.jwt.config.JwtAuthProperties` — `me.auth.jwt.*` 配置属性绑定。
-  - `com.frame.me.auth.jwt.core.JwtTokenService` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。
+  - `com.frame.me.auth.jwt.core.JwtTokenService` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。**RP 快照**：`loginByUser`（SSO 下游等无本地用户表场景）签发的 token 额外写入 `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` 返回 null 且 token 带 `rp` 标记时从 claims 重建 User（否则 JWT 无状态下 RP 每请求 401）；密码登录签发的 token 无 `rp` 标记，"删用户即时失效"语义不受影响。RP 续期链路原样透传快照。
   - `com.frame.me.auth.jwt.core.JwtAuthUserResolver` — `IAuthUserResolver` 实现，从 `Authorization: Bearer ...` 解析当前用户。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户、校验密码（与 Sa-Token 实现共用）。
-  - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。
+  - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。兼作 RP 上游 token 存储：`saveUpstreamToken(userId, appId, token, expires)`/`getUpstreamToken(userId, appId)`/`deleteUpstreamTokens(userId)`/`renewUpstreamTokens(userId, expires)`（default no-op；Redis 实现为用户级 hash——key `me.auth.jwt.upstream-token-prefix` + userId（默认 `auth:upstream:`），field=appId，应用维度隔离、多下游共用 Redis 结构性免疫互撞，TTL 用户级共享；InMemory 实现同语义独立 map 惰性过期），JWT 无 session，上游 token 借此落地服务端、随本地会话同生共死（`refresh` 续期条目 TTL，logout/logoutByUserId 同步清除）。
   - `com.frame.me.auth.jwt.web.JwtAuthController` — 默认认证接口：登录/登出/刷新/当前用户/管理员强制登出；基础路径默认 `/api/auth`，可通过 `me.auth.jwt.path` 修改。登录/登出/刷新/强制登出均标 `@AuditLog`（op-audit optional 集成）：login/refresh 刻意 `recordParams=false, recordResult=false` 防明文密码与 Token 对进审计，登录失败经 `recordError` 留失败审计。
   - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — **位于抽象层**：登录请求与 Token 响应（与 Sa-Token 实现共用）。
   - `com.frame.me.auth.util.PasswordUtils` — **位于抽象层**：BCrypt 密码加解密工具。
@@ -421,6 +421,7 @@ me:
   - `me.auth.jwt.issuer` — 签发者，默认 `me`。签发端写入 `iss` claim，解析端用 `requireIssuer` 校验：iss 不匹配的 token 一律拒绝（validate 返回 false / getUser 返回 null / refresh/logout 抛 401）。防护多服务/多环境共用同一 secret 时 token 跨签发者穿透；issuer 不匹配抛 `IncorrectClaimException`，已被各解析方法的 catch 覆盖不会逃逸。
   - `me.auth.jwt.access-token-expires` — Access Token 有效期，默认 `PT2H`。
   - `me.auth.jwt.refresh-token-expires` — Refresh Token 有效期，默认 `P7D`。
+  - `me.auth.jwt.max-lifetime` — 会话绝对寿命上限，默认 `P30D`；`<= 0` 表示不限制。登录时把登录时间写入 Refresh Token 的 `auth_time` 签名 claim 并随续期链路透传，累计超过上限即拒绝续期（4001），防止被偷的 Refresh Token 无限链式续期；存量无 `auth_time` 的 token 按当前时间起算（一次宽限）。
   - `me.auth.jwt.token-header` — Token 请求头，默认 `Authorization`。鉴权解析、logout、refresh 全部共用此配置源（refresh 不硬编码 `Authorization`）。
   - `me.auth.jwt.token-prefix` — Token 前缀，默认 `Bearer `。按 RFC 6750 §2.1 前缀大小写不敏感（`Bearer`/`bearer`/`BEARER` 均接受），`JwtTokenService.extractToken` 与 `JwtAuthController.extractToken` 用 `regionMatches(true, ...)` 忽略大小写匹配剥离。
   - `me.auth.jwt.cookie-domain` — Refresh Token Cookie 的 Domain。未配置时 JSON 返回 Refresh Token；配置后（如 `.example.com`）将 Refresh Token 作为 `HttpOnly`/`Secure`/`SameSite=Lax` Cookie 下发，JSON 中不再返回，且 `refresh`/`logout` 自动读写/清除 Cookie。
@@ -429,7 +430,7 @@ me:
   - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入。
   - 业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
   - Access Token 为无状态 JWT；Refresh Token 存 Redis，支持登出失效。登出接受已过期的 Access / Refresh Token（jjwt 验签后 claims 可信，仅 logout 场景放宽时效），保证过期后登出仍能清除 Refresh Token；`validate` / `getUser` / `refresh` 语义不变，过期即无效。
-  - **refresh 的异常语义**：凭证问题（格式非法/签名不符/类型错误/已过期）返回 401；`IRefreshTokenStore` 等基础设施故障（如 Redis 连接异常）不吞成 401，原样上抛由全局异常处理映射 5xx，避免客户端误以为凭证失效而走重新登录。
+  - **refresh 的异常语义**：凭证问题（格式非法/签名不符/类型错误/已过期/已失效）返回 4001（凭证错误，前端留登录页显示）；`IRefreshTokenStore` 等基础设施故障（如 Redis 连接异常）不吞成 4001，原样上抛由全局异常处理映射 5xx，避免客户端误以为凭证失效而走重新登录。
   - Refresh Token 存储后端：`frame-me-starter-multi-redis` 为 optional 依赖，显式引入即激活 `RedisRefreshTokenStore`；未引入时回退为 `InMemoryRefreshTokenStore`（单实例可用，装配时打 WARN；多实例部署 refresh/强制登出不跨实例生效，必须引入 multi-redis）。业务可注册自定义 `IRefreshTokenStore` 覆盖两者。
   - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；**默认关闭**，需通过 `me.auth.admin.logout.enabled=true` 开启，开启后必须自行配置访问控制（`me.auth.permission.rules` 或自定义拦截器）。
 
@@ -442,10 +443,10 @@ me:
   - `com.frame.me.auth.satoken.config.SaTokenAuthProperties` — `me.auth.sa-token.*` 配置属性绑定；启动时校验 rules key 是否以 `/` 开头，防 relaxed binding 导致的规则静默失效。
   - `com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration` — Redis 会话后端装配入口（类级 `@ConditionalOnClass(RedisUtils.class)`，与总开关 `me.auth.sa-token.enabled` 及 `me.auth.sa-token.redis.enabled` 联动）。
   - `com.frame.me.auth.satoken.config.SaTokenNoRedisWarnAutoConfiguration` — multi-redis 缺席告警（`@ConditionalOnMissingClass`，提示会话退回内存存储）。
-  - `com.frame.me.auth.satoken.core.SaTokenAuthService` — `IAuthService` 实现：`login` / `logout` 走 sa-token 标准上下文 API（`StpUtil.login/logout`，原生写 / 清 Cookie），面向请求线程调用；`refresh` 续期目标为传入 credential（`renewTimeout(token, timeout)` 带参重载），不依赖上下文 token，token 值不变故 Cookie 无需重写；`validate` / `getUser` 用 `getLoginIdByToken` 纯 DAO 查询，上下文无关。用户快照以 JSON 写入 Account-Session，读取缓存优先、回源 `IAuthUserDetailsService#loadUserById`；Session 读取用 no-create 重载，读路径不产生写副作用（session 缺失时不重建、跳过缓存回写，直接回源）。**非数字 loginId**（如 SSO client_credentials 的 `"app:"+appId` 应用主体）按"无此用户"返回 null，不抛 NumberFormatException（否则在 AuthFilter 层逸出成 500）。
+  - `com.frame.me.auth.satoken.core.SaTokenAuthService` — `IAuthService` 实现：`login` / `logout` 走 sa-token 标准上下文 API（`StpLogic.login/logout`，原生写 / 清 Cookie），面向请求线程调用；`refresh` 续期目标为传入 credential（`renewTimeout(token, timeout)` 带参重载），不依赖上下文 token，token 值不变故 Cookie 无需重写；`validate` / `getUser` 用 `getLoginIdByToken` 纯 DAO 查询，上下文无关。**账号体系**：所有动作走 `SaManager.getStpLogic(me.auth.sa-token.logic-type)`，默认 `login` 即 `StpUtil.stpLogic`，配置非默认值（如 SSO 的 `sso`）即切换 sa-token 多账号体系。用户快照以 JSON 写入 Account-Session，读取缓存优先、回源 `IAuthUserDetailsService#loadUserById`；Session 读取用 no-create 重载，读路径不产生写副作用（session 缺失时不重建、跳过缓存回写，直接回源）。**非数字 loginId**（如 SSO client_credentials 的 `"app:"+appId` 应用主体）按"无此用户"返回 null，不抛 NumberFormatException（否则在 AuthFilter 层逸出成 500）。**RP 上游 token**：`storeUpstreamToken(userId, appId, token)` 写入 Account-Session（key `upstreamToken:{appId}`，按应用隔离），随会话同生共死，登出/被踢注销 session 即自动清除，无需显式删除。
   - `com.frame.me.auth.satoken.core.SaTokenAuthUserResolver` — `IAuthUserResolver` 实现：显式从原生 `sa-token.token-name` 指定的请求头读 token（头名取 `SaManager.getConfig().getTokenName()`），header 缺失时按同名 Cookie 兜底读取（遵循原生 `sa-token.is-read-cookie` 开关，显式关闭后本框架同样不读 Cookie）。静态入口 `extractToken` 是 Controller（logout/refresh）与 Resolver 共用的唯一提取方法，Cookie-only 客户端两个端点均可正常工作。刻意不用 `StpUtil.getTokenValue()`——框架 `AuthFilter`（order = HIGHEST_PRECEDENCE + 100）先于官方 `SaTokenContextFilter`（order = -104）执行，此时 sa-token 上下文尚未初始化。
   - `com.frame.me.auth.satoken.core.SaTokenRuleEvaluator` — 路径规则简化表达式求值器（非 SpEL）：`login` / `role:xxx` / `perm:resource` / `perm:resource:action`；非法表达式在装配期预解析直接启动失败。
-  - `com.frame.me.auth.satoken.core.RedisSaTokenDao` — 基于 `RedisUtils` 的 `SaTokenDao` 实现（`SaTokenDaoByObjectFollowString`），timeout 分支语义逐条对齐官方 `SaTokenDaoForRedisTemplate`；所有 key 按 sa-token 传入值原样读写（sa-token 生成的 key 自带 tokenName 前缀，不再叠加命名空间），`clientName` 路由多实例。
+  - `com.frame.me.auth.satoken.core.RedisSaTokenDao` — 基于 `RedisUtils` 的 `SaTokenDao` 实现（`SaTokenDaoByObjectFollowString`），timeout 分支语义逐条对齐官方 `SaTokenDaoForRedisTemplate`；所有 key 按 sa-token 传入值原样读写（sa-token 生成的 key 自带 `{tokenName}:{loginType}` 前缀，不再叠加命名空间），`clientName` 路由多实例。
   - `com.frame.me.auth.satoken.permission.ConfigStpInterface` — 配置版权限数据源（sa-token 原生 RBAC）：从 `me.auth.sa-token.users` / `roles` 读取角色与权限码（原样透传），构造期一次性预解析 CSV，运行期仅 map 查找；业务声明任意 `StpInterface` Bean 即接管（本实现退避）。
   - `com.frame.me.auth.satoken.web.SaTokenAuthController` — 默认认证接口：登录 / 登出 / 续期 / 当前用户 / 管理员强制登出，基础路径默认 `/api/auth`（`me.auth.sa-token.path` 可改）；登录请求与 Token 响应复用抽象层 `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO`（sa-token 会话模型无 Refresh Token 概念，`refreshToken` 恒为 `null`）。登录/登出/续期/强制登出均标 `@AuditLog`（op-audit optional 集成）：login/refresh 刻意 `recordParams=false, recordResult=false` 防明文密码与 Token 进审计，登录失败经 `recordError` 留失败审计。
   - `com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice` — sa-token 异常到 401/403 语义的映射（`@Order(HIGHEST_PRECEDENCE)`，先于 `GlobalExceptionHandler` 的通用处理器）。
@@ -453,8 +454,10 @@ me:
 - **可配置项**：sa-token 原生参数（`token-name` / `timeout` / `active-timeout` / `is-concurrent` / `is-share` / `cookie.*` 等）走官方 `sa-token.*` 配置路径（秒数 long 形式，见 sa-token 官方文档），由官方 starter 的 `SaBeanRegister` 绑定；本模块 `me.auth.sa-token.*` 仅承载框架自有配置（默认值以 `SaTokenAuthProperties` 源码为准）：
   - `me.auth.sa-token.enabled` — 是否启用 Sa-Token 认证，默认 `true`；为 `false` 时 Redis 会话后端配置一并退避。另受父开关 `me.auth.enabled` 总闸级联控制。
   - `me.auth.sa-token.path` — 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/续期/当前用户接口均迁移到该路径下。
+  - `me.auth.sa-token.logic-type` — 账号体系标识（sa-token 多账号 loginType），默认 `login`（即 `StpUtil` 默认体系）。配置为非默认值（如 SSO 的 `sso`）时，本模块全部认证动作（登录/登出/验 token/路径规则校验）改走 `SaManager.getStpLogic(logicType)`，Redis key 变为 `{tokenName}:{logicType}:token|session:*`，与默认 `login` 体系在同一 Redis 中共存隔离；请求头/Cookie 名仍取全局 `sa-token.token-name`。业务侧 `@SaCheck*` 注解需同步加 `type` 属性指向同一体系（装配期解析即完成 SaManager 注册，注解按 type 查找可用）。
   - `me.auth.sa-token.rules` — Interceptor 层「Ant 路径 → 简化鉴权表达式」映射。**YAML 中 key 必须用方括号记法** `"[/api/admin/**]"`，否则 relaxed binding 剥离 `/`、`*` 导致规则匹配不上；启动时校验到不以 `/` 开头的 key 会直接抛异常，阻止应用启动（fail-fast）。
   - `me.auth.sa-token.authorization.enabled` — 是否启用 sa-token 原生鉴权能力（路径规则 + `@SaCheck*` 注解），默认 `true`；关闭后仍保留登录/登出/续期/强制登出/踢人/在线会话等认证与会话治理能力，可把鉴权交给 RBAC 等其它模块。
+  - `me.auth.sa-token.max-lifetime` — 会话绝对寿命上限（秒），默认 `604800`（7 天），`<= 0` 表示不限制。登录时把时间戳记入 Account-Session，滑动续期超过上限即拒绝（4001）强制重新登录，防止被偷 token 无限续命；存量会话无时间戳时补记当前时间（一次宽限）。
   - `me.auth.sa-token.jwt.enabled` — 是否启用 JWT Token 模式，默认 `false`；开启后 `StpUtil.login(...)` 颁发的 Token 会变为 JWT 格式（仍使用 `StpLogicJwtForSimple` 的 Simple 模式，会话数据继续存 Redis，保留踢人/在线会话能力），便于网关独立验签。启用后需在业务工程显式引入 `sa-token-jwt` 并配置 `sa-token.jwt-secret-key`。
   - `me.auth.sa-token.roles` — 角色到权限码映射（逗号分隔 `resource:action` 或 `resource`，原样透传）。
   - `me.auth.sa-token.users` — 用户 ID（字符串）到角色映射（逗号分隔）。
@@ -1119,21 +1122,21 @@ public class AlertService {
 | `frame-me-tester-api` | `frame-me-api` |
 | `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |
 | `frame-me-sso-api` | `frame-me-api` |
-| `frame-me-sso-starter` | 无（空骨架） |
+| `frame-me-sso-starter` | `frame-me-sso-api`、`frame-me-starter-base`、`frame-me-starter-auth`（强依赖，RP 登录调 `IAuthService.loginByUser`）、`frame-me-starter-op-audit`（optional，`@AuditLog` 注解来源） |
 | `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（`frame-me-starter-doc-openapi` 在 swagger profile） |
 | `frame-me-audit-api` | `frame-me-api` |
-| `frame-me-audit-service` | `frame-me-audit-api` |
+| `frame-me-audit-service` | `frame-me-audit-api`、`frame-me-sso-starter`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（`frame-me-starter-doc-openapi` 在 swagger profile） |
 
 ## frame-me-sso（SSO 单点登录服务）
 
-`frame-me-launcher/frame-me-sso` 是独立可运行的 Spring Boot 认证服务，聚合 `frame-me-sso-api`（契约）+ `frame-me-sso-service`（启动服务）+ `frame-me-sso-starter`（下游接入 starter，空骨架待实现）。提供应用注册表、授权码 + client_credentials 双模式颁发 sa-token 不透明 token、/userinfo 代验、用户 CRUD、事件踢人（档3）。接入指南见 `docs/guides/sso.md`。
+`frame-me-launcher/frame-me-sso` 是独立可运行的 Spring Boot 认证服务，聚合 `frame-me-sso-api`（契约）+ `frame-me-sso-service`（启动服务）+ `frame-me-sso-starter`（下游接入 starter）。提供应用注册表、授权码 + client_credentials 双模式颁发 sa-token 不透明 token、/userinfo 代验、用户 CRUD、事件踢人（档3）。接入指南见 `docs/guides/sso.md`。
 
 ### 模块职责
 
 | 模块 | 职责 |
 |---|---|
 | `frame-me-sso-api` | `@HttpExchange` API 契约（`IAuthApi`/`IAppApi`/`IUserApi`）+ dto/vo/enums，供下游引模块用 Spring HTTP Interface 调用 |
-| `frame-me-sso-starter` | 下游应用一键接入 SSO 的 starter（空骨架，待实现） |
+| `frame-me-sso-starter` | 下游应用一键接入 SSO 的 starter：注册 SSO HTTP Interface 客户端代理（`IAuthApi`/`IUserApi`/`IAppApi`，group=`sso`）+ `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件；**RP 全家桶**：`SsoAuthAutoConfiguration` 装配 `SsoAuthController`+`SsoAuthService`+`SsoIndexController`+`SsoLogoutEventListener`（+ `SsoAuthUserDetailsService` 兜底）。下游引本 starter + auth-sa-token/auth-jwt 即开箱获得 `POST /api/auth/sso-login` 端点 + `GET /index` 回调落地页 + 踢人监听。强依赖 `frame-me-starter-auth`；登录端点（`loginByUser`）与踢人监听（`logoutByUserId`）均走 SPI，sa-token/JWT 两套实现都覆盖 |
 | `frame-me-sso-service` | 启动服务：应用注册表、授权码流程、sa-token 会话治理、用户 CRUD、踢人事件 |
 
 ### 关键类
@@ -1144,17 +1147,31 @@ public class AlertService {
 | `AuthController` | `sso/controller/AuthController` | 授权码流程端点（authorize/loginPage/token）+ 强制登出 + 全局登出（用户一键全退，发档3事件） |
 | `AppController` | `sso/controller/AppController` | 应用管理端点（注册/列表/更新/重置密钥/禁用/按 app 踢人，`@SaCheckRole("admin")`） |
 | `UserController` | `sso/controller/UserController` | `/userinfo`（匿名 + 自验 Bearer）+ 用户 CRUD（admin） |
-| `AppService` | `sso/service/AppService` | 应用注册/密钥/白名单校验 |
-| `UserService` | `sso/service/UserService` | 用户查询/保存/更新/逻辑删除；`findByAccount`/`findById` 走 L1(Caffeine)+L2(Redis) 缓存（60s、缓存空值），写路径同步失效（`@Cached`/`@CacheInvalidate`，启动类 `@EnableMethodCache`） |
-| `UserCacheEvictor` | `sso/service/UserCacheEvictor` | 删除场景的双键失效器（独立 bean 承载 `@CacheInvalidate`，避免自调用绕过 AOP） |
-| `AuthCodeService` | `sso/service/AuthCodeService` | 授权码签发/消费（Redis GETDEL 原子防重放） |
-| `LogoutService` | `sso/service/LogoutService` | 踢人（按用户/按应用）+ 发 `UserLogoutEvent` |
+| `IAppService` / `AppServiceImpl` | `sso/service`（impl 子包） | 应用注册/密钥/白名单校验 |
+| `IUserService` / `UserServiceImpl` | `sso/service`（impl 子包） | 用户查询/保存/更新/逻辑删除；`findByAccount`/`findById` 走 L1(Caffeine)+L2(Redis) 缓存（60s、缓存空值），写路径同步失效（`@Cached`/`@CacheInvalidate`，启动类 `@EnableMethodCache`） |
+| `UserCacheEvictor` | `sso/service/evictor/UserCacheEvictor` | 删除场景的双键失效器（独立 bean 承载 `@CacheInvalidate`，避免自调用绕过 AOP） |
+| `IAuthCodeService` / `AuthCodeServiceImpl` | `sso/service`（impl 子包） | 授权码签发/消费（Redis GETDEL 原子防重放） |
+| `ILogoutService` / `LogoutServiceImpl` | `sso/service`（impl 子包） | 踢人（按用户/按应用）+ 发 `UserLogoutEvent` |
 | `UserLogoutEvent`/`UserLogoutEventType`/`UserLogoutEventConfiguration` | `sso/event/`（`frame-me-sso-api`） | 踢人事件契约 + 类型注册项 + 显式注册配置（SSO 侧组件扫描自动注册；下游 `@Import` 即订阅） |
 | `SsoTokenUtils` | `sso/infrastructure/satoken/SsoTokenUtils` | app token 身份收口（`app:` loginId 前缀、Bearer 解析） |
 | `DefaultDeviceInterceptor` | `sso/infrastructure/satoken/DefaultDeviceInterceptor` | 管理端点设备闸：仅认默认设备会话，匿名放行 |
-| `SsoStpInterface` | `sso/infrastructure/satoken/SsoStpInterface` | sa-token 角色源，走 `UserService.findById` 缓存读 `UserEntity.roles`（app loginId 空列表 fail-closed） |
+| `SsoStpInterface` | `sso/infrastructure/satoken/SsoStpInterface` | sa-token 角色源，走 `IUserService#findById` 缓存读 `UserEntity.roles`（app loginId 空列表 fail-closed） |
 | `SsoUserDetailsService` | `sso/infrastructure/satoken/SsoUserDetailsService` | 认证 SPI 适配：UserEntity → base User |
 | `SsoProperties`/`SsoConfiguration` | `sso/infrastructure/config/` | `me.sso.*` 配置 + 拦截器装配 |
+
+**sso-starter 关键类**（`frame-me-sso-starter`）：
+
+| 类 | 路径 | 职责 |
+|---|---|---|
+| `SsoClientAutoConfiguration` | `sso-starter/config/SsoClientAutoConfiguration` | 注册 HTTP Interface 代理（`IAuthApi`/`IUserApi`/`IAppApi`，group=`sso`）+ `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件 |
+| `SsoClientProperties` | `sso-starter/config/SsoClientProperties` | `me.sso.client.*` 配置（appId/appSecret/redirectUri） |
+| `SsoAuthAutoConfiguration` | `sso-starter/config/SsoAuthAutoConfiguration` | RP 装配：`@Import(SsoAuthService/SsoAuthController/SsoIndexController/SsoLogoutEventListener)` + `@ConditionalOnMissingBean` 兜底装配 `SsoAuthUserDetailsService`（下游自定义 `IAuthUserDetailsService` 时自动退让）；`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；登录端点与踢人监听均走 SPI，sa-token/JWT 两套通用 |
+| `SsoIndexController` | `sso-starter/auth/SsoIndexController` + `resources/sso/index.html` | `GET /index` 回调落地页（匿名，text/html）：authorize 回调（redirectUri 配为本端点）带 code/state 落在该页，页面 JS 校验 state（仅站内相对路径，缺失/为空/不合法回落 `/`，防 open redirect）后经 URL hash 携带 code 重定向到 state 标记地址，目标页（SPA 路由）取 code 调 `/sso-login`；无 code 访问不跳转（防自转循环）；HTML 以 `Resource` 形式返回（不走 `static/`：避免劫持下游 `/` welcome page 与静态资源互踩，且 `@Anonymous` 可随 starter 分发、免配 whitelist） |
+| `SsoAuthUserDetailsService` | `sso-starter/auth/SsoAuthUserDetailsService` | RP 兜底 `IAuthUserDetailsService`（无本地用户表下游通用）：`loadUserByAccount` 返回 null；`loadUserById` 薄委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建；`@Lazy` 注入破构造环 |
+| `SsoAuthService` | `sso-starter/auth/SsoAuthService` | RP 登录编排：code → SSO token → /userinfo 取用户 → `IAuthService.loginByUser` 建本地会话 → `storeUpstreamToken(userId, appId, token)` 按应用隔离留存 SSO token（随本地会话同生共死）；另提供 `loadUserByUpstreamToken(userId)` 回源接口：下游 `IAuthUserDetailsService.loadUserById` 快照 miss 时委托调用，用留存 token 重拉 /userinfo 重建 User（含 sub 一致性校验，取不到/失败返回 null → fail-closed 401 重登）。**M2M**：`getAppToken()` 用 client_credentials 换应用 token 并实例内存缓存（单条目，`me.sso.client.app-token-cache-ttl` 默认 1h），过期自动重取、失败抛 4001 不写缓存，`invalidateAppToken()` 应对缓存 token 401 |
+| `SsoAuthController` | `sso-starter/auth/SsoAuthController` | `POST /api/auth/sso-login`：授权码换本地会话；`@AuditLog` 标注（recordParams/recordResult=false 防敏感数据入审计） |
+| `SsoLoginDTO` | `sso-starter/auth/SsoLoginDTO`（`frame-me-sso-starter`） | RP 登录请求体（code + 可选 redirectUri） |
+| `SsoLogoutEventListener` | `sso-starter/auth/SsoLogoutEventListener` | `@EventListener(UserLogoutEvent)`：调 `IAuthService.logoutByUserId` 清本地会话（走 SPI，sa-token 清 sa-token 会话，JWT 删 Refresh Token，两套通用） |
 
 ### 可配置项（`me.sso.*`）
 
@@ -1168,11 +1185,38 @@ public class AlertService {
 
 ## frame-me-audit（审计中心）
 
-`frame-me-launcher/frame-me-audit` 是审计中心聚合工程，聚合 `frame-me-audit-api`（契约）+ `frame-me-audit-service`（启动服务），当前为**骨架待实现**。定位：订阅 `audit:op-log` 通道，接收 `frame-me-starter-op-audit` 桥接来的审计事件并持久化（接收侧需 `@Import(AuditLogEventConfiguration.class)` 启用订阅，见 `docs/guides/audit.md` 跨服务持久化一节）。
+`frame-me-launcher/frame-me-audit` 是审计中心聚合工程，聚合 `frame-me-audit-api`（契约）+ `frame-me-audit-service`（启动服务）。定位：订阅 `audit:log` 事件通道，接收 `frame-me-starter-op-audit` 桥接来的审计事件并持久化到 MySQL；同时作为 SSO 下游（RP），用户通过 SSO 授权码登录后建 audit 自己的 sa-token 本地会话。
 
 ### 模块职责
 
 | 模块 | 职责 |
 |---|---|
-| `frame-me-audit-api` | 审计查询 API 契约（骨架，待实现） |
-| `frame-me-audit-service` | 启动服务：接收审计事件并持久化（骨架，`AuditConstant` 为占位类） |
+| `frame-me-audit-api` | 审计 API 契约模块：`ILogApi`（审计日志管理查询）+ `LogQuery`/`LogVO`；`SsoAuthController` 的 sso-login 端点已搬至 `frame-me-sso-starter`，后续按需抽 `ISsoAuthApi` 契约 |
+| `frame-me-audit-service` | 启动服务：订阅 `audit:log` 持久化 + 审计日志管理查询（`LogController`）+ SSO RP sa-token 会话治理 |
+
+### 关键类
+
+| 类 | 路径 | 职责 |
+|---|---|---|
+| `Application` | `audit/Application` | 主启动类，`@Import(AuditLogEventConfiguration.class)` 订阅 `audit:log` 通道 |
+| `SsoLogoutEventListener` | `sso-starter/auth/SsoLogoutEventListener`（已搬到 `frame-me-sso-starter`） | `@EventListener(UserLogoutEvent)`：调 `IAuthService.logoutByUserId(userId)` 清本地会话——走 SPI，sa-token 清 sa-token 会话，JWT 删 Refresh Token，两套认证实现通用 |
+| `LogEntity` | `audit/entity/LogEntity` | `@Table("audit_log") extends BaseEntity`，字段映射 `AuditLogRecord` |
+| `LogMapper` | `audit/mapper/LogMapper` | `@Mapper extends BaseMapper<LogEntity>`；`getById` 走 `resources/mapper/LogMapper.xml` 自定义 SQL（详情查询统一走 XML） |
+| `LogEventListener` | `audit/service/listener/LogEventListener` | `@EventListener(AuditLogEvent)`：取 record 写 `audit_log` 表；**多实例去重**以 `event.getEventId()` 为 key 加 Redis 锁（`audit:log:dedup:<eventId>`）全局只入库一次，锁不主动释放靠 TTL(30s)过期覆盖重投递窗口，Redis 故障降级放行（旁路原则）；失败不阻断事件链路 |
+| `ILogApi` | `audit-api/ILogApi` | 审计日志管理查询契约（`@HttpExchange("/api/log")`）：`/list`、`/page`、`/{id}`，均收 `@QueryMap LogQuery`（action/operatorId/description 模糊，category/sourceService/success 精确，startTime/endTime 按 timestamp 圈区间，`@TimeRange` 校验） |
+| `LogController` | `audit/controller/LogController` | 实现 `ILogApi`，全局 `me.auth.enforce-login` 强制登录保护 |
+| `LogServiceImpl` | `audit/service/impl/LogServiceImpl` | `QueryWrapper` + `LogEntityTableDef` 类型安全拼条件，默认 `timestamp desc` 排序（`PageUtils.toOrderBy` 白名单） |
+| `LogConvert` | `audit/service/convert/LogConvert` | MapStruct entity → VO |
+
+### 可配置项（`me.audit.*` / `me.sso.client.*`）
+
+| 属性 | 默认值 | 说明 |
+|---|---|---|
+| `me.auth.sa-token.path` | `/api/auth` | sa-token 认证接口基础路径（`SaTokenAuthController` 的 /login /logout /refresh /user） |
+| `me.auth.sa-token.max-lifetime` | `604800` | 会话绝对寿命上限（秒），滑动续期超过即拒绝（4001）；`<= 0` 不限制 |
+| `me.sso.client.path` | `/api/auth` | SSO RP 登录端点基础路径（`SsoAuthController` 的 /sso-login，来自 sso-starter，自治不绑 sa-token）；**改 path 时需与 `me.auth.sa-token.path` 同步配**，确保端点共路径 |
+| `me.sso.client.app-id` | — | audit 在 SSO 注册的应用 ID |
+| `me.sso.client.app-secret` | — | 应用密钥（支持 `ME(密文)` 加密） |
+| `me.sso.client.redirect-uri` | — | 授权码回调地址 |
+| `spring.http.serviceclient.sso.base-url` | — | SSO 服务地址（HTTP Interface group=`sso` 的 baseUrl） |
+| `me.audit.target-service` | `frame-me-audit` | 自身审计事件定向发给自己 |

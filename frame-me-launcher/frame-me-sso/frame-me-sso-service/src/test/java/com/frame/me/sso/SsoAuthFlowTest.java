@@ -3,8 +3,8 @@ package com.frame.me.sso;
 import com.frame.me.sso.api.enums.AccessType;
 import com.frame.me.sso.entity.AppEntity;
 import com.frame.me.sso.entity.UserEntity;
-import com.frame.me.sso.service.AppService;
-import com.frame.me.sso.service.UserService;
+import com.frame.me.sso.service.IAppService;
+import com.frame.me.sso.service.IUserService;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>登录页可匿名访问（AuthFilter whitelist 对静态资源生效）</li>
  *   <li>未登录 authorize → 302 登录页，回跳链不丢 state</li>
  *   <li>登录 → authorize 发 code（state 原样回显）→ 换 token → Bearer 调 /userinfo</li>
- *   <li>授权码一次性（重放 401）、scope 越权 400、redirectUri 非白名单 400</li>
+ *   <li>授权码一次性（重放 4001 凭证错误）、scope 越权 400、redirectUri 非白名单 400（均 HTTP 200 + body 码）</li>
  *   <li>EXTERNAL 应用换 token 强制校验 appSecret</li>
  *   <li>用户 CRUD：创建/列表/详情/更新/删除，重复账号与垃圾入参拒绝，防自锁，
  *       改密码/禁用/删除联动踢会话，管理端点设备闸拦截应用 token</li>
@@ -76,10 +76,10 @@ class SsoAuthFlowTest {
     private TestRestTemplate rest;
 
     @Autowired
-    private UserService userService;
+    private IUserService userService;
 
     @Autowired
-    private AppService appService;
+    private IAppService appService;
 
     private AppEntity internalApp;
 
@@ -185,13 +185,13 @@ class SsoAuthFlowTest {
         String accessToken = (String) ((Map<String, Object>) tokenBody.get("data")).get("accessToken");
         assertThat(accessToken).isNotBlank();
 
-        // 授权码重放 → 401（GETDEL 已消费）
+        // 授权码重放 → 4001 凭证错误（GETDEL 已消费）
         Map<String, Object> replay = postForMap("/api/auth/token", Map.of(
                 "code", code,
                 "appId", internalApp.getAppId(),
                 "appSecret", internalApp.getAppSecretPlain(),
                 "redirectUri", CALLBACK));
-        assertThat(replay.get("code")).isEqualTo(401);
+        assertThat(replay.get("code")).isEqualTo(4001);
 
         // Bearer 调 /userinfo（@Anonymous 放行 AuthFilter，端点自验 token）→ 200 + 用户信息
         HttpHeaders bearer = new HttpHeaders();
@@ -222,25 +222,26 @@ class SsoAuthFlowTest {
     }
 
     /**
-     * scope 越权（请求 admin 不在应用注册的 openid profile 内）→ 400 + 原因 message.
+     * scope 越权（请求 admin 不在应用注册的 openid profile 内）→ 400 业务码 + 原因 message（HTTP 200）.
      */
     @Test
     void scopeOutsideWhitelistRejected() {
         ResponseEntity<String> res = rest.getForEntity(
                 authorizeUrl(internalApp.getAppId(), "openid admin", null), String.class);
-        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        // BusinessException(BAD_REQUEST) → HTTP 200 + body code=400（此前用 ResponseStatusException 直出 HTTP 400，破坏"恒 200"契约）
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).contains("scope 超出应用授权范围");
     }
 
     /**
-     * redirectUri 不在白名单 → 400 + 原因 message（禁止重定向回跳，RFC 6749 §4.1.2.1）.
+     * redirectUri 不在白名单 → 400 业务码 + 原因 message（禁止重定向回跳，RFC 6749 §4.1.2.1；HTTP 200）.
      */
     @Test
     void redirectUriNotWhitelistedRejected() {
         String url = "/api/auth/authorize?appId=" + internalApp.getAppId()
                 + "&redirectUri=http://evil.com/cb&scope=openid";
         ResponseEntity<String> res = rest.getForEntity(url, String.class);
-        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).contains("redirectUri 不在应用白名单");
     }
 
@@ -256,17 +257,17 @@ class SsoAuthFlowTest {
 
         String code = issueCode(externalApp.getAppId(), login("alice", "123456"));
 
-        // 缺 secret → 401
+        // 缺 secret → 4001 凭证错误
         assertThat(postForMap("/api/auth/token", Map.of(
                 "code", code, "appId", externalApp.getAppId(), "redirectUri", CALLBACK))
-                .get("code")).isEqualTo(401);
+                .get("code")).isEqualTo(4001);
 
-        // 错 secret → 401
+        // 错 secret → 4001 凭证错误
         String code2 = issueCode(externalApp.getAppId(), login("alice", "123456"));
         assertThat(postForMap("/api/auth/token", Map.of(
                 "code", code2, "appId", externalApp.getAppId(),
                 "appSecret", "wrong", "redirectUri", CALLBACK))
-                .get("code")).isEqualTo(401);
+                .get("code")).isEqualTo(4001);
 
         // 正确 secret → 200
         String code3 = issueCode(externalApp.getAppId(), login("alice", "123456"));
@@ -355,16 +356,16 @@ class SsoAuthFlowTest {
                 List.of(CALLBACK), "openid");
         String secret = externalApp.getAppSecretPlain();
 
-        // 缺 secret → 401
+        // 缺 secret → 4001 凭证错误
         assertThat(postForMap("/api/auth/token", Map.of(
                 "grantType", "client_credentials", "appId", externalApp.getAppId()))
-                .get("code")).isEqualTo(401);
+                .get("code")).isEqualTo(4001);
 
-        // 错 secret → 401
+        // 错 secret → 4001 凭证错误
         assertThat(postForMap("/api/auth/token", Map.of(
                 "grantType", "client_credentials", "appId", externalApp.getAppId(),
                 "appSecret", "wrong"))
-                .get("code")).isEqualTo(401);
+                .get("code")).isEqualTo(4001);
 
         // 正确 secret → 200 + token
         Map<String, Object> ok = postForMap("/api/auth/token", Map.of(

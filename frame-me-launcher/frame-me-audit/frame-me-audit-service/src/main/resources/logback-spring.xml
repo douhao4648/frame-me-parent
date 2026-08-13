@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- 引入 frame-me 共享日志模板（appender、profile 分级等） -->
+    <include resource="logback-frame-me.xml"/>
+
+</configuration>

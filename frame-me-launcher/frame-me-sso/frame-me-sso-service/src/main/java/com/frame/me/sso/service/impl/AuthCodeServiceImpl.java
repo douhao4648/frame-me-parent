@@ -1,4 +1,6 @@
-package com.frame.me.sso.service;
+package com.frame.me.sso.service.impl;
+
+import com.frame.me.sso.service.IAuthCodeService;
 
 import cn.hutool.core.util.IdUtil;
 import com.alibaba.fastjson2.JSON;
@@ -22,7 +24,7 @@ import java.time.Duration;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AuthCodeService {
+public class AuthCodeServiceImpl implements IAuthCodeService {
 
     private final StringRedisTemplate redisTemplate;
     private final SsoProperties properties;
@@ -32,6 +34,7 @@ public class AuthCodeService {
      *
      * <p>value 用 JSON 序列化：scopes/redirectUri 用户可控，":" 等分隔符拼接会被注入错位.</p>
      */
+    @Override
     public String issue(String appId, Long userId, String scopes, String redirectUri) {
         String code = IdUtil.fastSimpleUUID();
         Duration expires = properties.getAuthCode().getExpires();
@@ -53,6 +56,7 @@ public class AuthCodeService {
      *
      * @return null 表示无效或已使用
      */
+    @Override
     public CodePayload consume(String code) {
         String key = SsoConstant.AUTH_CODE_KEY_PREFIX + code;
         String value = redisTemplate.opsForValue().getAndDelete(key);
@@ -60,16 +64,5 @@ public class AuthCodeService {
             return null;
         }
         return JSON.parseObject(value, CodePayload.class);
-    }
-
-    /**
-     * 授权码负载.
-     */
-    public static class CodePayload {
-
-        public String appId;
-        public Long userId;
-        public String scopes;
-        public String redirectUri;
     }
 }

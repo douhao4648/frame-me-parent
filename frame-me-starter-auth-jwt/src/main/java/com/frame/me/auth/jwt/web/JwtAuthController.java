@@ -9,6 +9,7 @@ import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.web.dto.LoginDTO;
 import com.frame.me.auth.web.vo.TokenVO;
+import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
@@ -24,11 +25,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * JWT 认证控制器.
@@ -133,11 +132,11 @@ public class JwtAuthController {
             @PathVariable @jakarta.validation.constraints.Positive(message = "用户 ID 必须为正整数") Long userId) {
         AuthProperties ifAvailable = authProperties.getIfAvailable();
         if (ifAvailable == null) {
-            return Result.error(ResultCode.UNAUTHORIZED);
+            throw new BusinessException(ResultCode.NOT_FOUND, "管理员强制登出接口未启用");
         }
         AuthProperties.Admin admin = ifAvailable.getAdmin();
         if (admin == null || !Boolean.TRUE.equals(admin.getLogoutEnabled())) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "管理员强制登出接口未启用");
+            throw new BusinessException(ResultCode.NOT_FOUND, "管理员强制登出接口未启用");
         }
         authService.logoutByUserId(userId);
         return Result.success(true);
@@ -173,7 +172,7 @@ public class JwtAuthController {
         // 长度校验防数组越界（tokenPair 格式异常时不静默截断，明确报错）
         String[] parts = tokenPair.split(";", 2);
         if (parts.length < 2) {
-            throw new IllegalStateException("Token pair 格式异常：缺少分号分隔");
+            throw new BusinessException("Token pair 格式异常：缺少分号分隔");
         }
         String accessToken = parts[0];
         String refreshToken = parts[1];

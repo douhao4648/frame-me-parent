@@ -97,9 +97,9 @@ class JwtAuthEndToEndTest {
         assertEquals(HttpStatus.OK, logoutResp.getStatusCode());
         assertEquals(200, logoutResp.getBody().getCode());
 
-        // 6. 旧 Refresh Token 已失效
+        // 6. 旧 Refresh Token 已失效 → 4001 凭证错误
         ResponseEntity<Result> refreshAfterLogout = restTemplate.exchange(baseUrl() + "/base/auth/refresh", HttpMethod.POST, refreshEntity, Result.class);
         assertEquals(HttpStatus.OK, refreshAfterLogout.getStatusCode());
-        assertEquals(401, refreshAfterLogout.getBody().getCode());
+        assertEquals(4001, refreshAfterLogout.getBody().getCode());
     }
 }

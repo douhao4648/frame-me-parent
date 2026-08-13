@@ -1,0 +1,129 @@
+server:
+  port: 10020
+
+management:
+  server:
+    port: 10021
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+spring:
+  application:
+    name: frame-me-audit
+  jackson:
+    default-property-inclusion: non_null
+  http:
+    clients:
+      connect-timeout: 5s
+      read-timeout: 30s
+
+logging:
+  file:
+    path: ./logs
+    name: ${spring.application.name}
+
+mybatis-flex:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    logic-delete-column: deleted
+    normal-value-of-logic-delete: 0
+    deleted-value-of-logic-delete: 1
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+decorator:
+  datasource:
+    enabled: true
+    p6spy:
+      enable-logging: true
+
+sa-token:
+  token-name: satoken
+  # 12 小时（秒）
+  timeout: 43200
+  # 02 小时（秒）
+  active-timeout: 7200
+  is-concurrent: true
+  is-share: true
+  is-read-cookie: true
+  is-read-header: true
+#  cookie:
+#    domain: .example.com
+
+me:
+  auth:
+    enabled: true
+    enforce-login: true
+    whitelist:
+      - /favicon.ico
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /v3/api-docs/**
+      - /v3/api-docs
+    propagate:
+      enabled: true
+    sa-token:
+      enabled: true
+      path: /base/auth
+      # 7 天（秒）需少于 sso app token 过期时间
+      max-lifetime: 604800
+  swagger:
+    title: Frame Me Audit API
+    description: Frame Me Audit 接口文档
+    version: 1.0.0
+    groups:
+      - name: app-api
+        paths-to-match:
+          - /api/**
+      - name: base-api
+        paths-to-match:
+          - /base/**
+      - name: index-api
+        paths-to-match:
+          - /*
+    contact:
+      name: douhao4648
+      email: 464834138@qq.com
+      url: https://github.com/douhao4648/frame-me-parent
+  sso:
+    client:
+      enabled: true
+      app-id: fm-internal-audit
+      app-secret: fm-internal-audit-secret
+      redirect-uri: http://localhost:10020/index
+      path: /base/auth
+  audit:
+    enabled: true
+    log-enabled: true
+    target-service: frame-me-audit
+
+jetcache:
+  decodeFilterAllowPatterns:
+    - com.frame.me.
+  statIntervalMinutes: 15
+  local:
+    default:
+      type: caffeine
+      keyConvertor: fastjson2
+      limit: 1000
+      expireAfterWriteInMillis: 120000
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson2
+      valueEncoder: kryo5
+      valueDecoder: kryo5
+      expireAfterWriteInMillis: 120000
+      broadcastChannel: ${spring.application.name}
+      uri: redis://${spring.data.redis.host:localhost}:${spring.data.redis.port:6379}/${spring.data.redis.database:0}
+#      # @符号得替换成编码符
+#      uri: redis://u:p@host:port/db

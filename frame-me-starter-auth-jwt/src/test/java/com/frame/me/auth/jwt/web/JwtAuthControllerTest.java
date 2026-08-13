@@ -5,6 +5,7 @@ import com.frame.me.auth.core.AuthContext;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.resolver.LoginUserArgumentResolver;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.base.advice.GlobalExceptionHandler;
 import com.frame.me.base.user.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -37,8 +38,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author frame-me
  */
 @WebMvcTest(JwtAuthController.class)
-@Import({JwtAuthProperties.class, JwtAuthControllerTest.LoginUserResolverConfig.class})
+@Import({JwtAuthProperties.class, JwtAuthControllerTest.LoginUserResolverConfig.class, GlobalExceptionHandler.class})
 class JwtAuthControllerTest {
+
+    /**
+     * 提供 {@link GlobalExceptionHandler} 依赖的 {@link com.frame.me.base.config.ExceptionProperties} bean.
+     */
+    @Configuration(proxyBeanMethods = false)
+    static class ExceptionPropertiesConfig {
+        @org.springframework.context.annotation.Bean
+        com.frame.me.base.config.ExceptionProperties exceptionProperties() {
+            return new com.frame.me.base.config.ExceptionProperties();
+        }
+    }
 
     /**
      * 注册 {@link LoginUserArgumentResolver}，使 {@code @LoginUser} 参数能从 {@link AuthContext} 解析.
@@ -81,10 +93,13 @@ class JwtAuthControllerTest {
 
     @Test
     void testLoginValidationFailed() throws Exception {
+        // @Valid 校验失败 → GlobalExceptionHandler.handleMethodArgumentNotValidException
+        // → HTTP 200 + body code=400（此前无 advice 时 Spring 默认直出 HTTP 400，破坏"恒 200"契约）
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"account\":\"\",\"password\":\"\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     @Test
@@ -138,9 +153,11 @@ class JwtAuthControllerTest {
 
     @Test
     void testAdminLogoutByUserId_disabledReturnsNotFound() throws Exception {
-        // 默认 me.auth.admin.logout.enabled=false，未启用时返回 404
+        // 默认 me.auth.admin.logout.enabled=false，未启用时 BusinessException(NOT_FOUND)
+        // → HTTP 200 + body code=404（与会话缺失 401 区分；此前用 ResponseStatusException 直出 HTTP 404，破坏"恒 200"契约）
         mockMvc.perform(post("/api/auth/admin/123/logout"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(404));
     }
 
     @SpringBootApplication

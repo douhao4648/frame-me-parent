@@ -3,7 +3,7 @@ package com.frame.me.sso.infrastructure.satoken;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.user.User;
 import com.frame.me.sso.entity.UserEntity;
-import com.frame.me.sso.service.UserService;
+import com.frame.me.sso.service.IUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SsoUserDetailsService implements IAuthUserDetailsService {
 
-    private final UserService userService;
+    private final IUserService userService;
 
     @Override
     public User loadUserByAccount(String account) {

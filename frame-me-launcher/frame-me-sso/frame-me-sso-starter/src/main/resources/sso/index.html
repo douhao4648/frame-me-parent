@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Me</title>
+</head>
+<body>
+<!--
+  SSO 授权码回调落地页（frame-me-sso-starter 内置，GET /index 由 SsoIndexController 提供）。
+
+  职责：读取 authorize 回调携带的 code/state，重定向到 state 标记的站内地址，
+  code 经 URL hash 携带（不进服务端日志/Referer），目标页（SPA 路由）从
+  location.hash 取出 code 后调 POST /api/auth/sso-login 换本地会话。
+  state 职责仅为跳转目标，不回显——目标页已身处该地址，无需再读它。
+
+  state 校验：仅接受站内相对路径（/ 开头、拒绝 // 协议相对、反斜杠与空白），
+  缺失/为空/不合法一律回落 /（防 open redirect）。
+  无 code 的访问（浏览器直达/探针）不做跳转，静态展示本页（防自转循环）。
+-->
+<script>
+(function () {
+    var params = new URLSearchParams(window.location.search);
+    var code = params.get('code');
+    if (!code) {
+        return;
+    }
+    var state = params.get('state');
+    var target = (state && /^\/(?!\/)[^\\\s]*$/.test(state)) ? state.split('#')[0] : '/';
+    window.location.replace(target + '#code=' + encodeURIComponent(code));
+})();
+</script>
+<noscript><p>需要启用 JavaScript 完成登录跳转。</p></noscript>
+<p>Frame Me</p>
+</body>
+</html>

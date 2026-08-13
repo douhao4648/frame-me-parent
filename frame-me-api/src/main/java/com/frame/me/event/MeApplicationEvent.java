@@ -1,9 +1,11 @@
 package com.frame.me.event;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.UUID;
 
 /**
  * 可桥接的本地事件基类.
@@ -30,12 +32,24 @@ public abstract class MeApplicationEvent implements Serializable {
     private final Object source;
 
     /**
+     * 事件唯一 ID.
+     *
+     * <p>发送时缺省生成 UUID，业务可在构造后 {@link #setEventId} 覆盖自定义值。
+     * 广播时随 {@code EventBridgeMessage} 传输，接收方重建事件后回填，
+     * 使用方自行决定是否用于去重/幂等。</p>
+     */
+    @Getter
+    @Setter
+    private String eventId;
+
+    /**
      * 创建事件.
      *
      * @param source 事件源
      */
     public MeApplicationEvent(Object source) {
         this.source = source;
+        this.eventId = UUID.randomUUID().toString();
     }
 
     /**

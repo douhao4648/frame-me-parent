@@ -2,13 +2,13 @@ package com.frame.me.sse.mvc.core;
 
 import com.alibaba.fastjson2.JSON;
 import com.frame.me.base.event.IReceiverIdAuthorizer;
+import com.frame.me.base.exception.BusinessException;
+import com.frame.me.base.result.ResultCode;
 import com.frame.me.sse.mvc.SseConstant;
 import com.frame.me.sse.mvc.config.SseProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -153,7 +153,7 @@ public class SseEmitterManager {
     private void checkEmitterLimit() {
         int max = properties.getMaxEmitters();
         if (max > 0 && activeEmitters.size() >= max) {
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+            throw new BusinessException(ResultCode.TOO_MANY_REQUESTS,
                     "SSE emitter limit reached: " + max);
         }
     }
@@ -164,14 +164,14 @@ public class SseEmitterManager {
      */
     private void validateId(String id, String name) {
         if (id == null || id.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, name + " 不能为空");
+            throw new BusinessException(ResultCode.BAD_REQUEST, name + " 不能为空");
         }
         if (id.length() > SseConstant.MAX_ID_LENGTH) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new BusinessException(ResultCode.BAD_REQUEST,
                     name + " 长度超过 " + SseConstant.MAX_ID_LENGTH);
         }
         if (!SAFE_ID.matcher(id).matches()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new BusinessException(ResultCode.BAD_REQUEST,
                     name + " 含非法字符，仅允许字母数字、冒号、下划线、短横");
         }
     }
@@ -183,7 +183,7 @@ public class SseEmitterManager {
     private void authorizeReceiverId(String receiverId) {
         if (receiverIdAuthorizer.isPresent()
                 && !receiverIdAuthorizer.get().authorize(receiverId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+            throw new BusinessException(ResultCode.FORBIDDEN,
                     "无权订阅 receiverId: " + receiverId);
         }
     }
@@ -195,8 +195,8 @@ public class SseEmitterManager {
         } catch (IOException e) {
             log.debug("SSE initial retry directive failed for emitter: {}", e.getMessage());
             emitter.completeWithError(e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "SSE emitter initialization failed");
+            throw new BusinessException(ResultCode.ERROR,
+                    "SSE emitter initialization failed", e);
         }
         return emitter;
     }

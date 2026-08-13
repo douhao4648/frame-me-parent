@@ -35,7 +35,7 @@ public interface IAuthService {
      * @throws BusinessException 默认实现抛 {@code UNAUTHORIZED}，表示当前认证实现不支持 RP
      */
     default String loginByUser(User user) {
-        throw new BusinessException(ResultCode.UNAUTHORIZED, "当前认证实现不支持按已知用户直接建立会话（RP 场景）");
+        throw new BusinessException(ResultCode.BAD_CREDENTIAL, "当前认证实现不支持按已知用户直接建立会话（RP 场景）");
     }
 
     /**
@@ -55,6 +55,38 @@ public interface IAuthService {
      */
     default void logoutByUserId(Long userId) {
         // 默认空实现，避免破坏现有实现
+    }
+
+    /**
+     * 存储上游 IdP 颁发的 token（RP 场景：如 SSO 授权码换得的 sa-token）.
+     *
+     * <p>下游建本地会话后，上游 token 默认被丢弃；需要"回源调上游接口取数据"
+     * （如重新拉 {@code /userinfo}）时可先调本方法留存。存储随本地会话同生共死——
+     * 登出/被踢时由各实现负责清除。默认空实现表示不存储。</p>
+     *
+     * <p><b>appId 维度：</b>token 按上游应用（如 SSO 注册的应用 ID）隔离存取——
+     * 不同应用的 token 互不覆盖，共用存储后端的多个下游也不会互撞。</p>
+     *
+     * <p><b>安全约定：</b>上游 token 是 bearer 凭证，只能存服务端（Session/Redis），
+     * 不得写入下发给客户端的凭证（如 JWT claims）。</p>
+     *
+     * @param userId        用户 ID
+     * @param appId         上游应用 ID
+     * @param upstreamToken 上游 IdP token
+     */
+    default void storeUpstreamToken(Long userId, String appId, String upstreamToken) {
+        // 默认空实现：不留存上游 token
+    }
+
+    /**
+     * 读取 {@link #storeUpstreamToken} 存储的上游 IdP token.
+     *
+     * @param userId 用户 ID
+     * @param appId  上游应用 ID
+     * @return 上游 token，未存储/已过期时返回 {@code null}
+     */
+    default String getUpstreamToken(Long userId, String appId) {
+        return null;
     }
 
     /**

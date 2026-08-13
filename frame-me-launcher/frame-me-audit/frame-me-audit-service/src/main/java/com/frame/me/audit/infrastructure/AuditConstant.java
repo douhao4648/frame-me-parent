@@ -1,4 +1,4 @@
-package com.frame.me.audit;
+package com.frame.me.audit.infrastructure;
 
 /**
  * 审计中心占位常量类.

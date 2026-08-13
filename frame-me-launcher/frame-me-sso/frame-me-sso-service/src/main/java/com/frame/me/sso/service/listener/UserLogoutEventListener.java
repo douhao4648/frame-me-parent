@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>本实例踢人（本地发布）与其他实例广播的踢人事件（桥接重发布）都会到达；
  * 演示打印 payload（userId/appId/logoutTime/reason），
- * 不序列化整个 event——source 是 LogoutService bean，序列化会连带 Spring bean 图。</p>
+ * 不序列化整个 event——source 是 LogoutServiceImpl bean，序列化会连带 Spring bean 图。</p>
  *
  * @author frame-me
  */

@@ -30,6 +30,22 @@ public class SaTokenAuthProperties {
     private boolean enabled = true;
 
     /**
+     * 账号体系标识（sa-token 多账号 loginType），默认 {@code login}（即 {@code StpUtil} 默认体系）.
+     *
+     * <p>配置为非默认值（如 SSO 服务的 {@code sso}）时，本模块所有认证动作
+     * （登录/登出/验 token/路径规则校验）改走 {@code SaManager.getStpLogic(logicType)}，
+     * Redis key 变为 {@code {tokenName}:{logicType}:token|session:*}，
+     * 与默认 {@code login} 体系共存、命名空间隔离；请求头/Cookie 名仍取全局
+     * {@code sa-token.token-name}，不受影响。业务侧 {@code @SaCheck*} 注解需同步加
+     * {@code type} 属性指向同一体系（装配期解析即完成 SaManager 注册，注解查找可用）。</p>
+     *
+     * <p><b>JWT 留口：</b>JWT 模式（{@code me.auth.sa-token.jwt.enabled}）下非默认体系
+     * 仍会创建普通 {@code StpLogic}（非 JWT 变体），如需 JWT 化的独立体系须自行注册
+     * {@code StpLogicJwtForSimple} 子类 Bean。</p>
+     */
+    private String logicType = "login";
+
+    /**
      * Sa-Token 认证接口基础路径，默认 {@code /api/auth}.
      *
      * <p>必须以 {@code /} 开头，除根路径 {@code /} 外不能以 {@code /} 结尾。
@@ -81,6 +97,14 @@ public class SaTokenAuthProperties {
      * }</pre>
      */
     private Map<String, String> users = new HashMap<>();
+
+    /**
+     * 会话绝对寿命上限（秒），默认 7 天（604800）；{@code <= 0} 表示不限制.
+     *
+     * <p>{@code refresh} 为滑动续期，不设上限时被偷的 token 可无限续命、会话永不过期。
+     * 登录时在 Account-Session 记录登录时间戳，续期超过该上限即拒绝（4001），强制重新登录。</p>
+     */
+    private long maxLifetime = 604800;
 
     /**
      * 是否启用 sa-token 鉴权能力（路径规则 + {@code @SaCheck*} 注解），默认启用.

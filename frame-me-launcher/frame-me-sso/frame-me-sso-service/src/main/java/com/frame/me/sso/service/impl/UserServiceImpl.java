@@ -1,4 +1,6 @@
-package com.frame.me.sso.service;
+package com.frame.me.sso.service.impl;
+
+import com.frame.me.sso.service.IUserService;
 
 import com.alicp.jetcache.anno.CacheInvalidate;
 import com.alicp.jetcache.anno.CacheType;
@@ -24,7 +26,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserServiceImpl implements IUserService {
 
     public static final String CACHE_USER_ACCOUNT = "sso:user:account:";
     public static final String CACHE_USER_ID = "sso:user:id:";
@@ -37,6 +39,7 @@ public class UserService {
      */
     @Cached(name = CACHE_USER_ACCOUNT, key = "#account", cacheType = CacheType.BOTH,
             expire = 60, cacheNullValue = true)
+    @Override
     public UserEntity findByAccount(String account) {
         return userMapper.selectOneByQuery(QueryWrapper.create().eq("account", account));
     }
@@ -46,6 +49,7 @@ public class UserService {
      */
     @Cached(name = CACHE_USER_ID, key = "#id", cacheType = CacheType.BOTH,
             expire = 60, cacheNullValue = true)
+    @Override
     public UserEntity findById(Long id) {
         return userMapper.selectOneById(id);
     }
@@ -53,6 +57,7 @@ public class UserService {
     /**
      * 查询全部用户.
      */
+    @Override
     public List<UserEntity> list() {
         return userMapper.selectListByQuery(QueryWrapper.create());
     }
@@ -64,6 +69,7 @@ public class UserService {
      * 不失效则新建用户在 TTL 内仍被当作不存在。</p>
      */
     @CacheInvalidate(name = CACHE_USER_ACCOUNT, key = "#user.account")
+    @Override
     public void save(UserEntity user) {
         userMapper.insert(user);
     }
@@ -73,6 +79,7 @@ public class UserService {
      */
     @CacheInvalidate(name = CACHE_USER_ID, key = "#user.id")
     @CacheInvalidate(name = CACHE_USER_ACCOUNT, key = "#user.account")
+    @Override
     public void update(UserEntity user) {
         userMapper.update(user);
     }
@@ -83,6 +90,7 @@ public class UserService {
      * <p>先按 ID 取账号再同步失效两份缓存；失效走 {@link UserCacheEvictor}
      * 独立 bean，避免自调用绕过 AOP 导致注解不生效。</p>
      */
+    @Override
     public void delete(Long id) {
         UserEntity user = findById(id);
         userMapper.deleteById(id);

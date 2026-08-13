@@ -2,10 +2,12 @@ package com.frame.me.sso.controller;
 
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.annotation.SaCheckRole;
-import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.parameter.SaLoginParameter;
 import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
+import com.frame.me.auth.satoken.core.SaTokenAuthService;
+import com.frame.me.base.exception.BusinessException;
+import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.sso.api.IAuthApi;
@@ -13,20 +15,20 @@ import com.frame.me.sso.api.dto.TokenRequestDTO;
 import com.frame.me.sso.api.vo.TokenVO;
 import com.frame.me.sso.entity.AppEntity;
 import com.frame.me.sso.infrastructure.config.SsoProperties;
+import com.frame.me.sso.infrastructure.satoken.SsoStpUtil;
 import com.frame.me.sso.infrastructure.satoken.SsoTokenUtils;
-import com.frame.me.sso.service.AppService;
-import com.frame.me.sso.service.AuthCodeService;
-import com.frame.me.sso.service.LogoutService;
+import com.frame.me.sso.service.IAppService;
+import com.frame.me.sso.service.IAuthCodeService;
+import com.frame.me.sso.service.ILogoutService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -35,8 +37,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * SSO 授权码流程端点，实现 {@link IAuthApi}.
  *
- * <p>token 用 sa-token 不透明 token（{@link StpUtil#createLoginSession}），
- * 验 token 用 {@link StpUtil#getLoginIdByToken}（查 sa-token Redis），无 JWT 验签代码.
+ * <p>token 用 sa-token 不透明 token（{@code SsoStpUtil.stpLogic.createLoginSession}，独立
+ * {@code sso} 账号体系，Redis key {@code satoken:sso:*}），验 token 用
+ * {@code SsoStpUtil.stpLogic.getLoginIdByToken}（查 sa-token Redis），无 JWT 验签代码.
  * 下游拿 token 调 {@code /userinfo} 取用户信息，SSO 原生验 token.</p>
  *
  * <p>登录/登出/续期复用 starter-sa-token 的 {@code /api/auth/*} 端点，本类不重复定义.</p>
@@ -51,10 +54,11 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class AuthController implements IAuthApi {
 
-    private final AppService appService;
-    private final AuthCodeService authCodeService;
+    private final IAppService appService;
+    private final IAuthCodeService authCodeService;
     private final SsoProperties properties;
-    private final LogoutService logoutService;
+    private final ILogoutService logoutService;
+    private final ObjectProvider<LoginRateLimiter> loginRateLimiter;
 
     /**
      * 授权端点：校验应用 → 校验 scope 白名单 → 未登录重定向登录页 → 已登录发 code 回调.
@@ -71,23 +75,23 @@ public class AuthController implements IAuthApi {
                                           @RequestParam(required = false) String state) {
         AppEntity app = appService.findByAppId(appId);
         if (app == null || !"ACTIVE".equals(app.getStatus())) {
-            // 显式状态码 + Result body（GlobalExceptionHandler 透传），三个 400 分支靠 message 区分
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "应用不存在或已禁用");
+            // BusinessException → HTTP 200 + body 业务码（4001 凭证错误 / 400 参数错误），三个分支靠 message 区分
+            throw new BusinessException(ResultCode.BAD_REQUEST, "应用不存在或已禁用");
         }
         if (!appService.isRedirectAllowed(app, redirectUri)) {
             // redirectUri 校验失败时禁止重定向回跳（RFC 6749 §4.1.2.1），只能原地报错
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "redirectUri 不在应用白名单");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "redirectUri 不在应用白名单");
         }
         if (!appService.isScopeAllowed(app, scope)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "scope 超出应用授权范围");
+            throw new BusinessException(ResultCode.BAD_REQUEST, "scope 超出应用授权范围");
         }
-        if (!StpUtil.isLogin()) {
+        if (!SsoStpUtil.stpLogic.isLogin()) {
             String target = "/sso-login.html?redirect=" +
                     URLEncoder.encode("/api/auth/authorize?" +
                             buildQuery(appId, redirectUri, scope, nonce, state), StandardCharsets.UTF_8);
             return ResponseEntity.status(302).location(URI.create(target)).build();
         }
-        Long userId = StpUtil.getLoginIdAsLong();
+        Long userId = SsoStpUtil.stpLogic.getLoginIdAsLong();
         String code = authCodeService.issue(appId, userId, scope, redirectUri);
         String sep = redirectUri.contains("?") ? "&" : "?";
         String location = redirectUri + sep + "code=" + code;
@@ -114,7 +118,7 @@ public class AuthController implements IAuthApi {
     /**
      * 换 token：按 {@code grantType} 分派.
      *
-     * <p>用 {@link StpUtil#createLoginSession} 而非 {@link StpUtil#login}：本端点由下游服务端
+     * <p>用 {@code SsoStpUtil.stpLogic.createLoginSession} 而非 {@code login}：本端点由下游服务端
      * POST 调用，无浏览器请求上下文，{@code createLoginSession} 不依赖上下文纯建会话返 token.
      * {@code is-concurrent: true} 保证与浏览器会话独立.</p>
      *
@@ -146,22 +150,23 @@ public class AuthController implements IAuthApi {
                 || req.getRedirectUri() == null || req.getRedirectUri().isBlank()) {
             return Result.error(ResultCode.BAD_REQUEST, "authorization_code 模式需 code 与 redirectUri");
         }
-        AuthCodeService.CodePayload payload = authCodeService.consume(req.getCode());
+        IAuthCodeService.CodePayload payload = authCodeService.consume(req.getCode());
         if (payload == null) {
-            return Result.error(ResultCode.UNAUTHORIZED, "授权码无效或已使用");
+            // 凭证错误（4001）：授权码本身有问题，前端留登录页显示错误，避免与"会话缺失"401 混淆导致循环重定向
+            return Result.error(ResultCode.BAD_CREDENTIAL, "授权码无效或已使用");
         }
         if (!payload.appId.equals(req.getAppId())) {
-            return Result.error(ResultCode.UNAUTHORIZED, "app_id 与授权码不匹配");
+            return Result.error(ResultCode.BAD_CREDENTIAL, "app_id 与授权码不匹配");
         }
         AppEntity app = appService.findByAppId(req.getAppId());
         if (app == null || !"ACTIVE".equals(app.getStatus())) {
-            return Result.error(ResultCode.UNAUTHORIZED, "应用不存在或已禁用");
+            return Result.error(ResultCode.BAD_CREDENTIAL, "应用不存在或已禁用");
         }
         if (!payload.redirectUri.equals(req.getRedirectUri())) {
-            return Result.error(ResultCode.UNAUTHORIZED, "redirect_uri 不匹配");
+            return Result.error(ResultCode.BAD_CREDENTIAL, "redirect_uri 不匹配");
         }
         if (!appService.verifySecret(app, req.getAppSecret())) {
-            return Result.error(ResultCode.UNAUTHORIZED, "密钥校验失败");
+            return Result.error(ResultCode.BAD_CREDENTIAL, "密钥校验失败");
         }
         return Result.success(issueToken(payload.userId, payload.appId));
     }
@@ -171,28 +176,42 @@ public class AuthController implements IAuthApi {
      *
      * <p>loginId 用 {@code "app:"+appId} 字符串，与用户 token 的数字 userId 区分；
      * 该 token 调 /userinfo 会 401（无对应用户），只应用于机器对机器调用.
-     * INTERNAL / EXTERNAL 均强制校验 appSecret（注册时两类型都发密钥）.</p>
+     * INTERNAL / EXTERNAL 均强制校验 appSecret（注册时两类型都发密钥）。
+     * 入口按 appId 限流（{@code me.auth.login-rate-limit.*}，默认 5 次/60s），防密钥爆破.</p>
      */
     private IResult<TokenVO> clientCredentialsGrant(TokenRequestDTO req) {
+        // 按 appId 限流：本模式直面 appId+appSecret 校验，是 appSecret 爆破面
+        // （authorization_code 先过一次性 code 消耗，不可用于爆破密钥，故不限）；
+        // 不用 IP 维度——M2M 调用方可能合法突发，密钥爆破必然聚焦单个 appId
+        loginRateLimiter.ifAvailable(limiter -> limiter.acquire("token:" + req.getAppId()));
         AppEntity app = appService.findByAppId(req.getAppId());
         if (app == null || !"ACTIVE".equals(app.getStatus())) {
-            return Result.error(ResultCode.UNAUTHORIZED, "应用不存在或已禁用");
+            // 凭证错误（4001）：换 token 流程的凭证校验失败
+            return Result.error(ResultCode.BAD_CREDENTIAL, "应用不存在或已禁用");
         }
         if (!appService.verifySecret(app, req.getAppSecret())) {
-            return Result.error(ResultCode.UNAUTHORIZED, "密钥校验失败");
+            return Result.error(ResultCode.BAD_CREDENTIAL, "密钥校验失败");
         }
         return Result.success(issueToken(SsoTokenUtils.appLoginId(app.getAppId()), app.getAppId()));
     }
 
     /**
      * 签发 sa-token 不透明 token：app 维度（deviceType=appId）+ 独立 TTL.
+     *
+     * <p>{@code activeTimeout} 显式设为与 {@code timeout} 对齐——app token 是服务间调用凭证
+     * （下游→SSO），无"用户离开浏览器"的闲置场景，不应受全局 2h 活跃冻结影响；
+     * 与 timeout 对齐后 active 不会先于 timeout 触发（app token 无 renew 续期流程）。</p>
      */
     private TokenVO issueToken(Object loginId, String appId) {
         long timeout = properties.getToken().getAppTimeout().getSeconds();
-        String token = StpUtil.createLoginSession(loginId,
+        String token = SsoStpUtil.stpLogic.createLoginSession(loginId,
                 new SaLoginParameter()
                         .setDeviceType(appId)
-                        .setTimeout(timeout));
+                        .setTimeout(timeout)
+                        .setActiveTimeout(timeout));
+        // createLoginSession 绕过了 starter 的 login/loginByUser，需补记登录时间戳（sso 体系），
+        // 否则 refresh 的绝对寿命闸门会从第一次续期起算（宽限路径）
+        SaTokenAuthService.markLoginTime(SsoStpUtil.stpLogic, loginId);
         TokenVO vo = new TokenVO();
         vo.setAccessToken(token);
         return vo;
@@ -201,7 +220,7 @@ public class AuthController implements IAuthApi {
     /**
      * 强制登出用户（踢人）.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<Boolean> forceLogout(Long userId, String appId, String reason) {
         logoutService.logout(userId, appId, reason);
@@ -218,14 +237,14 @@ public class AuthController implements IAuthApi {
      * 但作为端点级自保护契约保留：防止白名单误配或 enforce-login 关闭时
      * 这个清全量会话的端点静默裸奔（与 @SaCheckRole 隐含 login 校验同思路）。</p>
      */
-    @SaCheckLogin
+    @SaCheckLogin(type = SsoStpUtil.TYPE)
     @Override
     public IResult<Boolean> logout() {
-        Object loginId = StpUtil.getLoginId();
+        Object loginId = SsoStpUtil.stpLogic.getLoginId();
         if (SsoTokenUtils.isAppLoginId(loginId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "应用 token 不支持全局登出");
+            throw new BusinessException(ResultCode.FORBIDDEN, "应用 token 不支持全局登出");
         }
-        logoutService.logout(StpUtil.getLoginIdAsLong(), null, "user-logout");
+        logoutService.logout(SsoStpUtil.stpLogic.getLoginIdAsLong(), null, "user-logout");
         return Result.success(true);
     }
 

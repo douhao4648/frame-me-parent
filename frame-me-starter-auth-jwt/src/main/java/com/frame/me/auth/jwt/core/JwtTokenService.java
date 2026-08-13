@@ -1,21 +1,13 @@
 package com.frame.me.auth.jwt.core;
 
 import com.frame.me.auth.core.AuthUserAuthenticator;
+import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
-import com.frame.me.auth.jwt.config.JwtAuthProperties;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.IncorrectClaimException;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jws;
-import io.jsonwebtoken.JwtParserBuilder;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.annotation.PostConstruct;
@@ -37,29 +29,26 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JwtTokenService implements IAuthService {
 
+    /**
+     * 原始登录时间（Epoch 毫秒）claim，仅 Refresh Token 携带，续期时原样透传，
+     * 供绝对寿命上限校验（签名保护，客户端无法篡改）.
+     */
+    static final String CLAIM_AUTH_TIME = "auth_time";
     private static final String CLAIM_USER_ID = "userId";
     private static final String CLAIM_ACCOUNT = "account";
     private static final String CLAIM_TOKEN_TYPE = "type";
+    /**
+     * RP 快照：昵称 claim，仅 {@link #loginByUser}（SSO 下游等无本地用户表场景）签发的 token 携带.
+     */
+    private static final String CLAIM_NICKNAME = "nickname";
+    /**
+     * RP 快照标记 claim：存在即表示该 token 由 {@link #loginByUser} 签发，
+     * {@code getUser}/{@code refresh} 在 {@code loadUserById} 返回 null 时允许从 claims 重建 User；
+     * 密码登录签发的 token 无此标记，"删用户即时失效"语义不受影响.
+     */
+    private static final String CLAIM_RP_SNAPSHOT = "rp";
     private static final String TOKEN_TYPE_ACCESS = "access";
     private static final String TOKEN_TYPE_REFRESH = "refresh";
-
-    private final JwtAuthProperties properties;
-    private final IAuthUserDetailsService userDetailsService;
-    private final IRefreshTokenStore refreshTokenStore;
-
-    /**
-     * 签名密钥：启动期校验时派生并缓存，避免每请求重复 {@link Keys#hmacShaKeyFor} 派生.
-     *
-     * <p>可见性由 {@link #getSecretKey()} 的 {@code synchronized} 保证，
-     * 无需 {@code volatile} 修饰.</p>
-     */
-    private SecretKey secretKey;
-
-    /**
-     * 启动期校验 {@code me.auth.jwt.secret}：未配置直接 fail-fast，
-     * 并派生一次 {@link #secretKey} 把密钥强度问题（如 HS 系列弱密钥
-     * {@code WeakKeyException}）从「首次请求才炸」提前到启动期暴露，同时缓存供后续签名/验签复用.
-     */
     /**
      * HMAC 密钥最低字节数（256 位），低于此值视为弱密钥拒绝启动.
      *
@@ -68,6 +57,21 @@ public class JwtTokenService implements IAuthService {
      * 业务有更高要求时自行为 jjwt 传入自定义 {@code SecretKey}。</p>
      */
     private static final int MIN_KEY_BYTES = 32;
+    private final JwtAuthProperties properties;
+    private final IAuthUserDetailsService userDetailsService;
+    private final IRefreshTokenStore refreshTokenStore;
+
+    /**
+     * 启动期校验 {@code me.auth.jwt.secret}：未配置直接 fail-fast，
+     * 并派生一次 {@link #secretKey} 把密钥强度问题（如 HS 系列弱密钥
+     * {@code WeakKeyException}）从「首次请求才炸」提前到启动期暴露，同时缓存供后续签名/验签复用.
+     * <p>
+     * 签名密钥：启动期校验时派生并缓存，避免每请求重复 {@link Keys#hmacShaKeyFor} 派生.
+     *
+     * <p>可见性由 {@link #getSecretKey()} 的 {@code synchronized} 保证，
+     * 无需 {@code volatile} 修饰.</p>
+     */
+    private SecretKey secretKey;
 
     @PostConstruct
     public void validateSecret() {
@@ -80,8 +84,8 @@ public class JwtTokenService implements IAuthService {
         if (keyBytes.length < MIN_KEY_BYTES) {
             throw new IllegalStateException(
                     "me.auth.jwt.secret 强度不足：当前 " + keyBytes.length + " 字节（"
-                    + (keyBytes.length * 8) + " 位），HS256 要求不少于 256 位（32 字节），"
-                    + "请用 openssl rand -base64 32 生成随机密钥");
+                            + (keyBytes.length * 8) + " 位），HS256 要求不少于 256 位（32 字节），"
+                            + "请用 openssl rand -base64 32 生成随机密钥");
         }
         secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
@@ -101,7 +105,33 @@ public class JwtTokenService implements IAuthService {
     @Override
     public String login(String account, String password) {
         User user = AuthUserAuthenticator.authenticate(userDetailsService, account, password);
-        return buildTokenPair(user);
+        return buildTokenPair(user, System.currentTimeMillis());
+    }
+
+    /**
+     * 按已知用户直接建立会话（RP 场景：身份已由外部 IdP 验证，无需密码校验）.
+     *
+     * <p>覆盖 {@link IAuthService#loginByUser}：供 SSO 下游等"code 换用户后建本地 session"
+     * 场景使用。与 {@link #login} 的唯一区别是跳过 {@link AuthUserAuthenticator#authenticate}
+     * 密码校验——身份已由外部 IdP 验证，直接 {@code buildTokenPair} 建会话。</p>
+     *
+     * <p><b>RP 快照：</b>RP 场景下游无本地用户表（{@code loadUserById} 恒 null），
+     * 本方法签发的 token 额外写入 {@code rp}/{@code nickname} 快照 claims，
+     * {@code getUser}/{@code refresh} 据此在 {@code loadUserById} miss 时从 claims 重建 User，
+     * 否则 JWT 无状态下每个请求都会 401。</p>
+     *
+     * @param user 已认证用户（id 必填）
+     * @return {@code accessToken;refreshToken}（分号分隔）
+     */
+    @Override
+    public String loginByUser(User user) {
+        if (user == null || user.getId() == null) {
+            throw new BusinessException(ResultCode.BAD_CREDENTIAL, "用户信息无效");
+        }
+        if (!User.STATUS_ENABLED.equals(user.getStatus())) {
+            throw new BusinessException(ResultCode.BAD_CREDENTIAL, "账号已被禁用");
+        }
+        return buildTokenPair(user, System.currentTimeMillis(), true);
     }
 
     @Override
@@ -113,6 +143,7 @@ public class JwtTokenService implements IAuthService {
         }
         if (userId != null) {
             refreshTokenStore.delete(userId);
+            refreshTokenStore.deleteUpstreamTokens(userId);
             log.debug("用户登出，清除 Refresh Token: userId={}", userId);
         }
     }
@@ -128,14 +159,37 @@ public class JwtTokenService implements IAuthService {
             return;
         }
         refreshTokenStore.delete(userId);
+        refreshTokenStore.deleteUpstreamTokens(userId);
         log.debug("管理员强制登出用户，清除 Refresh Token: userId={}", userId);
+    }
+
+    /**
+     * 留存上游 IdP token（RP 场景）.
+     *
+     * <p>JWT 无服务端 session，上游 token 落 {@link IRefreshTokenStore}（Redis/内存），
+     * TTL 对齐 Refresh Token 时效——与本地会话同生共死，{@link #logout}/{@link #logoutByUserId}
+     * 已同步清除。存超上游自身时效无害：消费方拿到过期 token 调上游接口自然 401。</p>
+     */
+    @Override
+    public void storeUpstreamToken(Long userId, String appId, String upstreamToken) {
+        if (userId == null || appId == null || appId.isBlank()
+                || upstreamToken == null || upstreamToken.isBlank()) {
+            return;
+        }
+        refreshTokenStore.saveUpstreamToken(userId, appId, upstreamToken, properties.getRefreshTokenExpires());
+    }
+
+    @Override
+    public String getUpstreamToken(Long userId, String appId) {
+        return userId == null || appId == null ? null : refreshTokenStore.getUpstreamToken(userId, appId);
     }
 
     @Override
     public String refresh(String credential) {
         String refreshToken = extractToken(credential);
         if (refreshToken == null) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 无效");
+            // 凭证错误（4001）：refresh 流程本身失败，前端留登录页显示错误，避免与"会话缺失"401 混淆导致循环重定向
+            throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 无效");
         }
         try {
             Jws<Claims> jws = jwtParserBuilder()
@@ -143,33 +197,50 @@ public class JwtTokenService implements IAuthService {
                     .parseSignedClaims(refreshToken);
             Claims claims = jws.getPayload();
             if (!TOKEN_TYPE_REFRESH.equals(claims.get(CLAIM_TOKEN_TYPE))) {
-                throw new BusinessException(ResultCode.UNAUTHORIZED, "Token 类型错误");
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Token 类型错误");
             }
             Object userIdClaim = claims.get(CLAIM_USER_ID);
             if (userIdClaim == null) {
-                throw new BusinessException(ResultCode.UNAUTHORIZED, "Token 缺少用户标识");
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Token 缺少用户标识");
             }
             Long userId = Long.valueOf(userIdClaim.toString());
             String cached = refreshTokenStore.get(userId);
             if (cached == null || !cached.equals(refreshToken)) {
-                throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 已失效");
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 已失效");
             }
             User user = userDetailsService.loadUserById(userId);
             if (user == null) {
-                throw new BusinessException(ResultCode.UNAUTHORIZED, "用户不存在");
+                // RP 回退：无本地用户表的 SSO 下游，用 loginByUser 签入的快照 claims 重建
+                user = rebuildRpUser(claims);
+            }
+            if (user == null) {
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "用户不存在");
             }
             if (!User.STATUS_ENABLED.equals(user.getStatus())) {
-                throw new BusinessException(ResultCode.UNAUTHORIZED, "账号已被禁用");
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "账号已被禁用");
             }
-            return buildTokenPair(user);
+            // 绝对寿命闸门：每次 refresh 都会签发新 Refresh Token 并重置完整有效期，
+            // 不设上限时被偷的 Refresh Token 可无限链式续期；auth_time 随续期链路原样透传
+            Object authTime = claims.get(CLAIM_AUTH_TIME);
+            // ponytail: 存量 token 无 auth_time，按当前时间起算（一次宽限窗口）
+            long authTimeMillis = authTime == null
+                    ? System.currentTimeMillis() : Long.parseLong(authTime.toString());
+            Duration maxLifetime = properties.getMaxLifetime();
+            if (maxLifetime != null && !maxLifetime.isZero() && !maxLifetime.isNegative()
+                    && System.currentTimeMillis() - authTimeMillis > maxLifetime.toMillis()) {
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "会话已达最长有效期，请重新登录");
+            }
+            // rp 快照随续期链路透传：否则续出的新 token 丢失快照，RP 下游下一请求即 401
+            // 上游 token 条目同步续期：refresh 已把本地会话拉长（Refresh Token 重存完整 TTL），
+            // 上游条目不续则第一个 refresh 周期后"同生共死"断裂；存超上游自身时效无害，SSO 侧 401 兜底
+            refreshTokenStore.renewUpstreamTokens(userId, properties.getRefreshTokenExpires());
+            return buildTokenPair(user, authTimeMillis, claims.get(CLAIM_RP_SNAPSHOT) != null);
         } catch (ExpiredJwtException e) {
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 已过期", e);
-        } catch (BusinessException e) {
-            throw e;
+            throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 已过期", e);
         } catch (JwtException | IllegalArgumentException e) {
-            // 凭证本身的问题（格式非法/签名不符/类型错误）→ 401
+            // 凭证本身的问题（格式非法/签名不符/类型错误）→ 4001
             log.warn("Refresh Token 解析失败: {}", e.getMessage());
-            throw new BusinessException(ResultCode.UNAUTHORIZED, "Refresh Token 无效", e);
+            throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 无效", e);
         }
         // 其余异常（如 refreshTokenStore 的 Redis 故障）属基础设施问题，
         // 不吞成 401（客户端会误以为凭证失效而走重新登录），直接上抛由全局异常处理映射 5xx
@@ -182,11 +253,20 @@ public class JwtTokenService implements IAuthService {
 
     @Override
     public User getUser(String credential) {
-        Long userId = parseAccessToken(credential);
+        Claims claims = parseAccessClaims(credential);
+        if (claims == null) {
+            return null;
+        }
+        Long userId = extractAccessUserId(claims);
         if (userId == null) {
             return null;
         }
         User user = userDetailsService.loadUserById(userId);
+        if (user == null) {
+            // RP 回退：无本地用户表的 SSO 下游（loadUserById 恒 null），
+            // 用 loginByUser 签入的快照 claims 重建 User；密码登录 token 无 rp 标记不触发
+            user = rebuildRpUser(claims);
+        }
         if (user != null && !User.STATUS_ENABLED.equals(user.getStatus())) {
             return null;
         }
@@ -194,25 +274,63 @@ public class JwtTokenService implements IAuthService {
     }
 
     /**
+     * 从 RP 快照 claims 重建 User（{@code loginByUser} 签发的 token 专用）.
+     *
+     * @param claims 已验签的 token claims
+     * @return 含 {@code rp} 标记时返回重建的 User（status=ENABLED），否则 {@code null}
+     */
+    private User rebuildRpUser(Claims claims) {
+        if (claims.get(CLAIM_RP_SNAPSHOT) == null) {
+            return null;
+        }
+        User user = new User();
+        Object userId = claims.get(CLAIM_USER_ID);
+        user.setId(userId == null ? null : Long.valueOf(userId.toString()));
+        Object account = claims.get(CLAIM_ACCOUNT);
+        user.setAccount(account == null ? null : account.toString());
+        Object nickname = claims.get(CLAIM_NICKNAME);
+        user.setNickname(nickname == null ? null : nickname.toString());
+        user.setStatus(User.STATUS_ENABLED);
+        return user;
+    }
+
+    /**
      * 构建 Access Token + Refresh Token 对，以分号分隔.
      *
-     * @param user 用户
+     * @param user           用户
+     * @param authTimeMillis 原始登录时间（Epoch 毫秒），写入 Refresh Token 的
+     *                       {@code auth_time} claim 并随续期链路透传
      * @return accessToken;refreshToken
      */
-    private String buildTokenPair(User user) {
-        String accessToken = buildToken(user, TOKEN_TYPE_ACCESS, properties.getAccessTokenExpires());
-        String refreshToken = buildToken(user, TOKEN_TYPE_REFRESH, properties.getRefreshTokenExpires());
+    private String buildTokenPair(User user, long authTimeMillis) {
+        return buildTokenPair(user, authTimeMillis, false);
+    }
+
+    /**
+     * 构建 Access Token + Refresh Token 对.
+     *
+     * @param rpSnapshot 是否写入 RP 快照 claims（{@code rp}/{@code nickname}）；
+     *                   仅 {@code loginByUser}（SSO 下游无本地用户表）及 RP 续期链路透传为 true
+     */
+    private String buildTokenPair(User user, long authTimeMillis, boolean rpSnapshot) {
+        String accessToken = buildToken(user, TOKEN_TYPE_ACCESS, properties.getAccessTokenExpires(),
+                null, rpSnapshot);
+        String refreshToken = buildToken(user, TOKEN_TYPE_REFRESH, properties.getRefreshTokenExpires(),
+                authTimeMillis, rpSnapshot);
         refreshTokenStore.save(user.getId(), refreshToken, properties.getRefreshTokenExpires());
         return accessToken + ";" + refreshToken;
     }
 
     /**
      * 构建单个 JWT.
+     *
+     * @param authTimeMillis 原始登录时间（Epoch 毫秒），非 null 时写入 {@code auth_time} claim
+     * @param rpSnapshot     是否写入 RP 快照 claims
      */
-    private String buildToken(User user, String type, Duration expires) {
+    private String buildToken(User user, String type, Duration expires, Long authTimeMillis, boolean rpSnapshot) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expires.toMillis());
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(String.valueOf(user.getId()))
                 .claim(CLAIM_USER_ID, user.getId())
                 .claim(CLAIM_ACCOUNT, user.getAccount())
@@ -220,15 +338,31 @@ public class JwtTokenService implements IAuthService {
                 .issuer(properties.getIssuer())
                 .issuedAt(now)
                 .expiration(expiration)
-                .id(UUID.randomUUID().toString())
-                .signWith(getSecretKey())
-                .compact();
+                .id(UUID.randomUUID().toString());
+        if (authTimeMillis != null) {
+            builder.claim(CLAIM_AUTH_TIME, authTimeMillis);
+        }
+        if (rpSnapshot) {
+            builder.claim(CLAIM_RP_SNAPSHOT, true);
+            if (user.getNickname() != null) {
+                builder.claim(CLAIM_NICKNAME, user.getNickname());
+            }
+        }
+        return builder.signWith(getSecretKey()).compact();
     }
 
     /**
      * 从凭证中提取 Access Token 并解析为用户 ID.
      */
     private Long parseAccessToken(String credential) {
+        Claims claims = parseAccessClaims(credential);
+        return claims == null ? null : extractAccessUserId(claims);
+    }
+
+    /**
+     * 从凭证中提取 Access Token 并解析为已验签 claims（过期/非法返回 null）.
+     */
+    private Claims parseAccessClaims(String credential) {
         String token = extractToken(credential);
         if (token == null) {
             return null;
@@ -237,7 +371,7 @@ public class JwtTokenService implements IAuthService {
             Jws<Claims> jws = jwtParserBuilder()
                     .build()
                     .parseSignedClaims(token);
-            return extractAccessUserId(jws.getPayload());
+            return jws.getPayload();
         } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException
                  | IncorrectClaimException | SignatureException | IllegalArgumentException e) {
             log.debug("Access Token 解析失败: {}", e.getMessage());
@@ -303,7 +437,7 @@ public class JwtTokenService implements IAuthService {
             return extractRefreshUserId(jws.getPayload());
         } catch (ExpiredJwtException | UnsupportedJwtException | MalformedJwtException
                  | IncorrectClaimException | SignatureException | IllegalArgumentException e) {
-            log.debug("Refresh Token 解析失败: {}", e.getMessage());
+            log.debug("Refresh Token 解析失败: {}", e.getMessage(), e);
             return null;
         }
     }

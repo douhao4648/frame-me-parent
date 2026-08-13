@@ -4,6 +4,7 @@ import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.context.mock.SaTokenContextMockUtil;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
+import com.frame.me.auth.satoken.config.SaTokenAuthProperties;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.exception.BusinessException;
@@ -39,7 +40,7 @@ class SaTokenAuthServiceTest {
     private static final String RAW_PASSWORD = "123456";
 
     private final IAuthUserDetailsService userDetailsService = mock(IAuthUserDetailsService.class);
-    private final SaTokenAuthService authService = new SaTokenAuthService(userDetailsService);
+    private final SaTokenAuthService authService = new SaTokenAuthService(userDetailsService, new SaTokenAuthProperties());
 
     @BeforeEach
     void setUp() {
@@ -88,27 +89,27 @@ class SaTokenAuthServiceTest {
     }
 
     /**
-     * 账号不存在 → 401 业务异常.
+     * 账号不存在 → 4001 凭证错误（与会话缺失 401 区分）.
      */
     @Test
-    void loginUnknownAccount_throwsUnauthorized() {
+    void loginUnknownAccount_throwsBadCredential() {
         when(userDetailsService.loadUserByAccount("nobody")).thenReturn(null);
 
         assertThatThrownBy(() -> authService.login("nobody", RAW_PASSWORD))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
-                        assertThat(e.getCode()).isEqualTo(ResultCode.UNAUTHORIZED.getCode()));
+                        assertThat(e.getCode()).isEqualTo(ResultCode.BAD_CREDENTIAL.getCode()));
     }
 
     /**
-     * 密码错误 → 401 业务异常.
+     * 密码错误 → 4001 凭证错误.
      */
     @Test
-    void loginWrongPassword_throwsUnauthorized() {
+    void loginWrongPassword_throwsBadCredential() {
         stubUser(91002L, "bob");
 
         assertThatThrownBy(() -> authService.login("bob", "wrong-password"))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
-                        assertThat(e.getCode()).isEqualTo(ResultCode.UNAUTHORIZED.getCode()));
+                        assertThat(e.getCode()).isEqualTo(ResultCode.BAD_CREDENTIAL.getCode()));
     }
 
     /**
@@ -160,7 +161,26 @@ class SaTokenAuthServiceTest {
 
         assertThatThrownBy(() -> authService.refresh("invalid-token-value"))
                 .isInstanceOfSatisfying(BusinessException.class, e ->
-                        assertThat(e.getCode()).isEqualTo(ResultCode.UNAUTHORIZED.getCode()));
+                        assertThat(e.getCode()).isEqualTo(ResultCode.BAD_CREDENTIAL.getCode()));
+    }
+
+    /**
+     * 绝对寿命闸门：登录时间戳超过 {@code max-lifetime} 时续期被拒绝（4001），
+     * 防止滑动续期无限续命.
+     */
+    @Test
+    void refresh_beyondMaxLifetime_rejected() {
+        stubUser(91009L, "ivan");
+        String token = authService.login("ivan", RAW_PASSWORD);
+
+        SaSession session = StpUtil.getSessionByLoginId(91009L);
+        // 伪造登录时间为 8 天前（默认 max-lifetime 为 7 天）
+        session.set(SaTokenAuthService.SESSION_LOGIN_TIME_KEY,
+                System.currentTimeMillis() - 8L * 24 * 3600 * 1000);
+
+        assertThatThrownBy(() -> authService.refresh(token))
+                .isInstanceOfSatisfying(BusinessException.class, e ->
+                        assertThat(e.getCode()).isEqualTo(ResultCode.BAD_CREDENTIAL.getCode()));
     }
 
     /**
@@ -237,5 +257,33 @@ class SaTokenAuthServiceTest {
         assertThat(authService.getUser(null)).isNull();
         assertThat(authService.getUser("")).isNull();
         assertThat(authService.getUser("not-exist-token")).isNull();
+    }
+
+    /**
+     * 上游 IdP token（RP 留存）：按 appId 隔离存取；强制登出注销 Account-Session，
+     * token 随会话一并销毁；未登录用户/空入参安全 no-op.
+     */
+    @Test
+    void upstreamToken_storeGetAndClearedOnKick() {
+        stubUser(91010L, "judy");
+        authService.login("judy", RAW_PASSWORD);
+
+        authService.storeUpstreamToken(91010L, "fm-audit", "sso-token-audit");
+        authService.storeUpstreamToken(91010L, "fm-order", "sso-token-order");
+        assertThat(authService.getUpstreamToken(91010L, "fm-audit")).isEqualTo("sso-token-audit");
+        assertThat(authService.getUpstreamToken(91010L, "fm-order")).isEqualTo("sso-token-order");
+        assertThat(authService.getUpstreamToken(91010L, "fm-other")).isNull();
+
+        authService.logoutByUserId(91010L);
+        assertThat(authService.getUpstreamToken(91010L, "fm-audit")).isNull();
+
+        // 空入参与无会话用户：静默忽略
+        authService.storeUpstreamToken(null, "fm-audit", "x");
+        authService.storeUpstreamToken(91010L, null, "x");
+        authService.storeUpstreamToken(91010L, "fm-audit", null);
+        authService.storeUpstreamToken(99999L, "fm-audit", "x");
+        assertThat(authService.getUpstreamToken(null, "fm-audit")).isNull();
+        assertThat(authService.getUpstreamToken(91010L, null)).isNull();
+        assertThat(authService.getUpstreamToken(99999L, "fm-audit")).isNull();
     }
 }

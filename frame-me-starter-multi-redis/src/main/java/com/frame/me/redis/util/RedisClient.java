@@ -1,6 +1,7 @@
 package com.frame.me.redis.util;
 
 import com.alibaba.fastjson2.JSON;
+import com.frame.me.base.exception.BusinessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -30,6 +31,21 @@ public class RedisClient {
 
     private static final RedisScript<Long> UNLOCK_SCRIPT = new DefaultRedisScript<>(UNLOCK_LUA, Long.class);
 
+    /**
+     * HSET + PEXPIRE 原子脚本：写 Hash 字段的同时设置 key 的过期时间.
+     *
+     * <p>避免 {@code hSet} 成功后 {@code expire} 失败导致 hash 无 TTL 永久驻留——
+     * bearer 凭证等敏感数据超期留存 Redis. 与 {@code set(key, value, timeout)} 的
+     * 原子 {@code SET ... EX} 语义对齐.</p>
+     */
+    private static final String HSET_EXPIRE_LUA = """
+            redis.call('hset', KEYS[1], ARGV[1], ARGV[2])
+            redis.call('pexpire', KEYS[1], ARGV[3])
+            return 1
+            """;
+
+    private static final RedisScript<Long> HSET_EXPIRE_SCRIPT = new DefaultRedisScript<>(HSET_EXPIRE_LUA, Long.class);
+
     private final StringRedisTemplate stringRedisTemplate;
     private final RedisTemplate<Object, Object> redisTemplate;
 
@@ -40,7 +56,7 @@ public class RedisClient {
 
     private StringRedisTemplate str() {
         if (stringRedisTemplate == null) {
-            throw new IllegalStateException("RedisClient is not initialized");
+            throw new BusinessException("RedisClient is not initialized");
         }
         return stringRedisTemplate;
     }
@@ -52,7 +68,7 @@ public class RedisClient {
      */
     public RedisTemplate<Object, Object> obj() {
         if (redisTemplate == null) {
-            throw new IllegalStateException("RedisClient is not initialized");
+            throw new BusinessException("RedisClient is not initialized");
         }
         return redisTemplate;
     }
@@ -194,6 +210,26 @@ public class RedisClient {
      */
     public void hSet(String key, String hashKey, Object value) {
         str().opsForHash().put(key, hashKey, JSON.toJSONString(value));
+    }
+
+    /**
+     * 原子地写 Hash 字段并设置 key 过期时间（HSET + PEXPIRE 单脚本）.
+     *
+     * <p>避免分两步调用 {@link #hSet} + {@link #expire} 时，hSet 成功但 expire 失败
+     * 导致 hash 永久驻留无 TTL——bearer 凭证等敏感数据超期留存. value 与 {@link #hSet}
+     * 一致经 {@link JSON#toJSONString} 序列化，保持读写对称（读侧用 {@link #hGet(String, String, Class)}
+     * 反序列化）.</p>
+     *
+     * @param key      键
+     * @param hashKey  Hash 键
+     * @param value    值
+     * @param timeout  key 过期时间
+     */
+    public void hSetWithExpire(String key, String hashKey, Object value, Duration timeout) {
+        // value 经 JSON.toJSONString 序列化（与 hSet 一致），Lua 脚本只做 HSET + PEXPIRE 原子化
+        String serialized = JSON.toJSONString(value);
+        executeScript(HSET_EXPIRE_SCRIPT, Collections.singletonList(key),
+                hashKey, serialized, String.valueOf(timeout.toMillis()));
     }
 
     /**

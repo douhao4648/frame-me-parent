@@ -1,11 +1,12 @@
-package com.frame.me.sso.service;
+package com.frame.me.sso.service.impl;
 
-import cn.dev33.satoken.SaManager;
+import com.frame.me.sso.service.ILogoutService;
+
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.session.SaTerminalInfo;
-import cn.dev33.satoken.stp.StpUtil;
 import com.frame.me.base.event.EventBridgePublisher;
 import com.frame.me.sso.event.UserLogoutEvent;
+import com.frame.me.sso.infrastructure.satoken.SsoStpUtil;
 import com.frame.me.sso.infrastructure.satoken.SsoTokenUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class LogoutService {
+public class LogoutServiceImpl implements ILogoutService {
 
     private final EventBridgePublisher eventBridgePublisher;
 
@@ -34,14 +35,15 @@ public class LogoutService {
      * @param appId  应用 ID（可选，null 表示踢所有应用会话）
      * @param reason 原因
      */
+    @Override
     public void logout(Long userId, String appId, String reason) {
         try {
             if (appId != null && !appId.isBlank()) {
                 // 按 app 踢：deviceType=appId，只清该 userId 在该 appId 的会话
-                StpUtil.logout(userId, appId);
+                SsoStpUtil.stpLogic.logout(userId, appId);
             } else {
                 // 踢所有 app 会话
-                StpUtil.logout(userId);
+                SsoStpUtil.stpLogic.logout(userId);
             }
             log.info("强制登出用户: userId={}, appId={}, reason={}", userId, appId, reason);
         } catch (Exception e) {
@@ -63,25 +65,27 @@ public class LogoutService {
      * @param reason 原因
      * @return 注销的会话数（应用 token + 各用户 token）
      */
+    @Override
     public int logoutByApp(String appId, String reason) {
         int kicked = 0;
         try {
             // 应用 token 会话（client_credentials 颁发，loginId="app:"+appId）
-            StpUtil.logout(SsoTokenUtils.appLoginId(appId));
+            SsoStpUtil.stpLogic.logout(SsoTokenUtils.appLoginId(appId));
             kicked++;
-            // 遍历全部 sa-token 会话，踢 deviceType=appId 的用户 token。
-            // searchSessionId("", 0, -1) 全量扫描——应用数/会话数有限，可接受
-            String prefix = SaManager.getConfig().getTokenName() + ":login:session:";
-            for (String sessionId : StpUtil.searchSessionId("", 0, -1, false)) {
+            // 遍历 sso 体系全部会话，踢 deviceType=appId 的用户 token。
+            // searchSessionId("", 0, -1) 全量扫描——应用数/会话数有限，可接受。
+            // 前缀经 splicingKeySession("") 动态生成（satoken:sso:session:），跟随体系配置
+            String prefix = SsoStpUtil.stpLogic.splicingKeySession("");
+            for (String sessionId : SsoStpUtil.stpLogic.searchSessionId("", 0, -1, false)) {
                 String loginId = sessionId.substring(prefix.length());
-                SaSession session = StpUtil.getSessionByLoginId(loginId, false);
+                SaSession session = SsoStpUtil.stpLogic.getSessionByLoginId(loginId, false);
                 if (session == null) {
                     continue;
                 }
                 // terminalListCopy：logoutByTokenValue 会改 terminalList，直接遍历 Vector 抛 CME
                 for (SaTerminalInfo terminal : session.terminalListCopy()) {
                     if (appId.equals(terminal.getDeviceType())) {
-                        StpUtil.logoutByTokenValue(terminal.getTokenValue());
+                        SsoStpUtil.stpLogic.logoutByTokenValue(terminal.getTokenValue());
                         kicked++;
                     }
                 }

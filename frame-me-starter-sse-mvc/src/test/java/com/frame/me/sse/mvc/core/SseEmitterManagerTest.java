@@ -93,45 +93,45 @@ class SseEmitterManagerTest {
         limited.registerBroadcast("a");
         limited.registerBroadcast("b");
 
-        // 超限返回 429（Too Many Requests），而非 500
+        // 超限返回 429 业务码（Too Many Requests，HTTP 200 + body），而非 500
         assertThatThrownBy(() -> limited.registerBroadcast("c"))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class)
                 .satisfies(ex -> {
-                    int status = ((org.springframework.web.server.ResponseStatusException) ex).getStatusCode().value();
-                    assertThat(status).isEqualTo(429);
+                    int code = ((com.frame.me.base.exception.BusinessException) ex).getCode();
+                    assertThat(code).isEqualTo(429);
                 });
     }
 
     @Test
     void shouldRejectBlankEventType() {
         assertThatThrownBy(() -> manager.registerBroadcast(""))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
-                .satisfies(ex -> assertThat(((org.springframework.web.server.ResponseStatusException) ex)
-                        .getStatusCode().value()).isEqualTo(400));
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class)
+                .satisfies(ex -> assertThat(((com.frame.me.base.exception.BusinessException) ex)
+                        .getCode()).isEqualTo(400));
     }
 
     @Test
     void shouldRejectIllegalEventType() {
         // 含空格 / 斜杠等非法字符
         assertThatThrownBy(() -> manager.registerBroadcast("user created"))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class);
         assertThatThrownBy(() -> manager.registerBroadcast("user/created"))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class);
     }
 
     @Test
     void shouldRejectOverlongId() {
         String tooLong = "a".repeat(129);
         assertThatThrownBy(() -> manager.registerTargeted(tooLong))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
-                .satisfies(ex -> assertThat(((org.springframework.web.server.ResponseStatusException) ex)
-                        .getStatusCode().value()).isEqualTo(400));
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class)
+                .satisfies(ex -> assertThat(((com.frame.me.base.exception.BusinessException) ex)
+                        .getCode()).isEqualTo(400));
     }
 
     @Test
     void shouldRejectBlankReceiverId() {
         assertThatThrownBy(() -> manager.registerTargeted(null))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class);
     }
 
     /**
@@ -143,9 +143,9 @@ class SseEmitterManagerTest {
         SseEmitterManager guarded = new SseEmitterManager(properties, java.util.Optional.of(denyAll));
 
         assertThatThrownBy(() -> guarded.registerTargeted("user:123"))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
-                .satisfies(ex -> assertThat(((org.springframework.web.server.ResponseStatusException) ex)
-                        .getStatusCode().value()).isEqualTo(403));
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class)
+                .satisfies(ex -> assertThat(((com.frame.me.base.exception.BusinessException) ex)
+                        .getCode()).isEqualTo(403));
         assertThat(guarded.activeEmitterCount()).isEqualTo(0);
     }
 

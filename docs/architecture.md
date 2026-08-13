@@ -31,6 +31,7 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
    frame-me-starter-auth-sa-token  (Sa-Token 会话治理认证，接管 auth 抽象层)
    frame-me-starter-ws-mvc         (WebSocket 全双工推送)
    frame-me-starter-doc-openapi    (SpringDoc 接口文档)
+   frame-me-sso-starter            (SSO 下游接入：换 token + /userinfo + 踢人事件订阅，与认证底座解耦)
 ```
 
 更准确的依赖关系：

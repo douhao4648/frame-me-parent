@@ -40,6 +40,16 @@ public class JwtAuthProperties {
     private Duration refreshTokenExpires = Duration.ofDays(7);
 
     /**
+     * 会话绝对寿命上限，默认 30 天；{@code null} 或 {@code <= 0} 表示不限制.
+     *
+     * <p>每次 refresh 都会签发新的 Refresh Token 并重置完整有效期，不设上限时被偷的
+     * Refresh Token 可在过期前不断链式续期、会话永不过期。登录时把登录时间写入
+     * Refresh Token 的 {@code auth_time} 签名 claim（OIDC 标准做法，防篡改），
+     * 续期链路累计超过该上限即拒绝（4001），强制重新登录。</p>
+     */
+    private Duration maxLifetime = Duration.ofDays(30);
+
+    /**
      * 请求头中的 Token 前缀.
      */
     private String tokenHeader = "Authorization";
@@ -53,6 +63,15 @@ public class JwtAuthProperties {
      * Redis 中 Refresh Token 的 key 前缀.
      */
     private String refreshTokenPrefix = "auth:refresh:";
+
+    /**
+     * Redis 中上游 IdP token（RP 留存）的 key 前缀.
+     *
+     * <p>完整 key 为 {@code 前缀 + userId} 的 hash，field 为 appId——应用维度进 field，
+     * 不同应用的 token（含共用 Redis 的多个下游）各占各的 field，结构性免疫互撞；
+     * TTL 挂在用户级 hash 上共享。仅当你想按环境/服务彻底分 key 空间时才需要改前缀。</p>
+     */
+    private String upstreamTokenPrefix = "auth:upstream:";
 
     /**
      * Refresh Token 写入 Cookie 的 Domain.

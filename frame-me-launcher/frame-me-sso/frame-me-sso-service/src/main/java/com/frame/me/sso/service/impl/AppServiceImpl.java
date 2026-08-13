@@ -1,8 +1,11 @@
-package com.frame.me.sso.service;
+package com.frame.me.sso.service.impl;
+
+import com.frame.me.sso.service.IAppService;
 
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.crypto.SecureUtil;
 import com.alibaba.fastjson2.JSON;
+import com.frame.me.base.exception.BusinessException;
 import com.frame.me.sso.entity.AppEntity;
 import com.frame.me.sso.api.enums.AccessType;
 import com.frame.me.sso.api.enums.AppStatus;
@@ -28,7 +31,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class AppService {
+public class AppServiceImpl implements IAppService {
 
     private final AppMapper appMapper;
 
@@ -37,6 +40,7 @@ public class AppService {
      *
      * @return 新建的 app；appSecretPlain 为明文（仅此一次返回），appSecret 为加密后
      */
+    @Override
     public AppEntity register(String appName, AccessType accessType, List<String> redirectUris,
                            String scopes) {
         AppEntity app = new AppEntity();
@@ -58,6 +62,7 @@ public class AppService {
     /**
      * 根据 appId 查询应用.
      */
+    @Override
     public AppEntity findByAppId(String appId) {
         return appMapper.selectOneByQuery(QueryWrapper.create().eq("app_id", appId));
     }
@@ -65,6 +70,7 @@ public class AppService {
     /**
      * 查询全部应用.
      */
+    @Override
     public List<AppEntity> list() {
         return appMapper.selectListByQuery(QueryWrapper.create());
     }
@@ -72,6 +78,7 @@ public class AppService {
     /**
      * 更新应用.
      */
+    @Override
     public void update(AppEntity app) {
         appMapper.update(app);
     }
@@ -79,6 +86,7 @@ public class AppService {
     /**
      * 禁用应用.
      */
+    @Override
     public void disable(String appId) {
         AppEntity app = findByAppId(appId);
         if (app != null) {
@@ -92,10 +100,11 @@ public class AppService {
      *
      * @return 新明文密钥
      */
+    @Override
     public String resetSecret(String appId) {
         AppEntity app = findByAppId(appId);
         if (app == null) {
-            throw new IllegalArgumentException("应用不存在");
+            throw new BusinessException("应用不存在");
         }
         String plainSecret = generateSecret();
         app.setAppSecret(encryptSecret(plainSecret));
@@ -106,6 +115,7 @@ public class AppService {
     /**
      * 校验应用密钥（INTERNAL / EXTERNAL 均强制）.
      */
+    @Override
     public boolean verifySecret(AppEntity app, String inputSecret) {
         if (inputSecret == null || inputSecret.isBlank()) {
             return false;
@@ -116,6 +126,7 @@ public class AppService {
     /**
      * 校验回调地址是否在白名单.
      */
+    @Override
     public boolean isRedirectAllowed(AppEntity app, String redirectUri) {
         if (app.getRedirectUris() == null || app.getRedirectUris().isBlank()) {
             return false;
@@ -130,6 +141,7 @@ public class AppService {
      * <p>请求的 scope 是用户输入（OAuth 惯例空格分隔，兼容逗号），不校验会被当成
      * 任意字符串写进授权码；注册侧 scopes 同样按空格/逗号拆分比对.</p>
      */
+    @Override
     public boolean isScopeAllowed(AppEntity app, String scope) {
         if (scope == null || scope.isBlank()) {
             // 未请求 scope（取默认授权），放行

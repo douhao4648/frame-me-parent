@@ -1,5 +1,7 @@
 package com.frame.me.sse.mvc.web;
 
+import com.frame.me.base.exception.BusinessException;
+import com.frame.me.base.result.ResultCode;
 import com.frame.me.sse.mvc.SseConstant;
 import com.frame.me.sse.mvc.config.SseProperties;
 import com.frame.me.sse.mvc.core.SseEmitterManager;
@@ -7,14 +9,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
@@ -51,7 +51,7 @@ public class SseController {
     public SseEmitter subscribeBroadcast(@PathVariable String eventType, HttpServletResponse response) {
         prepareResponse(response);
         if (!properties.isBroadcastEnabled()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SSE broadcast is disabled");
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "SSE broadcast is disabled");
         }
         log.debug("SSE broadcast subscribe: eventType={}", eventType);
         return emitterManager.registerBroadcast(eventType);
@@ -68,7 +68,7 @@ public class SseController {
     public SseEmitter subscribeTargeted(@RequestParam("receiverId") String receiverId, HttpServletResponse response) {
         prepareResponse(response);
         if (!properties.isTargetedEnabled()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SSE targeted push is disabled");
+            throw new BusinessException(ResultCode.SERVICE_UNAVAILABLE, "SSE targeted push is disabled");
         }
         log.debug("SSE targeted subscribe: receiverId={}", receiverId);
         return emitterManager.registerTargeted(receiverId);

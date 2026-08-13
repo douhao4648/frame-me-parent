@@ -1,15 +1,16 @@
 package com.frame.me.auth.satoken.core;
 
-import cn.dev33.satoken.stp.StpUtil;
+import cn.dev33.satoken.stp.StpLogic;
+import com.frame.me.base.exception.BusinessException;
 
 /**
  * 路径规则简化表达式求值器.
  *
  * <p>支持的表达式语法（非 SpEL）：
  * <ul>
- *   <li>{@code login} —— 校验已登录（{@link StpUtil#checkLogin()}）</li>
- *   <li>{@code role:xxx} —— 校验拥有角色 xxx（{@link StpUtil#checkRole(String)}）</li>
- *   <li>{@code perm:resource} —— 校验权限码 resource（{@link StpUtil#checkPermission(String)}）</li>
+ *   <li>{@code login} —— 校验已登录（{@link StpLogic#checkLogin()}）</li>
+ *   <li>{@code role:xxx} —— 校验拥有角色 xxx（{@link StpLogic#checkRole(String)}）</li>
+ *   <li>{@code perm:resource} —— 校验权限码 resource（{@link StpLogic#checkPermission(String)}）</li>
  *   <li>{@code perm:resource:action} —— 校验权限码 resource:action</li>
  * </ul>
  *
@@ -56,16 +57,17 @@ public final class SaTokenRuleEvaluator {
     }
 
     /**
-     * 对当前请求执行规则校验.
+     * 对当前请求执行规则校验（指定 sa-token 账号体系）.
      *
-     * @param rule 已解析的规则
+     * @param rule     已解析的规则
+     * @param stpLogic 目标账号体系的 {@link StpLogic}
      */
-    public static void check(Rule rule) {
+    public static void check(Rule rule, StpLogic stpLogic) {
         switch (rule.kind()) {
-            case LOGIN -> StpUtil.checkLogin();
-            case ROLE -> StpUtil.checkRole(rule.value());
-            case PERMISSION -> StpUtil.checkPermission(rule.value());
-            default -> throw new IllegalStateException("未知规则类型: " + rule.kind());
+            case LOGIN -> stpLogic.checkLogin();
+            case ROLE -> stpLogic.checkRole(rule.value());
+            case PERMISSION -> stpLogic.checkPermission(rule.value());
+            default -> throw new BusinessException("未知规则类型: " + rule.kind());
         }
     }
 

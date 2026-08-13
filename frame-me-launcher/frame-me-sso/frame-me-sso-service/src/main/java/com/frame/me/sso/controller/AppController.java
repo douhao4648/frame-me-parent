@@ -9,8 +9,9 @@ import com.frame.me.sso.api.dto.AppUpdateDTO;
 import com.frame.me.sso.api.enums.AccessType;
 import com.frame.me.sso.api.vo.AppVO;
 import com.frame.me.sso.entity.AppEntity;
-import com.frame.me.sso.service.AppService;
-import com.frame.me.sso.service.LogoutService;
+import com.frame.me.sso.infrastructure.satoken.SsoStpUtil;
+import com.frame.me.sso.service.IAppService;
+import com.frame.me.sso.service.ILogoutService;
 import com.alibaba.fastjson2.JSON;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,13 +30,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AppController implements IAppApi {
 
-    private final AppService appService;
-    private final LogoutService logoutService;
+    private final IAppService appService;
+    private final ILogoutService logoutService;
 
     /**
      * 注册应用.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<AppVO> registerApp(AppRegisterDTO dto) {
         AccessType type = AccessType.valueOf(dto.getAccessType());
@@ -48,7 +49,7 @@ public class AppController implements IAppApi {
     /**
      * 应用列表.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<List<AppVO>> listApps() {
         return Result.success(appService.list().stream()
@@ -58,7 +59,7 @@ public class AppController implements IAppApi {
     /**
      * 更新应用.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<Boolean> updateApp(String appId, AppUpdateDTO app) {
         AppEntity entity = appService.findByAppId(appId);
@@ -81,7 +82,7 @@ public class AppController implements IAppApi {
     /**
      * 重置应用密钥（仅 EXTERNAL）.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<AppVO> resetSecret(String appId) {
         String secret = appService.resetSecret(appId);
@@ -95,7 +96,7 @@ public class AppController implements IAppApi {
      * 禁用应用：禁用即生效——除阻断新发 token 外，联动踢出该应用全部存量会话
      * （用户 token + 应用 token），避免"已颁发 token 自然过期"窗口内继续可用.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<Boolean> disableApp(String appId) {
         appService.disable(appId);
@@ -106,7 +107,7 @@ public class AppController implements IAppApi {
     /**
      * 按应用踢人：注销该 appId 全部会话（用户 token + 应用 token），返回踢掉的会话数.
      */
-    @SaCheckRole("admin")
+    @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
     public IResult<Integer> logoutApp(String appId, String reason) {
         return Result.success(logoutService.logoutByApp(appId, reason));

@@ -5,6 +5,7 @@ import cn.dev33.satoken.config.SaTokenConfig;
 import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.context.mock.SaResponseForMock;
 import cn.dev33.satoken.context.mock.SaTokenContextMockUtil;
+import com.frame.me.auth.satoken.config.SaTokenAuthProperties;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.user.User;
 import org.junit.jupiter.api.AfterEach;
@@ -31,7 +32,7 @@ class SaTokenAuthServiceNoCookieTest {
     private static final String RAW_PASSWORD = "123456";
 
     private final IAuthUserDetailsService userDetailsService = mock(IAuthUserDetailsService.class);
-    private final SaTokenAuthService authService = new SaTokenAuthService(userDetailsService);
+    private final SaTokenAuthService authService = new SaTokenAuthService(userDetailsService, new SaTokenAuthProperties());
 
     @BeforeEach
     void setUp() {
