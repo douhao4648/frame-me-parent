@@ -2,12 +2,7 @@ package com.frame.me.base.config;
 
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
+import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +43,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CsrfAutoConfiguration {
 
-    /** 需要 CSRF 校验的 HTTP 方法. */
+    /**
+     * 需要 CSRF 校验的 HTTP 方法.
+     */
     private static final Set<String> PROTECTED_METHODS = Set.of("POST", "PUT", "PATCH", "DELETE");
 
     private final CsrfProperties properties;
@@ -80,6 +77,10 @@ public class CsrfAutoConfiguration {
         private final CsrfProperties properties;
         private final IFilterErrorResponseWriter errorResponseWriter;
         private final PathMatcher pathMatcher = new AntPathMatcher();
+
+        private static int defaultPort(String scheme) {
+            return "https".equalsIgnoreCase(scheme) ? 443 : 80;
+        }
 
         @Override
         public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -249,10 +250,6 @@ public class CsrfAutoConfiguration {
             } catch (URISyntaxException e) {
                 return false;
             }
-        }
-
-        private static int defaultPort(String scheme) {
-            return "https".equalsIgnoreCase(scheme) ? 443 : 80;
         }
     }
 }

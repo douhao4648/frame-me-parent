@@ -1,8 +1,6 @@
 package com.frame.me.base.event;
 
 import com.alibaba.fastjson2.JSON;
-import com.frame.me.base.event.EventBridgeMessage;
-import com.frame.me.base.event.IEventErrorHandler;
 import com.frame.me.event.IEventType;
 import com.frame.me.event.MeApplicationEvent;
 import lombok.extern.slf4j.Slf4j;

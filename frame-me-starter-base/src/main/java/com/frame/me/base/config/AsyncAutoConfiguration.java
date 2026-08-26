@@ -41,6 +41,24 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class AsyncAutoConfiguration {
 
     /**
+     * 根据配置字符串解析拒绝策略.
+     *
+     * @param policy 策略名称
+     * @return 对应拒绝策略
+     */
+    private static RejectedExecutionHandler resolveRejectionPolicy(String policy) {
+        if (policy == null || policy.isBlank()) {
+            return new ThreadPoolExecutor.CallerRunsPolicy();
+        }
+        return switch (policy.toUpperCase()) {
+            case "ABORT" -> new ThreadPoolExecutor.AbortPolicy();
+            case "DISCARD" -> new ThreadPoolExecutor.DiscardPolicy();
+            case "DISCARD_OLDEST" -> new ThreadPoolExecutor.DiscardOldestPolicy();
+            default -> new ThreadPoolExecutor.CallerRunsPolicy();
+        };
+    }
+
+    /**
      * 创建默认异步线程池.
      *
      * @param properties 异步配置属性
@@ -120,24 +138,6 @@ public class AsyncAutoConfiguration {
                 }
                 return new DefaultAsyncUncaughtExceptionHandler(properties, senders);
             }
-        };
-    }
-
-    /**
-     * 根据配置字符串解析拒绝策略.
-     *
-     * @param policy 策略名称
-     * @return 对应拒绝策略
-     */
-    private static RejectedExecutionHandler resolveRejectionPolicy(String policy) {
-        if (policy == null || policy.isBlank()) {
-            return new ThreadPoolExecutor.CallerRunsPolicy();
-        }
-        return switch (policy.toUpperCase()) {
-            case "ABORT" -> new ThreadPoolExecutor.AbortPolicy();
-            case "DISCARD" -> new ThreadPoolExecutor.DiscardPolicy();
-            case "DISCARD_OLDEST" -> new ThreadPoolExecutor.DiscardOldestPolicy();
-            default -> new ThreadPoolExecutor.CallerRunsPolicy();
         };
     }
 

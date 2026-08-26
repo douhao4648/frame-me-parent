@@ -23,9 +23,9 @@ public interface INotifySender {
     /**
      * 使用全局默认配置发送通知（单个接收者便捷方法）。
      *
-     * @param title     标题
-     * @param content   内容
-     * @param receiver  接收者
+     * @param title    标题
+     * @param content  内容
+     * @param receiver 接收者
      * @return 是否发送成功
      */
     default boolean send(String title, String content, String receiver) {
@@ -35,10 +35,10 @@ public interface INotifySender {
     /**
      * 使用指定通道的默认客户端发送通知（单个接收者便捷方法）。
      *
-     * @param channel   通道类型，如 email / webhook / sms
-     * @param title     标题
-     * @param content   内容
-     * @param receiver  接收者
+     * @param channel  通道类型，如 email / webhook / sms
+     * @param title    标题
+     * @param content  内容
+     * @param receiver 接收者
      * @return 是否发送成功
      */
     default boolean sendChannel(String channel, String title, String content, String receiver) {

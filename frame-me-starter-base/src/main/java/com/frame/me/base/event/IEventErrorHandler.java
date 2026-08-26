@@ -22,7 +22,7 @@ public interface IEventErrorHandler {
     /**
      * 处理跨服务事件消费失败.
      *
-     * @param message  桥接消息（含 type / payload / sourceService）
+     * @param message   桥接消息（含 type / payload / sourceService）
      * @param exception 消费过程中抛出的异常
      */
     void handleError(EventBridgeMessage message, Exception exception);

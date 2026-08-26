@@ -1,7 +1,5 @@
 package com.frame.me.base.event;
 
-import com.frame.me.base.event.EventBridgeMessage;
-
 import java.util.function.Consumer;
 
 /**
@@ -25,7 +23,7 @@ public interface IEventTransport {
     /**
      * 订阅消息.
      *
-     * @param type     事件类型
+     * @param type       事件类型
      * @param dispatcher 收到消息后交给桥接监听器处理
      */
     void subscribe(String type, Consumer<EventBridgeMessage> dispatcher);

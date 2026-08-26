@@ -1,5 +1,6 @@
 package com.frame.me.base.config;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -13,13 +14,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import jakarta.servlet.DispatcherType;
-
 /**
  * CORS 跨域自动配置.
  *
  * <p>仅在 {@code me.cors.enabled=true} 时激活，注册最高优先级的 {@link CorsFilter}
- *（优先级高于 {@code AuthFilter} 的 {@code HIGHEST_PRECEDENCE+100}），
+ * （优先级高于 {@code AuthFilter} 的 {@code HIGHEST_PRECEDENCE+100}），
  * 在认证过滤器之前处理 OPTIONS 预检并附加 CORS 响应头。认证链仍对 OPTIONS 豁免作兜底。</p>
  *
  * <p>未启用时不注册任何 Bean，对不需要跨域的服务零侵入。</p>
