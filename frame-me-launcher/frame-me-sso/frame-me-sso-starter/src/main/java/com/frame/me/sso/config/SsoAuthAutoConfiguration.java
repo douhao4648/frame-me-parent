@@ -5,7 +5,7 @@ import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.sso.auth.SsoAuthController;
 import com.frame.me.sso.auth.SsoAuthService;
 import com.frame.me.sso.auth.SsoAuthUserDetailsService;
-import com.frame.me.sso.auth.SsoIndexController;
+import com.frame.me.sso.auth.SsoCallbackController;
 import com.frame.me.sso.auth.SsoLogoutEventListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Lazy;
  *
  * <p>装配 {@link SsoAuthController} + {@link SsoAuthService}，使下游引本 starter 后
  * 即开箱获得 {@code POST /api/auth/sso-login} 端点（code 换本地会话）与
- * {@link SsoIndexController} 的 {@code GET /index} 回调落地页；
+ * {@link SsoCallbackController} 的回调落地两端点（hash 落地页 + 服务端 Cookie 会话回调）；
  * 并在下游未自定义 {@link IAuthUserDetailsService} 时兜底装配
  * {@link SsoAuthUserDetailsService}（RP 无本地用户表场景的快照 miss 回源重建）。</p>
  *
@@ -37,7 +37,7 @@ import org.springframework.context.annotation.Lazy;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(IAuthService.class)
 @ConditionalOnProperty(prefix = "me.sso.client", name = "enabled", havingValue = "true", matchIfMissing = true)
-@Import({SsoAuthService.class, SsoAuthController.class, SsoIndexController.class, SsoLogoutEventListener.class})
+@Import({SsoAuthService.class, SsoAuthController.class, SsoCallbackController.class, SsoLogoutEventListener.class})
 public class SsoAuthAutoConfiguration {
 
     /**

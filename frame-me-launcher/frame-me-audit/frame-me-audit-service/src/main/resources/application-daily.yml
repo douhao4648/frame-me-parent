@@ -9,7 +9,7 @@ spring:
       minimum-idle: 5
   data:
     redis:
-      database: 1
+      database: 0
       host: localhost
       port: 6379
   http:

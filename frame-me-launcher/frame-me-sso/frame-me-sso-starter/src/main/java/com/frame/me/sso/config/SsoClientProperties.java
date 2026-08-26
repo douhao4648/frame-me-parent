@@ -49,8 +49,26 @@ public class SsoClientProperties {
 
     /**
      * 授权码回调地址.
+     *
+     * <p>两种落地方式对应两种取值（见 {@code SsoCallbackController} 类注释）：SPA/hash
+     * 模式配 {@code http://your-app/index}（即 {@link #indexPath} 端点）；服务端 Cookie
+     * 会话模式配 {@code http://your-app/callback}（即 {@link #callbackPath} 端点）。</p>
      */
     private String redirectUri;
+
+    /**
+     * hash 落地页端点路径（{@code GET}，SPA/Header 鉴权模式），默认 {@code /index}.
+     *
+     * <p>改路径时同步改 {@link #redirectUri} 与 SSO 应用注册的 redirectUri 白名单。</p>
+     */
+    private String indexPath = "/index";
+
+    /**
+     * 服务端回调端点路径（{@code GET}，浏览器 Cookie 会话模式），默认 {@code /callback}.
+     *
+     * <p>改路径时同步改 {@link #redirectUri} 与 SSO 应用注册的 redirectUri 白名单。</p>
+     */
+    private String callbackPath = "/callback";
 
     /**
      * client_credentials 应用 token 的本地缓存时长，默认 1 小时.

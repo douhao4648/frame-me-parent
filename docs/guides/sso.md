@@ -155,7 +155,7 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > `accessToken`/`refreshToken` 两段（与 `JwtAuthController` 契约一致）；sa-token 下游
 > 为单一不透明 token，`refreshToken` 恒 null。
 >
-> **开箱回调落地页**：starter 同时提供 `GET /index`（`SsoIndexController` + 内置
+> **开箱回调落地页**：starter 同时提供 `GET /index`（`SsoCallbackController` + 内置
 > `sso/index.html`，匿名）。把 `me.sso.client.redirect-uri` 配为该端点
 > （如 `http://your-app/index`），authorize 回调的 code/state 即落在该页：
 > 页面 JS 校验 state（仅站内相对路径，缺失/为空/不合法回落 `/`，防 open redirect），
@@ -166,6 +166,46 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > **认证实现通用**：端点依赖 `IAuthService.loginByUser`，sa-token/JWT 两套实现均覆盖
 > （`SaTokenAuthService` 建会话 + Account-Session 快照缓存；`JwtTokenService` 建 token 对并写入
 > `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` miss 时从 claims 重建 User），下游任选其一。
+
+## 回调落地：两种方式
+
+authorize 回调带 code 回到下游后，starter 提供两种落地方式（均由 `SsoCallbackController` 提供），按前端形态二选一（`me.sso.client.redirect-uri` 配哪个端点就走哪种）。
+
+### 方式 A：hash 落地页 + 前端换会话（SPA 默认）
+
+`redirect-uri` 配 `http://your-app/index`（内置落地页 `SsoCallbackController`）：
+
+```
+浏览器 → SSO authorize → 302 /index?code=xxx&state=<目标地址>
+/index → 页面 JS 校验 state（仅站内相对路径）→ location.replace(state + '#code=' + code)
+目标页 → 从 location.hash 取 code → POST /base/auth/sso-login → TokenVO（前端自存 token）
+后续请求 → Authorization/satoken Header 携带 token
+```
+
+- code 经 URL hash 携带，**不进服务端日志/Referer**
+- 前端需两处逻辑（各一处即可，非每页）：401 拦截器发起 authorize 跳转；回调处取 code 调 `/sso-login`
+- **适用**：SPA、JWT 下游、跨站必须走 Header 鉴权的场景
+
+### 方式 B：服务端回调 + Cookie 会话（浏览器同站，零前端 JS）
+
+`redirect-uri` 配 `http://your-app/callback`（`SsoCallbackController#callback`，路径可由 `me.sso.client.callback-path` 改）：
+
+```
+浏览器 → SSO authorize → 302 /callback?code=xxx&state=<目标地址>
+/callback → 服务端 SsoAuthService.ssoLogin(code) 换 token → /userinfo → 建本地会话
+         → sa-token 原生写 Cookie（is-read-cookie=true）→ 302 跳回 state
+后续请求 → 浏览器自动带 Cookie，前端零参与
+```
+
+- 前端只剩"401 时跳 authorize"一处逻辑；回调、取 code、换 token、存 token 全部消失
+- code 走 query，会进下游 access log（`me.auth.access-log` 默认关闭）与浏览器历史——授权码一次性 + 60s 过期 + 落地即消费，泄露窗口可接受
+- token 存 **HttpOnly Cookie**，XSS 拿不走（优于方式 A 的前端 JS 可读存储）；CSRF 由 sa-token Cookie SameSite（建议 Lax）兜底
+- `state` 服务端校验与落地页同一套规则（仅站内相对路径，拒绝 `//` 协议相对、反斜杠、空白，剥离 hash 片段，不合法回落 `/`）
+- **适用**：sa-token 下游 + 浏览器同站 Cookie 会话。**JWT 下游不适用**（不签发 Cookie），走方式 A
+
+两种方式共用同一套 `SsoAuthService.ssoLogin` 编排（code 换 token → /userinfo → 建本地会话 → 留存上游 token），仅"谁发起调用、token 怎么交付"不同。换 token 失败（code 无效/已用）均抛 4001：方式 A 由前端留登录页显示错误，方式 B 由全局异常处理返回错误 JSON，均 fail-closed 不回跳。
+
+> **state 可携带 query 参数与 hash 片段**（分享链接/hash 路由场景）：`state=/api/log/page?type=error&page=2`、`state=/#/log/page` 两种方式均支持。前端拼 authorize URL 时对整个 state 做一次 `encodeURIComponent` 即可（推荐取 `location.pathname + location.search`，天然是编码后形态）。方式 B 服务端按需编码非法字符（裸中文 → UTF-8 percent-encode，已有 `%XX` 转义不二次编码）且**保留 hash 片段**（code 不经浏览器，片段无冲突）。方式 A 因 hash 通道用于携带 code，state 的 `#` 片段会被剥离——hash 路由 SPA 用方式 A 时，应在跳 SSO 前把完整原始地址存 `sessionStorage`、`state` 固定为回调路由，登录回来后恢复（或直接用方式 B）。
 
 ## 踢人机制
 

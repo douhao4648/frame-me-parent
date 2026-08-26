@@ -7,7 +7,7 @@
 </head>
 <body>
 <!--
-  SSO 授权码回调落地页（frame-me-sso-starter 内置，GET /index 由 SsoIndexController 提供）。
+  SSO 授权码回调落地页（frame-me-sso-starter 内置，GET /index 由 SsoCallbackController 提供）。
 
   职责：读取 authorize 回调携带的 code/state，重定向到 state 标记的站内地址，
   code 经 URL hash 携带（不进服务端日志/Referer），目标页（SPA 路由）从

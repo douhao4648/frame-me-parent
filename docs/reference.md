@@ -269,6 +269,7 @@
 | `SsoAuthAutoConfiguration` | SSO RP 登录端点自动配置（`frame-me-sso-starter`）：`@Import(SsoAuthService/SsoAuthController)`，`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；仅 sa-token 下游可用 |
 | `SsoAuthService` | SSO RP 登录编排（`frame-me-sso-starter`）：code → SSO token → /userinfo → `IAuthService.loginByUser` 建本地会话 |
 | `SsoAuthController` | `POST /api/auth/sso-login`（`frame-me-sso-starter`）：授权码换本地会话 |
+| `SsoCallbackController` | 回调落地两端点（`frame-me-sso-starter`）：`GET /index`（`me.sso.client.index-path` 可配）hash 落地页（SPA 场景）；`GET /callback`（`me.sso.client.callback-path` 可配）服务端回调——code 换会话 + sa-token 写 Cookie + 302 回跳 state |
 | `SsoLoginDTO` | RP 登录请求体（`frame-me-sso-starter`：code + 可选 redirectUri） |
 | `IAuthService.loginByUser` | 按已知用户直接建立会话（RP 场景，default 抛异常；`SaTokenAuthService` 覆盖为 `StpLogic.login` + 快照缓存） |
 | `SsoStpUtil` | SSO 独立账号体系入口（`frame-me-sso-service`）：`TYPE="sso"` + `stpLogic`（`new StpLogic("sso")` 经 `SaManager.getStpLogic` 注册），SSO 全部登录/登出/验 token 动作与 `@SaCheck*(type=...)` 的统一体系标识 |
