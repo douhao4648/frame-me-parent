@@ -31,21 +31,3 @@ me:
   auth:
     access-log:
       enabled: true
-
-#mybatis-flex:
-#  default-datasource-key: master
-#  datasource:
-#    master:
-#      url: jdbc:mysql://localhost:3306/frame_me_sso?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-#      username: root
-#      password: root
-#      driver-class-name: com.mysql.cj.jdbc.Driver
-#      type: hikari
-#      maximum-pool-size: 10
-#      minimum-idle: 5
-
-
-
-# 多个文件的 pom
-# snowflake my-felx
-# base

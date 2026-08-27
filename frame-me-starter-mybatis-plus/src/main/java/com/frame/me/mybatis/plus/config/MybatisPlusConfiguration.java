@@ -1,11 +1,11 @@
 package com.frame.me.mybatis.plus.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
-import com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator;
 import com.baomidou.mybatisplus.core.incrementer.IdentifierGenerator;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import com.frame.me.base.util.SnowflakeUtils;
 import com.frame.me.mybatis.plus.plugin.BaseMetaObjectHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -66,27 +66,23 @@ public class MybatisPlusConfiguration {
     }
 
     /**
-     * 注册自定义雪花算法 ID 生成器.
+     * 注册雪花 ID 生成器.
      *
-     * <p>当显式配置 {@code me.mybatis.snowflake.worker-id} 时生效，
-     * 用于分布式环境下为每个实例分配唯一的 workerId / datacenterId。
+     * <p>当类路径存在 base 的 {@link SnowflakeUtils} 时默认生效，委托 base 统一雪花实例
+     * （与 flex starter 共用同一套；节点 ID 由 {@code me.snowflake.worker-id} /
+     * {@code me.snowflake.datacenter-id} 指定，未配置时 Hutool 依据 MAC + PID 自动推导）。
+     * 显式配置 {@code me.snowflake.enabled=false} 或 base 不在类路径时本 Bean 退避，
+     * 沿用 MyBatis-Plus 默认 ID 生成。
      *
-     * @param properties MyBatis-Plus 扩展配置属性
      * @return IdentifierGenerator
      */
     @Bean
     @ConditionalOnMissingBean(IdentifierGenerator.class)
-    @ConditionalOnProperty(prefix = "me.mybatis.snowflake", name = "worker-id")
-    public IdentifierGenerator identifierGenerator(MybatisPlusProperties properties) {
-        long workerId = properties.getSnowflake().getWorkerId();
-        long datacenterId = properties.getSnowflake().getDatacenterId() == null ? 0L : properties.getSnowflake().getDatacenterId();
-        // MP 的 DefaultIdentifierGenerator 无单 workerId 构造器，datacenterId 未配置时默认 0
-        // 多实例部署需显式配置 me.mybatis.snowflake.datacenter-id 避免雪花 ID 冲突
-        if (properties.getSnowflake().getDatacenterId() == null) {
-            log.warn("me.mybatis.snowflake.datacenter-id 未配置，默认 0。多实例部署需显式配置避免雪花 ID 冲突");
-        }
-        log.info("register custom Snowflake ID Generator：workerId={}, datacenterId={}", workerId, datacenterId);
-        return new DefaultIdentifierGenerator(workerId, datacenterId);
+    @ConditionalOnClass(name = "com.frame.me.base.util.SnowflakeUtils")
+    @ConditionalOnProperty(prefix = "me.snowflake", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public IdentifierGenerator identifierGenerator() {
+        log.info("MyBatis-Plus IdentifierGenerator delegated to base SnowflakeUtils");
+        return entity -> SnowflakeUtils.nextId();
     }
 
 }

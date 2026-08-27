@@ -42,7 +42,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 Wrapper 的 JVM 参数已配置在 `.mvn/jvm.config`（UTF-8、最大堆 2G）。
 
-应用默认运行在 `8080` 端口，名称为 `frame-me-tester`。
+应用默认运行在 `9090` 端口（管理端口 `9091`），名称为 `frame-me-tester`。
 
 启动 SSO 认证服务：
 
@@ -62,7 +62,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-auth-jwt` | JWT 认证实现 starter，接管 auth 抽象层，提供登录/登出/刷新/当前用户接口。 |
 | `frame-me-starter-auth-sa-token` | 基于 sa-token 的会话治理型认证 starter，接管 auth 抽象层，提供踢人/封禁/在线会话/多端互斥能力；按需显式引入，不纳入 boot。 |
 | `frame-me-starter-auth-rbac` | RBAC 授权 starter：`@RequireAuth` SpEL 鉴权、数据权限、可选 Redis 权限后端；按需显式引入，不纳入 boot。 |
-| `frame-me-starter-cloud` | 云基础底座模块：Spring Cloud 配置刷新体系、配置中心无关的刷新解密（`ME(密文)` 刷新后重新解密）、注册中心无关的优雅下线编排；已纳入 boot。 |
+| `frame-me-starter-cloud` | 云基础底座模块：Spring Cloud 配置刷新体系、配置中心无关的刷新解密（`ME(密文)` 刷新后重新解密）、注册中心无关的优雅下线编排；按需显式引入，不纳入 boot。 |
 | `frame-me-starter-cloud-nacos` | Nacos 配置中心 + 注册中心 starter：极薄封装 SCA 官方 `nacos-config` / `nacos-discovery`，配置走原生 `spring.cloud.nacos.*`；按需显式引入，不纳入 boot。 |
 | `frame-me-starter-mybatis-plus` | MyBatis-Plus 数据访问 starter（实体基类、分页插件、公共字段填充、雪花 ID）。 |
 | `frame-me-starter-mybatis-flex` | MyBatis-Flex 数据访问 starter（与 mybatis-plus 二选一）。 |
@@ -73,11 +73,13 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 | `frame-me-starter-sensi-encrypt` | 配置密钥加密 starter：基于 Jasypt 核心库，启动时解密配置中的 `ME(密文)`，主密码由环境变量注入、不入库。 |
 | `frame-me-starter-op-audit` | 审计/行为日志 starter：方法标注 `@AuditLog` 记录动作/参数/返回/异常/耗时，默认打印日志，可经事件桥接发往审计服务。 |
 | `frame-me-starter-msg-notify` | 消息通知 starter：统一邮件/Webhook/短信多通道通知能力，支持 `INotifySender` 接口、全局默认接收者与多客户端配置。 |
-| `frame-me-starter-sse-mvc` | SSE 推送 starter（按需引入）：服务端事件推送，支持按事件类型广播与按接收者定向推送。 |
+| `frame-me-starter-sse-mvc` | SSE 推送 starter：服务端事件推送，支持按事件类型广播与按接收者定向推送；按需显式引入，不纳入 boot。 |
 | `frame-me-starter-ws-mvc` | WebSocket 推送 starter（按需引入）：Servlet 原生 WebSocket 全双工，支持广播与定向推送。 |
-| `frame-me-boot` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/cloud/multi-redis/l1l2-cache/sensi-encrypt/sse-mvc/op-audit/msg-notify；不含 adapter、doc-openapi、ws-mvc、auth-jwt、auth-sa-token、auth-rbac、cloud-nacos、mybatis-plus/flex、dynamic-ds）。 |
-| `frame-me-launcher/frame-me-sso` | SSO 认证服务聚合工程：`frame-me-sso-api`（`@HttpExchange` 契约 + 踢人事件）+ `frame-me-sso-service`（授权码/client_credentials 颁发 sa-token、/userinfo 代验、用户 CRUD）+ `frame-me-sso-starter`（下游 RP 一键接入：`/api/auth/sso-login` 端点 + `/index` 回调落地页 + 踢人监听）。 |
+| `frame-me-reducer` | 阿里云系列 reducer 聚合模块（`pom`）：沉淀阿里云公共 SDK 底座（`frame-me-aliyun-common`）与各能力 starter（`frame-me-aliyun-starter-oss` 等）；当前为占位工程，后续按需补充 OSS 等客户端封装与自动装配。 |
+| `frame-me-boot` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/multi-redis/l1l2-cache/sensi-encrypt/op-audit/msg-notify；不含 adapter、doc-openapi、cloud、sse-mvc、ws-mvc、auth-jwt、auth-sa-token、auth-rbac、cloud-nacos、mybatis-plus/flex、dynamic-ds、reducer）。 |
+| `frame-me-launcher/frame-me-sso` | SSO 认证服务聚合工程：`frame-me-sso-api`（`@HttpExchange` 契约 + 踢人事件）+ `frame-me-sso-service`（授权码/client_credentials 颁发 sa-token、/userinfo 代验、用户 CRUD）+ `frame-me-sso-starter`（下游 RP 一键接入：`/api/auth/sso-login` 端点 + 回调落地双模式（`/index` hash 落地页 / `/callback` 服务端 Cookie 会话回调）+ 踢人监听）。 |
 | `frame-me-launcher/frame-me-audit` | 审计中心聚合工程：`frame-me-audit-api`（`ILogApi` 查询契约）+ `frame-me-audit-service`（订阅 `audit:log` 事件持久化到 MySQL + 审计日志查询，兼作 SSO 下游 RP）。 |
+| `frame-me-launcher/frame-me-gateway` | 网关工程（占位）：挂 `frame-me-launcher` 下，后续按需补充网关实现（如 Spring Cloud Gateway）。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定

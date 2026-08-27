@@ -21,10 +21,6 @@
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-cloud</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-multi-redis</artifactId>
         </dependency>
         <dependency>
@@ -34,10 +30,6 @@
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-sensi-encrypt</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-sse-mvc</artifactId>
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>

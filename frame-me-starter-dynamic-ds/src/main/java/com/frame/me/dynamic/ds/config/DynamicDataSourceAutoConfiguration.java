@@ -22,7 +22,12 @@ import org.springframework.core.env.ConfigurableEnvironment;
  * 从而当 dynamic-datasource 中也显式配置了 {@code master} 时，
  * 后加载的 YmlDynamicDataSourceProvider 可以覆盖本 Provider 创建的默认 master。
  *
- * <p><b>两个 {@code @ConditionalOnProperty} 是 AND 关系，各有作用</b>：
+ * <p><b>三个 {@code @ConditionalOnProperty} 是 AND 关系，各有作用</b>：
+ * <ul>
+ *   <li>{@code me.mybatis.datasource-bridge.enabled}（matchIfMissing=true）：「spring.datasource
+ *       自动注册为 master」的统一开关，与 frame-me-starter-mybatis-flex 的同名桥接共用，
+ *       一处关闭即可同时停掉两个 starter 的桥接行为。</li>
+ * </ul>
  * <ul>
  *   <li>{@code me.dynamic-datasource.enabled}（matchIfMissing=true）：本模块总开关，
  *       业务方可单独关闭本 Provider 而保留 baomidou 原生装配。</li>
@@ -39,6 +44,7 @@ import org.springframework.core.env.ConfigurableEnvironment;
 @ConditionalOnClass(name = "com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAutoConfiguration")
 @ConditionalOnProperty(prefix = "me.dynamic-datasource", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "spring.datasource.dynamic", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "me.mybatis", name = "datasource-bridge.enabled", havingValue = "true", matchIfMissing = true)
 @AutoConfigureBefore(com.baomidou.dynamic.datasource.spring.boot.autoconfigure.DynamicDataSourceAutoConfiguration.class)
 public class DynamicDataSourceAutoConfiguration {
 

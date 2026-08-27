@@ -60,6 +60,9 @@ sa-token:
 #    domain: .example.com
 
 me:
+  mybatis:
+    datasource-bridge:
+      enabled: true
   auth:
     enabled: true
     enforce-login: true
@@ -109,6 +112,9 @@ me:
     enabled: true
     log-enabled: true
     target-service: frame-me-audit
+#  snowflake:
+#    worker-id: 0
+#    datacenter-id: 0
 
 jetcache:
   decodeFilterAllowPatterns:

@@ -35,29 +35,9 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-mybatis-flex</artifactId>
         </dependency>
-        <!-- Redis（sa-token Redis DAO + RedisEventTransport + refresh token store） -->
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-multi-redis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-l1l2-cache</artifactId>
-        </dependency>
-        <!-- 敏感配置加密（appSecret/JWT secret 等密文） -->
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-sensi-encrypt</artifactId>
-        </dependency>
-        <!-- 审计（接收侧：@Import AuditLogEventConfiguration；自身：@AuditLog 注解） -->
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-op-audit</artifactId>
-        </dependency>
-        <!-- 通知 -->
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-msg-notify</artifactId>
+            <artifactId>frame-me-boot</artifactId>
         </dependency>
 
         <dependency>

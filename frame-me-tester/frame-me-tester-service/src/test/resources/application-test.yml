@@ -53,9 +53,9 @@ me:
   mybatis:
     meta-object-handler:
       enabled: true
-    snowflake:
-      worker-id: 5
-      datacenter-id: 1
+  snowflake:
+    worker-id: 5
+    datacenter-id: 1
 
 jetcache:
   statIntervalMinutes: 0

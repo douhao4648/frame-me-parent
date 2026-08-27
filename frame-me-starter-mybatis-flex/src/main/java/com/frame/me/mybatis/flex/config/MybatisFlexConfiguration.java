@@ -27,15 +27,16 @@ public class MybatisFlexConfiguration {
     /**
      * 雪花主键生成器适配.
      *
-     * <p>当类路径存在 base 的 {@link SnowflakeUtils} 时，覆盖 MyBatis-Flex 内置的
+     * <p>当类路径存在 base 的 {@link SnowflakeUtils} 时默认生效，覆盖 MyBatis-Flex 内置的
      * {@link KeyGenerators#snowFlakeId} 生成器，改为委托 {@code SnowflakeUtils.nextId()}，
-     * 使 flex 主键与 base 使用同一套雪花实例（含 {@code me.snowflake.*} 配置）。
-     * base 不存在时本配置不加载，flex 沿用自带雪花。</p>
+     * 使 flex 主键与 base 使用同一套雪花实例（节点 ID 由 {@code me.snowflake.*} 指定，
+     * 未配置时 Hutool 自动推导）。显式配置 {@code me.snowflake.enabled=false} 或
+     * base 不在类路径时本配置退避，flex 沿用自带雪花。</p>
      */
     @Slf4j
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(SnowflakeUtils.class)
-    @ConditionalOnProperty(prefix = "me.snowflake", name = "worker-id")
+    @ConditionalOnProperty(prefix = "me.snowflake", name = "enabled", havingValue = "true", matchIfMissing = true)
     static class SnowflakeKeyGeneratorConfiguration {
 
         @PostConstruct

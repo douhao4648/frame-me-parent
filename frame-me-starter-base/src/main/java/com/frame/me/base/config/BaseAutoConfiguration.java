@@ -26,7 +26,7 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@EnableConfigurationProperties({ExceptionProperties.class, SecurityHeadersProperties.class})
+@EnableConfigurationProperties({ExceptionProperties.class, SecurityHeadersProperties.class, DatasourceBridgeProperties.class})
 public class BaseAutoConfiguration {
 
     /**

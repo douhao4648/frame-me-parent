@@ -34,6 +34,7 @@
   - `com.frame.me.base.advice.GlobalExceptionHandler` — 全局异常处理。
   - `com.frame.me.base.config.BaseAutoConfiguration` — 自动装配入口。
   - `com.frame.me.base.config.ExceptionProperties` — `me.exception.*` 配置属性绑定。
+  - `com.frame.me.base.config.DatasourceBridgeProperties` — `me.mybatis.datasource-bridge.*` 配置属性绑定（flex / dynamic-ds 桥接开关的类型化绑定与 IDE 提示；两个消费者的判定均早于属性绑定阶段，直接读原始 key）。
   - `com.frame.me.base.env.EnvironmentHelper` — 获取 Spring active profile、判断当前环境（dev/test/prod/daily/pre）。
     - 提供 `getActiveProfiles()`、`getActiveProfile()`、`isProfileActive(String)`、`isDev()`、`isTest()`、`isProd()`、`isDaily()`、`isPre()` 等方法。
   - `com.frame.me.base.result.ResultCode` — 状态码枚举。
@@ -101,8 +102,9 @@
 - **扩展提示**：与 Spring Web 相关的基础能力（拦截器、参数解析器、统一日志等）适合放在这里。
 - **日志模板**：`src/main/resources/logback-frame-me.xml` 是共享日志模板（appender、按 profile 分级），**刻意不用 `logback-spring.xml` 命名**，避免二方库劫持应用日志配置；应用在自己的 `logback-spring.xml` 中通过 `<include resource="logback-frame-me.xml"/>` 显式引入（`frame-me-tester-service` 即此用法），业务专属 logger 在应用侧追加。
 
-`frame-me-tester/frame-me-tester-service` 提供两个 Maven Profile 用于演示：
+`frame-me-tester/frame-me-tester-service` 提供三个 Maven Profile 用于演示：
 
+- `prometheus` — 引入 `micrometer-registry-prometheus`，用于 Prometheus 指标暴露：`mvn ... -Pprometheus`。
 - `p6spy` — 引入 `p6spy-spring-boot-starter`，用于 SQL 监控：`mvn ... -Pp6spy`。
 - `swagger` — 引入 `frame-me-starter-doc-openapi`，用于接口文档：`mvn ... -Pswagger`。
 
@@ -164,8 +166,7 @@ me:
 - **自动装配**：通过 `frame-me-starter-mybatis-plus/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `MybatisPlusConfiguration`。
 - **可配置项**：
   - `me.mybatis.meta-object-handler.enabled` — 是否启用公共字段自动填充，默认 `false`。
-  - `me.mybatis.snowflake.worker-id` — 雪花算法 workerId，范围 `0~31`；未配置时使用 MyBatis-Plus 默认推导值。
-  - `me.mybatis.snowflake.datacenter-id` — 雪花算法 datacenterId，范围 `0~31`，默认 `0`；未配置时使用 MyBatis-Plus 默认推导值。
+  - 雪花 ID 统一委托 base `SnowflakeUtils`（与 flex starter 共用同一套雪花实例）：`me.snowflake.enabled`（默认 `true`）控制启停，`false` 时退回 MyBatis-Plus 默认生成器；节点 ID 由 `me.snowflake.worker-id` / `me.snowflake.datacenter-id` 指定，未配置时 Hutool 依据 MAC + PID 自动推导。旧前缀 `me.mybatis.snowflake.*` 已移除。
   - `me.snowflake.worker-id` — 基础雪花算法 workerId，未配置时回退到 Hutool 默认生成器（定义在 `frame-me-starter-base`）。
   - `me.snowflake.datacenter-id` — 基础雪花算法 datacenterId，默认 `0`（定义在 `frame-me-starter-base`）。
 - **设计约定**：
@@ -181,9 +182,10 @@ me:
   - `com.frame.me.mybatis.flex.entity.BaseEntity` — 基础实体，含 `id`（雪花算法）、`createTime`、`updateTime`、`deleted`。
   - `com.frame.me.mybatis.flex.entity.BaseVersionEntity` — 继承 `BaseEntity`，额外提供 `version`（乐观锁）。
   - `com.frame.me.mybatis.flex.util.PageUtils` — 分页工具，`PageQuery` / `PageData` 与 MyBatis-Flex `Page` 转换。
-  - `com.frame.me.mybatis.flex.config.MybatisFlexConfiguration` — 自动装配入口，注册全局配置；当 base 的 `SnowflakeUtils` 可用且配置了 `me.snowflake.worker-id` 时，自动将 flex 内置雪花生成器委托给 `SnowflakeUtils`。
+  - `com.frame.me.mybatis.flex.config.MybatisFlexConfiguration` — 自动装配入口，注册全局配置；当 base 的 `SnowflakeUtils` 可用且 `me.snowflake.enabled`（默认 `true`）未关闭时，自动将 flex 内置雪花生成器委托给 `SnowflakeUtils`。
   - `com.frame.me.mybatis.flex.config.MybatisFlexInfrastructureRoleFixer` — 修复 MyBatis-Flex 内部配置类在 BeanPostProcessor 阶段被提前实例化而产生的 WARN。
 - **自动装配**：通过 `frame-me-starter-mybatis-flex/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `MybatisFlexConfiguration`。
+- **数据源桥接**：`com.frame.me.mybatis.flex.env.SpringDataSourceBridgeEnvironmentPostProcessor`（经 `META-INF/spring.factories` 注册）在存在 `spring.datasource.url` 且未显式配置 `mybatis-flex.datasource.master.url` 时，将 `spring.datasource.*`（含 `spring.datasource.hikari.*` / `spring.datasource.druid.*` 连接池参数；`spring.datasource.type` 类名翻译成 flex `type` 别名，未配置时按唯一池参数前缀推断 hikari/druid）以最低优先级映射为 `mybatis-flex.datasource.master.*`，使 `spring.datasource` 默认注册为 flex 的 master 数据源；显式 `mybatis-flex.datasource.master.*` 逐属性覆盖（显式给出 `master.url` 则桥接整体退避），`ME(...)` 密文仍由 sensi-encrypt 正常解密。可通过 `me.mybatis.datasource-bridge.enabled=false` 关闭。
 - **启用条件**：类路径存在 `com.mybatisflex.core.BaseMapper`。
 - **设计约定**：
   - 与 `frame-me-starter-mybatis-plus` **二选一**，不可同时引入。
@@ -230,6 +232,7 @@ me:
   - 类路径存在 baomidou `DynamicDataSourceAutoConfiguration`。
   - `me.dynamic-datasource.enabled=true`（默认 `true`，可省略）。
   - `spring.datasource.dynamic.enabled=true`（默认 `true`，可省略）。
+  - `me.mybatis.datasource-bridge.enabled=true`（默认 `true`，可省略）——「`spring.datasource` 自动注册为 master」的统一开关，与 `frame-me-starter-mybatis-flex` 的桥接共用。
 - **使用方式**：
   - 当存在 `spring.datasource.url` 时，自动创建 `master` 数据源。
   - 若 `spring.datasource.dynamic.datasource` 中也显式配置了 `master`，则显式配置优先级更高，会覆盖自动创建的 `master`。
@@ -501,7 +504,7 @@ me:
   - `endpoint-enabled` — 是否暴露 `POST /actuator/offline` 主动下线端点，默认 `true`。
   - `endpoint-token` — `/actuator/offline` 的共享密钥；配置后请求头 `X-Offline-Token` 必须匹配否则 403，未配置则放行但每次调用 WARN——该端点是远程下线开关，生产环境必须配置。
 - **设计约定**：
-  - 已纳入 `frame-me-boot`（cloud 在 boot 聚合依赖中），业务 `xx-service` 引入 `frame-me-boot` 即获得云基础底座能力。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-cloud` 以获得云基础底座能力（优雅下线 / 配置刷新解密）。
   - **刷新解密链路时序**：
     - **启动期（零改动）**：`ConfigDataEnvironmentPostProcessor`（order `HIGHEST_PRECEDENCE + 10`）远早于 sensi-encrypt 的 `EncryptablePropertyEnvironmentPostProcessor`（`LOWEST_PRECEDENCE`），Nacos 源走 `spring.config.import` 在 sensi-encrypt 跑时已就位，sensi-encrypt 现有循环天然扫描到并原位包装。
     - **运行时刷新**：配置中心推送变更触发 `RefreshEvent` → `ContextRefresher.refreshEnvironment()` 构造全新 `PropertySource` 替换旧源（粒度为 Data ID / 整个配置文件级，非字段级） → 发布 `EnvironmentChangeEvent` → 本监听器对新加入的未包装含密文源重新包装。
@@ -700,7 +703,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - 业务推送：注入 `SsePushService` 调用 `broadcast` / `pushToReceiver`。
   - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 SSE 客户端自动收到。
 - **设计约定**：
-  - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
+  - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-sse-mvc` 以获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
   - `eventType` / `receiverId` 做长度（≤128）与字符白名单（字母数字、冒号、下划线、短横）校验，非法返回 400，防恶意 key 撑爆路由表。
@@ -988,10 +991,33 @@ public class AlertService {
 }
 ```
 
+## `frame-me-reducer`
+
+- **定位**：阿里云系列 reducer 聚合模块（`pom` 打包），沉淀阿里云公共 SDK 底座（`frame-me-aliyun-common`）与各能力 starter（`frame-me-aliyun-starter-xxx`）。与 `frame-me-adapter` 同为「公共底座 + 能力 starter」的分层结构：公共底座不带 starter 后缀、无自动装配，存放各阿里云服务共用的 SDK 与依赖；具体能力由各 starter 按需引入底座获得公共依赖。
+- **依赖**：无外部框架依赖（占位工程，后续按实际接入的阿里云服务补充公共 SDK）。
+- **子模块**：
+
+### `frame-me-aliyun-common`
+
+- **定位**：阿里云公共 SDK 底座模块，存放各阿里云服务（OSS / SMS / ECS 等）共用的 SDK 与公共依赖；不带 starter 后缀、无自动装配（与 `frame-me-adapter-api` 同为公共底座定位）。当前为占位工程，暂无公共 SDK 依赖，后续按实际接入的阿里云服务补充。
+- **依赖**：`lombok`。
+- **关键类**：
+  - `com.frame.me.aliyun.common.AliyunCommonConstant` — 占位常量类（`final` + 私有构造器）。
+- **设计约定**：本模块不带 starter 后缀、无自动装配；各 `frame-me-aliyun-starter-xxx` 模块按需引入本模块获得公共依赖。
+
+### `frame-me-aliyun-starter-oss`
+
+- **定位**：阿里云 OSS 能力 starter，提供对象存储能力。公共 SDK 从 `frame-me-aliyun-common` 继承，后续按需补充 OSS 客户端封装与自动装配。当前为占位工程，暂无 OSS SDK 依赖与实现。
+- **依赖**：`frame-me-aliyun-common`、`lombok`。
+- **关键类**：
+  - `com.frame.me.aliyun.oss.AliyunOssConstant` — 占位常量类。
+- **设计约定**：**不纳入 `frame-me-boot`**，业务 `xx-service` 需按需显式引入；后续补充 OSS 客户端封装与自动装配后，通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册。
+- **扩展提示**：后续接入 SMS / ECS 等其他阿里云服务时，新建 `frame-me-aliyun-starter-xxx` 模块并加入 `frame-me-reducer` 的 `<modules>`，公共依赖放 `frame-me-aliyun-common`。
+
 ## `frame-me-boot`
 
 - **定位**：聚合启动模块 / service 入口，本身不包含业务代码，用于把一组通用 starter 打包成一条依赖对外提供。
-- **依赖**：`frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
+- **依赖**：`frame-me-starter-auth`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（通过传递依赖自动引入 `frame-me-starter-base` 与 `frame-me-api`）。
 - **关键类**：
   - `com.frame.me.boot.BootConstant` — 占位常量类。
 - **使用方**：业务工程的 `xx-service` 模块。
@@ -999,7 +1025,7 @@ public class AlertService {
   - 业务 `xx-service` 通过引入 `frame-me-boot` 一键启动通用能力。
   - `frame-me-boot` 无自己的自动装配类，依赖的 `frame-me-starter-base` 等模块会通过传递依赖自动注册。
   - `frame-me-adapter`（含 `frame-me-adapter-starter`）与 `frame-me-starter-doc-openapi` 不纳入聚合，因为不同项目通常会重写适配层或按需引入文档能力。
-  - `frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 同样按需引入，不纳入聚合。
+  - `frame-me-starter-cloud`、`frame-me-starter-sse-mvc`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-ws-mvc`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex`、`frame-me-starter-cloud-nacos`、`frame-me-reducer`（阿里云系列）同样按需引入，不纳入聚合。
 
 ```xml
 <!-- 业务 xx-service：引入通用能力 -->
@@ -1060,7 +1086,7 @@ public class AlertService {
 ## `frame-me-tester-service`
 
 - **定位**：示例业务实现层与可运行 Spring Boot 入口。
-- **依赖**：`frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`redisson`、`spring-boot-starter-test`（test scope）；`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus`、`druid-spring-boot-4-starter` 在 POM 中注释保留，可按需恢复。
+- **依赖**：`frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`frame-me-starter-cloud`、`redisson`、`spring-boot-starter-test`（test scope）；`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus`、`druid-spring-boot-4-starter` 在 POM 中注释保留，可按需恢复。
 - **关键类/文件**：
   - `com.frame.me.tester.Application` — `@SpringBootApplication` 启动类。
   - `com.frame.me.tester.controller.HealthController` — 实现 `IHealthApi` 的健康检查端点，`@Anonymous` 匿名可访问；注入 `ShutdownReadyFlag` 联动——服务就绪返回 `UP`，进入优雅下线（flag=false）返回 503 `DOWN`，供打业务端口的 LB 探针立即摘流。
@@ -1118,14 +1144,17 @@ public class AlertService {
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-starter-msg-notify` | `frame-me-api`、`frame-me-starter-base` |
-| `frame-me-boot` | `frame-me-starter-auth`、`frame-me-starter-cloud`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-sse-mvc`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
+| `frame-me-boot` | `frame-me-starter-auth`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
 | `frame-me-tester-api` | `frame-me-api` |
-| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc` |
+| `frame-me-tester-service` | `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`、`frame-me-starter-cloud` |
 | `frame-me-sso-api` | `frame-me-api` |
 | `frame-me-sso-starter` | `frame-me-sso-api`、`frame-me-starter-base`、`frame-me-starter-auth`（强依赖，RP 登录调 `IAuthService.loginByUser`）、`frame-me-starter-op-audit`（optional，`@AuditLog` 注解来源） |
-| `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（`frame-me-starter-doc-openapi` 在 swagger profile） |
+| `frame-me-sso-service` | `frame-me-sso-api`、`frame-me-boot`（聚合 multi-redis/l1l2-cache/sensi-encrypt/op-audit/msg-notify）、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`（`frame-me-starter-doc-openapi` 在 swagger profile） |
 | `frame-me-audit-api` | `frame-me-api` |
-| `frame-me-audit-service` | `frame-me-audit-api`、`frame-me-sso-starter`、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`（`frame-me-starter-doc-openapi` 在 swagger profile） |
+| `frame-me-audit-service` | `frame-me-audit-api`、`frame-me-sso-starter`、`frame-me-boot`（聚合 multi-redis/l1l2-cache/sensi-encrypt/op-audit/msg-notify）、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`（`frame-me-starter-doc-openapi` 在 swagger profile） |
+| `frame-me-aliyun-common` | `lombok`（占位，后续补充公共 SDK） |
+| `frame-me-aliyun-starter-oss` | `frame-me-aliyun-common`、`lombok`（占位，后续补充 OSS SDK） |
+| `frame-me-gateway` | `lombok`（占位工程，无源码） |
 
 ## frame-me-sso（SSO 单点登录服务）
 
@@ -1220,3 +1249,19 @@ public class AlertService {
 | `me.sso.client.redirect-uri` | — | 授权码回调地址 |
 | `spring.http.serviceclient.sso.base-url` | — | SSO 服务地址（HTTP Interface group=`sso` 的 baseUrl） |
 | `me.audit.target-service` | `frame-me-audit` | 自身审计事件定向发给自己 |
+
+## frame-me-gateway（网关工程·占位）
+
+`frame-me-launcher/frame-me-gateway` 是网关工程占位模块，挂在 `frame-me-launcher` 聚合下，后续按需补充网关实现（如 Spring Cloud Gateway）。当前仅声明 `lombok` 依赖，无源码、无自动装配，不纳入 `frame-me-boot`。
+
+### 模块职责
+
+| 模块 | 职责 |
+|---|---|
+| `frame-me-gateway` | 网关占位工程：后续按需补充网关实现（如 Spring Cloud Gateway），与 `frame-me-starter-cloud` 的优雅下线、`frame-me-starter-auth` 的认证头传播衔接 |
+
+### 设计约定
+
+- **占位工程**：当前无源码、无自动装配，仅保留模块骨架与 Maven 坐标。
+- **不纳入 `frame-me-boot`**，作为 `frame-me-launcher` 下独立可运行工程演进。
+- **扩展提示**：后续接入 Spring Cloud Gateway 时，网关侧负责路由转发、限流、认证头透传（与 `frame-me-starter-auth` 的 `me.auth.propagate.*` 衔接），下游服务侧的优雅下线由 `frame-me-starter-cloud` 承担。

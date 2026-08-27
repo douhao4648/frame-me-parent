@@ -29,6 +29,18 @@
 | `frame-me-tester-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-api/pom.xml` |
 | `frame-me-tester-service` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/pom.xml` |
 | 应用配置 | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` |
+| `frame-me-reducer` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-reducer/pom.xml` |
+| `frame-me-aliyun-common` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-reducer/frame-me-aliyun-common/pom.xml` |
+| `frame-me-aliyun-starter-oss` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-reducer/frame-me-aliyun-starter-oss/pom.xml` |
+| `frame-me-launcher` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/pom.xml` |
+| `frame-me-sso` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-sso/pom.xml` |
+| `frame-me-sso-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-sso/frame-me-sso-api/pom.xml` |
+| `frame-me-sso-service` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-sso/frame-me-sso-service/pom.xml` |
+| `frame-me-sso-starter` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-sso/frame-me-sso-starter/pom.xml` |
+| `frame-me-audit` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-audit/pom.xml` |
+| `frame-me-audit-api` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-audit/frame-me-audit-api/pom.xml` |
+| `frame-me-audit-service` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-audit/frame-me-audit-service/pom.xml` |
+| `frame-me-gateway` POM | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-gateway/pom.xml` |
 
 ## 核心 Java 类
 
@@ -61,7 +73,10 @@
 | `BaseMetaObjectHandler` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/plugin/BaseMetaObjectHandler.java` |
 | `PageUtils`（新规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/util/PageUtils.java` |
 | `SnowflakeUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/util/SnowflakeUtils.java` |
+| `SnowflakeProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/config/SnowflakeProperties.java` |
+| `DatasourceBridgeProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-base/src/main/java/com/frame/me/base/config/DatasourceBridgeProperties.java` |
 | `MybatisPlusConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-plus/src/main/java/com/frame/me/mybatis/plus/config/MybatisPlusConfiguration.java` |
+| `SpringDataSourceBridgeEnvironmentPostProcessor` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-mybatis-flex/src/main/java/com/frame/me/mybatis/flex/env/SpringDataSourceBridgeEnvironmentPostProcessor.java` |
 | `Result2ResponseAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/advice/Result2ResponseAdvice.java` |
 | `Response<T>` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/Response.java` |
 | `ResponseJacksonModule` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/result/ResponseJacksonModule.java` |
@@ -69,6 +84,8 @@
 | `PageParam`（老规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-api/src/main/java/com/frame/me/adapter/api/query/PageParam.java` |
 | `PageResult<T>`（老规范） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-api/src/main/java/com/frame/me/adapter/api/result/PageResult.java` |
 | `AdapterAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/config/AdapterAutoConfiguration.java` |
+| `AliyunCommonConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-reducer/frame-me-aliyun-common/src/main/java/com/frame/me/aliyun/common/AliyunCommonConstant.java` |
+| `AliyunOssConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-reducer/frame-me-aliyun-starter-oss/src/main/java/com/frame/me/aliyun/oss/AliyunOssConstant.java` |
 | `AdapterConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-adapter/frame-me-adapter-starter/src/main/java/com/frame/me/adapter/AdapterConstant.java` |
 | `DynamicDataSourceAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/java/com/frame/me/dynamic/ds/config/DynamicDataSourceAutoConfiguration.java` |
 | `MeDynamicDataSourceProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-dynamic-ds/src/main/java/com/frame/me/dynamic/ds/provider/MeDynamicDataSourceProvider.java` |
@@ -234,6 +251,8 @@
 | `BaseMetaObjectHandler` | 公共字段自动填充处理器，需通过配置开启 |
 | `PageUtils` | 新规范分页工具，`PageQuery` / `PageData` 与 MyBatis-Plus `Page` 转换 |
 | `SnowflakeUtils` | 雪花 ID 生成工具，优先使用 ORM 生成器实例，其次 base `Snowflake` Bean，最后 Hutool 默认 |
+| `SnowflakeProperties` | `me.snowflake.*` 配置属性绑定（`enabled`/`worker-id`/`datacenter-id`），plus / flex 雪花委托统一开关 |
+| `DatasourceBridgeProperties` | `me.mybatis.datasource-bridge.*` 配置属性绑定（flex / dynamic-ds 桥接开关的类型化绑定与 IDE 提示） |
 | `MybatisPlusProperties` | `me.mybatis` 配置属性绑定 |
 | `MybatisPlusConfiguration` | MyBatis-Plus 自动装配入口，注册分页插件、乐观锁插件、公共字段自动填充处理器以及可选的自定义 ID 生成器 |
 | `Result2ResponseAdvice` | 将 `IResult<T>` 转换为 `Response<T>` |
@@ -284,6 +303,7 @@
 | `PageableUtils` | 老规范分页工具，`PageParam` / `PageResult` 与 MyBatis-Plus `Page` 转换 |
 | `DynamicDataSourceAutoConfiguration` | 多数据源自动装配入口 |
 | `MeDynamicDataSourceProvider` | 根据 `spring.datasource.*` 创建默认 `master` 数据源 |
+| `SpringDataSourceBridgeEnvironmentPostProcessor` | flex 的 `spring.datasource` → `mybatis-flex.datasource.master.*` 桥接（EnvironmentPostProcessor，经 `spring.factories` 注册） |
 | `RedisAutoConfiguration` | Redis 基础能力自动装配入口 |
 | `RedisProperties` | `me.redis` 配置属性绑定 |
 | `RedisUtils` | 统一 Redis 操作工具类 |
@@ -390,9 +410,9 @@
    - `GlobalExceptionHandler` 没有 `@ExceptionHandler(RetryException.class)`。
    - 当前会落入通用 `Exception` 处理器，返回 HTTP 默认 200 + code 500。
 
-3. **`frame-me-starter-cloud` 为空壳模块**
-   - 当前仅包含占位常量类。
-   - 适合作为未来 Nacos、Gateway 等微服务云组件能力的载体。
+3. **`frame-me-starter-cloud` 为云基础底座模块**
+   - 提供注册中心无关的优雅下线编排（`me.cloud.shutdown.*`）与配置中心无关的刷新解密（`RefreshDecryptListener`）。
+   - 不纳入 boot，按需引入；具体云组件（Nacos / Gateway / Sentinel）通过 `frame-me-starter-cloud-xxx` 子模块按需引入。
 
 4. **`frame-me-starter-auth` 已实现认证授权抽象层，已有 JWT 与 Sa-Token 两种认证实现**
    - `frame-me-starter-auth-jwt`（JWT + refresh token）与 `frame-me-starter-auth-sa-token`（sa-token 会话治理）二选一接入。

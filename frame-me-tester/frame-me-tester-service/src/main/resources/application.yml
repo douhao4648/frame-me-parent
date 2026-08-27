@@ -193,9 +193,9 @@ me:
   # mybatis:
   #   meta-object-handler:
   #     enabled: true
-  #   snowflake:
-  #     worker-id: 1
-  #     datacenter-id: 0
+  # snowflake:
+  #   worker-id: 1
+  #   datacenter-id: 0
   sse:
     path: /base/sse
 

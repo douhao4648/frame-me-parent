@@ -21,10 +21,6 @@
         </dependency>
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-boot</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-auth-jwt</artifactId>
             <!-- 与 frame-me-starter-auth-rbac 中冲突 -->
             <exclusions>
@@ -59,32 +55,37 @@
         <!--            <artifactId>frame-me-adapter-starter</artifactId>-->
         <!--        </dependency>-->
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-boot</artifactId>
         </dependency>
-        <!--        <dependency>-->
-        <!--            <groupId>com.alibaba</groupId>-->
-        <!--            <artifactId>druid-spring-boot-4-starter</artifactId>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-ws-mvc</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-cloud</artifactId>
+        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>com.alibaba</groupId>-->
+        <!--            <artifactId>druid-spring-boot-4-starter</artifactId>-->
+        <!--        </dependency>-->
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
         </dependency>
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.freemarker</groupId>
-            <artifactId>freemarker</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
         </dependency>
 
         <dependency>
@@ -147,6 +148,16 @@
     </build>
 
     <profiles>
+        <!-- mvn ... -Pprometheus -->
+        <profile>
+            <id>prometheus</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.micrometer</groupId>
+                    <artifactId>micrometer-registry-prometheus</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
         <!-- mvn ... -Pp6spy -->
         <profile>
             <id>p6spy</id>

@@ -30,29 +30,9 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-mybatis-flex</artifactId>
         </dependency>
-        <!-- SSO 自用 Redis -->
         <dependency>
             <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-multi-redis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-l1l2-cache</artifactId>
-        </dependency>
-        <!-- 敏感配置加密 -->
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-sensi-encrypt</artifactId>
-        </dependency>
-        <!-- 审计 -->
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-op-audit</artifactId>
-        </dependency>
-        <!-- 通知 -->
-        <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-msg-notify</artifactId>
+            <artifactId>frame-me-boot</artifactId>
         </dependency>
 
         <dependency>
@@ -63,18 +43,18 @@
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>cn.dev33</groupId>-->
-<!--            <artifactId>sa-token-jwt</artifactId>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.freemarker</groupId>-->
-<!--            <artifactId>freemarker</artifactId>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.freemarker</groupId>-->
+<!--            <artifactId>freemarker</artifactId>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>cn.dev33</groupId>-->
+<!--            <artifactId>sa-token-jwt</artifactId>-->
+<!--        </dependency>-->
 
         <!-- 测试 -->
         <dependency>

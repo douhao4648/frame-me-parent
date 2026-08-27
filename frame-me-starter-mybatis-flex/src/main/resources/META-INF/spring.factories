@@ -1,0 +1,1 @@
+org.springframework.boot.EnvironmentPostProcessor=com.frame.me.mybatis.flex.env.SpringDataSourceBridgeEnvironmentPostProcessor
