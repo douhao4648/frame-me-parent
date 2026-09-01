@@ -174,6 +174,41 @@ class SaTokenAuthUserResolverTest {
     }
 
     /**
+     * 原生 {@code sa-token.token-prefix} 配置后：带前缀提交的 token 剥离前缀解析成功，
+     * 未带前缀提交的一律视为未提供（返回 null、不触碰认证服务），
+     * 与原生 {@code StpLogic#getTokenValue} 行为对齐.
+     */
+    @Test
+    void resolve_tokenPrefixConfigured_stripsAndRejectsMissingPrefix() {
+        String original = SaManager.getConfig().getTokenPrefix();
+        SaManager.getConfig().setTokenPrefix("Bearer");
+        try {
+            User user = new User();
+            user.setId(5L);
+            when(request.getHeader(tokenName())).thenReturn("Bearer token-abc");
+            when(authService.getUser("token-abc")).thenReturn(user);
+            assertThat(resolver.resolve(request)).isSameAs(user);
+
+            // 未按前缀提交 → 视为未提供 token（含大小写不匹配的 "bearer "，原生大小写敏感）
+            when(request.getHeader(tokenName())).thenReturn("token-abc");
+            assertThat(resolver.resolve(request)).isNull();
+            when(request.getHeader(tokenName())).thenReturn("bearer token-abc");
+            assertThat(resolver.resolve(request)).isNull();
+
+            // Cookie 通道存裸 token（原生 cookie-auto-fill-prefix 读写闭环），不做前缀校验
+            when(request.getHeader(tokenName())).thenReturn(null);
+            when(request.getCookies()).thenReturn(new Cookie[]{new Cookie("satoken", "cookie-token")});
+            when(authService.getUser("cookie-token")).thenReturn(user);
+            assertThat(resolver.resolve(request)).isSameAs(user);
+
+            verify(authService).getUser("token-abc");
+            verify(authService).getUser("cookie-token");
+        } finally {
+            SaManager.getConfig().setTokenPrefix(original);
+        }
+    }
+
+    /**
      * extractToken（Controller logout/refresh 入口）：无 header 时同样 Cookie 兜底，
      * Cookie-only 客户端不再拿不到 token.
      */

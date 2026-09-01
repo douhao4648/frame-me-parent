@@ -20,6 +20,7 @@ SSO 服务整体使用 sa-token 多账号体系中的独立 `sso` 体系（`SsoS
 - 配置：`me.auth.sa-token.logic-type: sso`（starter 全部认证动作改走该体系）；业务侧经 `SsoStpUtil.stpLogic` 调用，`@SaCheck*` 注解加 `type = SsoStpUtil.TYPE`
 - Redis key：`satoken:sso:token|session:*`（key 规则 `{tokenName}:{loginType}:*`），与下游的 `satoken:login:*` 在同一 Redis 中命名空间隔离、互不串号
 - 请求头/Cookie 名仍为全局 `sa-token.token-name`（`satoken`），两体系共用通道名但 key 空间不同
+- 若开启 `sa-token.token-prefix`（如 `Bearer`）：`satoken` 头须按 `Bearer <token>` 提交（大小写敏感，未带前缀视为未登录）；Cookie 通道存裸 token 不受影响；`Authorization: Bearer` 应用 token 通道（`SsoTokenUtils` 手工解析）与该配置无关
 
 ### token 体系
 
@@ -50,7 +51,7 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
 1. 管理员在 SSO 管理端注册应用：
    ```bash
    curl -X POST http://sso:10010/api/apps/ \
-     -H 'satoken: <admin-token>' -H 'Content-Type: application/json' \
+     -H 'satoken: Bearer <admin-token>' -H 'Content-Type: application/json' \
      -d '{"appName":"订单服务","accessType":"INTERNAL","redirectUris":["http://order.svc/cb"],"scopes":"openid"}'
    ```
    返回 `appId`（如 `fm-internal-xxxx`）+ `appSecret`（**明文仅此一次返回**，妥善保管）。

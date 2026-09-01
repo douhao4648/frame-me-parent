@@ -94,6 +94,8 @@ public class SaTokenAuthService implements IAuthService {
         stpLogic().login(user.getId());
         markLoginTime(stpLogic(), user.getId());
         cacheUser(user.getId(), user, null);
+        // getTokenValue 在前缀模式下同样正确：刚签发的 token 以带前缀形态存于
+        // JUST_CREATED（原生同时写 JUST_CREATED_NOT_PREFIX），此处裁剪前缀后返回裸 token
         return stpLogic().getTokenValue();
     }
 
@@ -122,6 +124,8 @@ public class SaTokenAuthService implements IAuthService {
         stpLogic().login(user.getId());
         markLoginTime(stpLogic(), user.getId());
         cacheUser(user.getId(), user, null);
+        // getTokenValue 在前缀模式下同样正确：刚签发的 token 以带前缀形态存于
+        // JUST_CREATED（原生同时写 JUST_CREATED_NOT_PREFIX），此处裁剪前缀后返回裸 token
         return stpLogic().getTokenValue();
     }
 

@@ -606,7 +606,7 @@ me:
 | `/api/auth/refresh` | POST | 对当前 token 续绝对有效期并重置闲置冻结窗口，返回原 token |
 | `/api/auth/user` | GET | 获取当前登录用户信息 |
 
-- Token 优先从原生 `sa-token.token-name` 指定的请求头读取（默认 `satoken`），header 缺失时按同名 Cookie 兜底读取（与 sa-token 原生 is-read-cookie 行为对齐）。
+- Token 优先从原生 `sa-token.token-name` 指定的请求头读取（默认 `satoken`），header 缺失时按同名 Cookie 兜底读取（与 sa-token 原生 is-read-cookie 行为对齐）。配置 `sa-token.token-prefix` 后 header 须按 `Bearer <token>` 提交（大小写敏感），未带前缀一律视为未提供；Cookie 通道存裸 token 不受前缀影响。
 - `TokenVO.refreshToken` 恒为 `null`：sa-token 会话模型无 Refresh Token 概念。
 - **原生 Cookie 支持**：`sa-token.is-read-cookie` 默认 `true`——登录自动写 Cookie、登出自动清、续期自动刷；Cookie 名取 `sa-token.token-name`，属性（domain/path/secure/http-only/same-site）全部来自 `sa-token.cookie.*`，Max-Age 由 `is-lasting-cookie` + `timeout` 派生；Token 同时永远经 JSON body 返回，前端双通道二选一。设 `sa-token.is-read-cookie=false` 可整体关闭 Cookie 通道。
 - 业务接入只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，与 JWT 实现共用同一份业务实现。

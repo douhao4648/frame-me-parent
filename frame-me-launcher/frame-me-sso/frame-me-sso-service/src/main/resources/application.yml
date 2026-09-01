@@ -48,14 +48,16 @@ decorator:
 
 sa-token:
   token-name: satoken
+#  token-prefix: Bearer
   # 7 天（秒）
   timeout: 604800
   # 2 天（秒）
   active-timeout: 172800
   is-concurrent: true
   is-share: true
-  is-read-cookie: true
   is-read-header: true
+  is-read-cookie: true
+  is-read-body: true
 #  cookie:
 #    domain: .example.com
 

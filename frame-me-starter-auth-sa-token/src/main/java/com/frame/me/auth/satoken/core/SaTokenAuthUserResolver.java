@@ -24,6 +24,11 @@ import lombok.RequiredArgsConstructor;
  * 业务显式关闭后本框架同样不读 Cookie，与原生读取行为完全对齐，
  * 消除「注解校验过、AuthFilter 却 401」的行为裂缝。</p>
  *
+ * <p>{@code token-prefix} 对齐原生 {@code StpLogic#getTokenValue} 语义：配置前缀后
+ * header 通道未按前缀提交的 token 一律视为未提供（返回 null），提交的前缀剥离后透传，
+ * 消除「原生读不到、AuthFilter 却放行」的反向裂缝。注意原生前缀匹配大小写敏感；
+ * Cookie 通道存裸 token，不适用前缀（原生由 cookie-auto-fill-prefix 读写闭环）。</p>
+ *
  * @author frame-me
  */
 @RequiredArgsConstructor
@@ -41,13 +46,38 @@ public class SaTokenAuthUserResolver implements IAuthUserResolver {
      * logout/refresh 拿不到 token」的行为裂缝。</p>
      */
     public static String extractToken(HttpServletRequest request) {
-        String token = trimToNull(request.getHeader(SaManager.getConfig().getTokenName()));
-        // Cookie 兜底对齐原生 sa-token.is-read-cookie 开关：
-        // 业务显式关闭后原生不再读 Cookie，本框架也不读，避免开关被架空
-        if (token == null && SaManager.getConfig().getIsReadCookie()) {
-            token = readTokenFromCookie(request, SaManager.getConfig().getTokenName());
+        String headerToken = trimToNull(request.getHeader(SaManager.getConfig().getTokenName()));
+        // 前缀模式仅约束 header 通道（对齐原生 getTokenValue）：未按前缀提交视为未提供
+        if (headerToken != null) {
+            return cutTokenPrefix(headerToken);
         }
-        return token;
+        // Cookie 兜底对齐原生 sa-token.is-read-cookie 开关：
+        // 业务显式关闭后原生不再读 Cookie，本框架也不读，避免开关被架空。
+        // Cookie 存的是裸 token——原生读出时由 cookie-auto-fill-prefix 自动补前缀再裁剪，
+        // 净效果即裸值透传，故 Cookie 通道不做前缀校验
+        if (SaManager.getConfig().getIsReadCookie()) {
+            return readTokenFromCookie(request, SaManager.getConfig().getTokenName());
+        }
+        return null;
+    }
+
+    /**
+     * 剥离原生 {@code sa-token.token-prefix} 前缀，与 {@code StpLogic#getTokenValue} 对齐：
+     * 配置前缀后未按 {@code "前缀 "}（含一个空格）开头提交的一律视为未提供 token，
+     * 匹配成功后裁掉前缀再透传（原生匹配大小写敏感，此处保持一致）.
+     */
+    private static String cutTokenPrefix(String token) {
+        if (token == null) {
+            return null;
+        }
+        String prefix = SaManager.getConfig().getTokenPrefix();
+        if (prefix == null || prefix.isEmpty()) {
+            return token;
+        }
+        if (!token.startsWith(prefix + " ")) {
+            return null;
+        }
+        return trimToNull(token.substring(prefix.length() + 1));
     }
 
     /**
