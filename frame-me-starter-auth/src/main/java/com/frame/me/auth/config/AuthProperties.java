@@ -174,6 +174,16 @@ public class AuthProperties {
         private Boolean enabled;
 
         /**
+         * 是否回源补全用户详情，默认 {@code false}（纯头解析）.
+         *
+         * <p>{@code true} 时要求容器中有 {@code IAuthUserDetailsService} Bean（缺失则启动失败）：
+         * 拿到 {@code X-User-Id} 后调 {@code loadUserById} 补全完整用户（含 account），
+         * 用户不存在或已禁用返回未登录。适用于网关 sa-token 模式（只注入 {@code X-User-Id}）
+         * 下需要 account 的下游，或希望 trusted-header 也校验用户禁用状态的服务。</p>
+         */
+        private Boolean fetchDetails = false;
+
+        /**
          * 启用/关闭解析器时是否打 WARN 提醒，默认 {@code true}.
          *
          * <p>确认配置无误后可设 {@code false} 关闭，消除启动日志噪音。</p>

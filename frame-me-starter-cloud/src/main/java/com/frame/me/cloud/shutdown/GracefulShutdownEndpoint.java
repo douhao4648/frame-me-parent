@@ -1,18 +1,16 @@
 package com.frame.me.cloud.shutdown;
 
-import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.actuate.endpoint.annotation.Selector;
 import org.springframework.boot.actuate.endpoint.annotation.WriteOperation;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 主动下线端点：{@code POST /actuator/offline}.
+ * 主动下线端点：{@code POST /actuator/offline/{token}}.
  *
  * <p>云平台 {@code preStop} 钩子的主路径——SIGTERM 前调用，完成整个下线编排
  * （标记 health DOWN → 反注册 → 等待消费者刷新缓存）后才返回，使 K8s 收到响应后
@@ -26,19 +24,16 @@ import java.util.Map;
  * <p>需在业务 {@code application.yml} 配置
  * {@code management.endpoints.web.exposure.include} 包含 {@code offline} 才暴露.</p>
  *
- * <p>访问控制：配置 {@code me.cloud.shutdown.endpoint-token} 后，
- * 请求头 {@code X-Offline-Token} 必须匹配否则 403（preStop 脚本 curl 带上）。
- * 未配置时放行但每次调用 WARN——本端点是远程下线开关，生产必须配 token.</p>
+ * <p>访问控制：token 走 URL 路径段（{@code @Selector}），不依赖任何 Web 栈 API，
+ * Servlet / WebFlux（如 frame-me-gateway）双栈原生通用。配置
+ * {@code me.cloud.shutdown.endpoint-token} 后路径段必须精确匹配否则拒绝；
+ * 未配置时任意路径段放行但每次调用 WARN——本端点是远程下线开关，生产必须配 token，
+ * 且 management 端口应网络隔离（路径段可能进访问日志）.</p>
  *
  * @author frame-me
  */
 @Endpoint(id = "offline")
 public class GracefulShutdownEndpoint {
-
-    /**
-     * 共享密钥请求头名.
-     */
-    public static final String TOKEN_HEADER = "X-Offline-Token";
 
     private static final Logger log = LoggerFactory.getLogger(GracefulShutdownEndpoint.class);
 
@@ -51,11 +46,11 @@ public class GracefulShutdownEndpoint {
     }
 
     @WriteOperation
-    public Map<String, Object> offline() {
-        if (!verifyToken()) {
+    public Map<String, Object> offline(@Selector String token) {
+        if (!verifyToken(token)) {
             Map<String, Object> error = new LinkedHashMap<>();
             error.put("status", "forbidden");
-            error.put("message", "missing or invalid " + TOKEN_HEADER + " header");
+            error.put("message", "missing or invalid token path segment");
             return error;
         }
         log.info("收到主动下线请求（preStop），开始优雅下线编排");
@@ -68,24 +63,18 @@ public class GracefulShutdownEndpoint {
 
     /**
      * 校验共享密钥：未配置 token 时放行并 WARN（提醒生产必配）；
-     * 配置了则请求头必须精确匹配，不匹配置 403.
+     * 配置了则路径段必须精确匹配，不匹配返回 forbidden.
      */
-    private boolean verifyToken() {
+    private boolean verifyToken(String token) {
         String expected = properties.getEndpointToken();
-        ServletRequestAttributes attrs =
-                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (expected == null || expected.isBlank()) {
             log.warn("me.cloud.shutdown.endpoint-token 未配置，/actuator/offline 处于未鉴权状态，生产环境必须配置");
             return true;
         }
-        String actual = attrs != null ? attrs.getRequest().getHeader(TOKEN_HEADER) : null;
-        if (expected.equals(actual)) {
+        if (expected.equals(token)) {
             return true;
         }
         log.warn("主动下线请求密钥不匹配，已拒绝");
-        if (attrs != null && attrs.getResponse() != null) {
-            attrs.getResponse().setStatus(HttpServletResponse.SC_FORBIDDEN);
-        }
         return false;
     }
 }

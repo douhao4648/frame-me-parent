@@ -19,9 +19,12 @@
         <!-- - spring-cloud-context：配置刷新体系 @RefreshScope / RefreshEvent / EnvironmentChangeEvent / ContextRefresher（刷新解密监听器依赖） -->
         <!-- - spring-cloud-commons：serviceregistry 子包的 ServiceRegistry / Registration / AbstractAutoServiceRegistration（优雅下线反注册依赖） -->
         <!-- 版本由根 pom 的 spring-cloud-dependencies BOM 管控。 -->
+        <!-- actuator：@Endpoint / HealthIndicator（优雅下线编排依赖）。web 无关，Servlet/WebFlux 双栈通用。 -->
+        <!-- 不依赖 frame-me-starter-base：本模块代码不使用 base 能力，且 base 带 spring-boot-starter-web（Servlet 栈）， -->
+        <!-- 会使 WebFlux 消费方（如 frame-me-gateway）被拖入 MVC 与 SC Gateway WebFlux 冲突。 -->
         <dependency>
-            <groupId>com.frame.me</groupId>
-            <artifactId>frame-me-starter-base</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>

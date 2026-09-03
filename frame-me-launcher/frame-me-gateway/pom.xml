@@ -12,12 +12,105 @@
 
     <artifactId>frame-me-gateway</artifactId>
     <name>frame-me-gateway</name>
-    <description>网关工程（占位）：挂 frame-me-launcher 下，后续按需补充网关实现（如 Spring Cloud Gateway）</description>
+    <description>业务网关：Spring Cloud Gateway（WebFlux）路由转发 + 路由级鉴权（user/app/none）+ 身份头契约注入；复用
+        starter-cloud 优雅下线与 cloud-nacos 注册中心
+    </description>
 
     <dependencies>
+        <!-- 网关本体（版本由根 pom 的 spring-cloud-dependencies BOM 管控） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+        </dependency>
+        <!-- 优雅下线编排（去 Servlet 化后双栈通用） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-cloud</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-sensi-encrypt</artifactId>
+        </dependency>
+        <!-- Nacos 配置中心 + 注册中心（可平替其他注册中心 starter） -->
+        <dependency>
+            <groupId>com.frame.me</groupId>
+            <artifactId>frame-me-starter-cloud-nacos</artifactId>
+        </dependency>
+        <!-- sa-token 验证器直查共享 Redis（user-validator=sa-token 时使用；jwt 模式运行期不使用） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- JWT 验证器（验下游 auth-jwt 签发的 token；纯 java，web 无关） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-gson</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- 有意不引：frame-me-boot / frame-me-starter-base / frame-me-starter-auth* / frame-me-starter-multi-redis / sa-token -->
+        <!-- 以上均会经 base 拖入 spring-boot-starter-web（Servlet 栈），与 SC Gateway WebFlux 冲突 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- mvn ... -Pprometheus；暴露端点另需 management.endpoints.web.exposure.include 加 prometheus -->
+        <profile>
+            <id>prometheus</id>
+            <dependencies>
+                <dependency>
+                    <groupId>io.micrometer</groupId>
+                    <artifactId>micrometer-registry-prometheus</artifactId>
+                </dependency>
+            </dependencies>
+        </profile>
+        <!-- Apple Silicon 本地开发：Netty 原生 DNS 解析器（网关全身 Netty：reactor-netty + lettuce） -->
+        <!-- 有意不带 p6spy（网关无 JDBC）与 swagger（doc-openapi 是 webmvc 栈，破依赖红线） -->
+        <profile>
+            <id>Apple-M1</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>io.netty</groupId>
+                    <artifactId>netty-resolver-dns-native-macos</artifactId>
+                    <classifier>osx-aarch_64</classifier>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 </project>

@@ -88,6 +88,16 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 
 `frame-me-tester/frame-me-tester-service` 中定义了 `p6spy`、`swagger` 两个可选 Maven profile，用于在开发/调试时按需引入额外能力（认证实现不走 profile，jwt / sa-token 通过直接替换依赖切换，详见 [testing.md](./testing.md) 的「认证实现切换」小节）：
 
+### `prometheus` — 指标导出
+
+各可运行服务（`frame-me-tester-service`、`frame-me-sso-service`、`frame-me-audit-service`、`frame-me-gateway`）统一定义了 `prometheus` profile，激活时引入 `micrometer-registry-prometheus`：
+
+```bash
+./mvnw -pl <服务模块> spring-boot:run -Pprometheus
+```
+
+仅引入 jar 不会自动暴露端点，还需在配置中把 `prometheus` 加入 `management.endpoints.web.exposure.include`（gateway 的 management 端口默认只暴露 `health,offline`）。
+
 ### `p6spy` — SQL 监控
 
 ```bash

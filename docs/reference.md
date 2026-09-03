@@ -149,6 +149,10 @@
 | `SaTokenAuthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/web/SaTokenAuthController.java` |
 | `SaTokenExceptionAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/advice/SaTokenExceptionAdvice.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
+| `GracefulShutdownEndpoint` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/shutdown/GracefulShutdownEndpoint.java` |
+| `Application`（gateway 启动类） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-gateway/src/main/java/com/frame/me/gateway/Application.java` |
+| `GatewayAuthFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-gateway/src/main/java/com/frame/me/gateway/auth/GatewayAuthFilter.java` |
+| `GatewayAuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-gateway/src/main/java/com/frame/me/gateway/auth/GatewayAuthProperties.java` |
 | `AuditLog` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/annotation/AuditLog.java` |
 | `AuditLogAspect` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/aspect/AuditLogAspect.java` |
 | `AuditLogEvent` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-op-audit/src/main/java/com/frame/me/op/audit/core/AuditLogEvent.java` |
@@ -344,7 +348,7 @@
 | `PermissionInterceptor` | `@RequireAuth` 注解权限拦截器 |
 | `AuthPermissionTaskDecorator` | `@Async` 权限上下文传播 TaskDecorator |
 | `RedisAuthPermissionProvider` | `@Primary` Redis 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 |
-|  `TrustedHeaderAuthUserResolver` | 信任身份头兜底用户解析器（`me.auth.trusted-header.enabled=true` 开启，仅内网服务间调用；显式 `false` 为空操作解析器） |
+|  `TrustedHeaderAuthUserResolver` | 信任身份头兜底用户解析器（`me.auth.trusted-header.enabled=true` 开启，仅内网服务间调用；显式 `false` 为空操作解析器；`fetch-details=true` 时经 `IAuthUserDetailsService` 回源补全并校验禁用状态） |
 | `JwtTokenService` | JWT 认证服务实现：登录/登出/按用户 ID 强制登出/刷新/解析 |
 | `JwtAuthUserResolver` | 从 `Authorization: Bearer ...` 解析当前用户 |
 | `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码（抽象层 `com.frame.me.auth.spi`，JWT 与 Sa-Token 实现共用） |

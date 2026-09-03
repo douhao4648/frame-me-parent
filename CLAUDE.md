@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `docs/guides/event-bridge.md` | 专题：事件桥接、进程内事件、跨服务事件 transport |
 | `docs/guides/audit.md` | 专题：审计/行为日志、`@AuditLog`、桥接审计服务 |
 | `docs/guides/sso.md` | 专题：SSO 认证服务、下游 sso-starter 接入（RP） |
+| `docs/guides/gateway.md` | 专题：业务网关、凭证驱动鉴权、身份头契约、双 profile 部署 |
 
 检索顺序建议：先读 `docs/index.md` 定位主题，再读对应专题文档，必要时结合 `docs/reference.md` 查找具体类路径。
 
@@ -49,6 +50,9 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 
 # 启动 SSO 认证服务
 ./mvnw -pl frame-me-launcher/frame-me-sso/frame-me-sso-service spring-boot:run
+
+# 启动业务网关（默认 jwt 用户验证器；内外网部署加 -Dspring-boot.run.profiles=public|internal）
+./mvnw -pl frame-me-launcher/frame-me-gateway spring-boot:run
 ```
 
 更多命令与 profile（`p6spy`、`swagger`）见 `docs/build.md` 与 `docs/testing.md`。

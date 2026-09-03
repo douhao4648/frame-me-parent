@@ -57,7 +57,7 @@ public class GracefulShutdownProperties {
     private boolean endpointEnabled = true;
 
     /**
-     * {@code POST /actuator/offline} 的共享密钥（请求头 {@code X-Offline-Token}）.
+     * {@code POST /actuator/offline/{token}} 的共享密钥（路径段传参，双栈通用）.
      *
      * <p>配置后端点强制校验，未配置则放行但每次调用 WARN 提醒——
      * 该端点是远程下线开关，生产环境必须配置本项且 management 端口网络隔离.</p>

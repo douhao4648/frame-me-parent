@@ -3,21 +3,21 @@ package com.frame.me.cloud.shutdown;
 import com.frame.me.cloud.config.CloudAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * 优雅下线自动装配测试.
  *
- * <p>用 {@link WebApplicationContextRunner}（cloud 依赖的 actuator 有
- * {@code @ConditionalOnWebApplication}，非 Web runner 会让相关 bean 退避）.</p>
+ * <p>用 {@link ApplicationContextRunner}：本模块自动装配全部 web 栈无关
+ * （offline 端点 token 走 {@code @Selector} 路径段），无需 Servlet mock 环境.</p>
  *
  * @author frame-me
  */
 class CloudAutoConfigurationShutdownTest {
 
-    private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
+    private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CloudAutoConfiguration.class));
 
     @Test

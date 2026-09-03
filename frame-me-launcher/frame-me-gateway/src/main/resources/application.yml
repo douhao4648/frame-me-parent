@@ -1,0 +1,68 @@
+server:
+  port: 10030
+
+management:
+  server:
+    port: 10031
+  endpoints:
+    web:
+      exposure:
+        include: health,offline
+  # jwt 模式运行期无 Redis；user-validator=sa-token 时删除本项恢复 Redis 健康检查
+  health:
+    redis:
+      enabled: false
+
+spring:
+  application:
+    name: frame-me-gateway
+  # config.import 优先级比当前文件高，比本地其他 profile 低
+  config:
+    import:
+      - optional:nacos:app-shared.yml?group=shared
+      - optional:nacos:${spring.application.name}.yml?group=shared
+      - optional:nacos:${spring.application.name}-${spring.profiles.active}.yml?group=${spring.profiles.active}
+  cloud:
+    nacos:
+      config:
+        server-addr: ${NACOS_HOST:localhost:8848}
+        access-key: ${NACOS_AK:nacos}
+        secret-key: ${NACOS_SK:nacos}
+        group: ${spring.profiles.active}
+        file-extension: yml
+        # 如果是 nacos server 2.x 与 nacos client 3.x 会有兼容性问题，需要指定非 public namespace
+        namespace: app-backend
+      discovery:
+        server-addr: ${NACOS_HOST:localhost:8848}
+        access-key: ${NACOS_AK:nacos}
+        secret-key: ${NACOS_SK:nacos}
+        group: ${spring.profiles.active}
+    gateway:
+      server:
+        webflux:
+          # 注册中心服务自动路由：lb://<service-id>/**，生产建议关闭改显式路由
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+
+logging:
+  file:
+    path: ./logs
+    name: ${spring.application.name}
+  level:
+    # Gateway 5.0 的限流配置类无无参构造器，rebinder reset 打 WARN 噪音（无害），压到 ERROR
+    org.springframework.cloud.context.properties.ConfigurationPropertiesRebinder: ERROR
+
+me:
+  gateway:
+    auth:
+      anonymous-guard-enabled: true
+      user-validator: jwt
+#      sa-token:
+#        token-name: satoken
+#        logic-type: login
+      whitelist:
+        - /api/auth/sso-login
+        - /base/auth/login
+        - /base/auth/refresh

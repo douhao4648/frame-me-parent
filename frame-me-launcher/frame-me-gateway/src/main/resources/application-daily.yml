@@ -1,0 +1,27 @@
+#spring:
+#  cloud:
+#    gateway:
+#      server:
+#        webflux:
+#          routes:
+#            - id: frame-me-tester-local
+#              uri: http://127.0.0.1:9090
+#              predicates:
+#                - Path=/api/**
+
+me:
+  cloud:
+    shutdown:
+      # 生产必配：preStop 调 POST /actuator/offline/{token}
+      endpoint-token: ${OFFLINE_TOKEN:}
+  gateway:
+    auth:
+      jwt:
+        secret: ${JWT_SECRET:me-jwt-secret-key-at-least-32-characters-long-ksndifkwenkfj}
+        issuer: me
+#      allow-anonymous: ${ALLOW_ANONYMOUS:false}
+      # apps:
+      #   - app-key: fm-external-demo
+      #     secret: ME(密文)
+    access-log:
+      enabled: true

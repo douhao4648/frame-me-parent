@@ -321,7 +321,7 @@ me:
   - `com.frame.me.auth.config.AuthProperties` — `me.auth.*` 配置属性绑定。
   - `com.frame.me.auth.core.AuthContext` — ThreadLocal 当前用户上下文。
   - `com.frame.me.auth.core.AuthUserAuthenticator` — 账号密码认证器（查用户 → 4001 → 校验密码 → 4001，凭证错误与会话缺失 401 区分），供 JWT / Sa-Token 等认证实现的 `login` 共用。
-  - `com.frame.me.auth.core.TrustedHeaderAuthUserResolver` — 信任身份头（`X-User-Id`）的兜底用户解析器，默认不装配，需 `me.auth.trusted-header.enabled=true` 显式开启。
+  - `com.frame.me.auth.core.TrustedHeaderAuthUserResolver` — 信任身份头（`X-User-Id`）的兜底用户解析器，默认不装配，需 `me.auth.trusted-header.enabled=true` 显式开启；可选回源模式（`fetch-details=true` + 容器中有 `IAuthUserDetailsService`）按 `X-User-Id` 调 `loadUserById` 补全完整用户并校验禁用状态（用户不存在/已禁用返回未登录）。
   - `com.frame.me.auth.core.NoOpAuthUserResolver` — 空操作解析器（不解析任何身份），显式 `me.auth.trusted-header.enabled=false` 时装配，用于确认不需要解析行为的场景。
   - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。含 RP 上游 token 留存 SPI：`storeUpstreamToken`/`getUpstreamToken`（default no-op/null），供 SSO 下游留存 IdP token 回源调上游接口；安全约定为只存服务端、不得写入下发客户端的凭证（如 JWT claims）。
   - `com.frame.me.auth.spi.IAuthUserResolver` — 请求解析当前用户接口。
@@ -339,6 +339,7 @@ me:
   - `me.auth.whitelist` — 匿名访问白名单路径列表（Ant 风格通配符），默认空；命中白名单的路径跳过认证校验。按**应用内路径**匹配（不含 `server.servlet.context-path`）；配置误带 context-path 前缀时自动剥离前缀平滑兼容。
   - `me.auth.trusted-header.enabled` — 信任身份头（`X-User-Id`）兜底解析器的三态开关：`true` 启用（无条件信任客户端传入的身份头，仅适用于前置网关已剥离外部身份头的内网服务间调用，启动日志输出 WARN）；显式 `false` 装配空操作解析器（不解析任何身份，受保护端点一律 401，仅 `@Anonymous`/白名单可达）；**不配置（unset）保持 fail-closed**——缺少 resolver 时启动直接失败，防漏配静默裸奔。
   - `me.auth.trusted-header.warn-enabled` — 启用/关闭解析器时的启动 WARN 提醒开关，默认 `true`；确认配置无误后可设 `false` 消除日志噪音。
+  - `me.auth.trusted-header.fetch-details` — 回源补全开关，默认 `false`（纯头解析）；`true` 时要求容器中有 `IAuthUserDetailsService` Bean（缺失启动失败），按 `X-User-Id` 回源补全 account 等字段并校验禁用状态。适用：网关 sa-token 模式（只注入 `X-User-Id`）下需要 account 的下游，见 [guides/gateway.md](./guides/gateway.md)。
   - `me.auth.propagate.allowed-hosts` — 认证头传播的目标主机白名单（精确主机名 / `*.example.com` 后缀通配 / `*`），默认空。未命中白名单时按服务名调用甄别放行：注册中心服务名（Spring Cloud LoadBalancer 可解析，经专用 SPI `IServiceInstanceProbe` 判定，业务可自定义覆盖）与单标签内网主机名默认放行，外部多标签域名/IP 一律不传播；`me.auth.propagate.service-discovery.enabled=false` 可关闭豁免回到严格白名单模式。
   - `me.auth.login-rate-limit.enabled` — 是否启用登录限流（按客户端 IP，固定窗口），默认 `true`。
   - `me.auth.login-rate-limit.max-attempts` — 窗口内最大登录尝试次数，默认 `5`。
@@ -481,7 +482,7 @@ me:
 ## `frame-me-starter-cloud`
 
 - **定位**：微服务云基础底座模块，承载所有云组件共享的基础能力——Spring Cloud 配置刷新体系（`@RefreshScope` / `RefreshEvent` / `EnvironmentChangeEvent` / `ContextRefresher`）、**配置中心无关的刷新解密抽象**、**注册中心无关的优雅下线编排**。具体云组件（Nacos / Gateway / Sentinel 等）各自独立为 `frame-me-starter-cloud-xxx` 模块。
-- **依赖**：`frame-me-starter-base`、`spring-cloud-context`（配置刷新体系）+ `spring-cloud-commons`（反注册抽象 `ServiceRegistry`/`Registration`）、`lombok`；`frame-me-starter-sensi-encrypt` 为 **optional** 依赖——消费方同时引入 sensi-encrypt 且配了主密码时，刷新解密监听器才装配。actuator（含 `spring-boot-health`）由 base 传递带入。
+- **依赖**：`spring-boot-starter-actuator`（web 无关，显式声明）、`spring-cloud-context`（配置刷新体系）+ `spring-cloud-commons`（反注册抽象 `ServiceRegistry`/`Registration`）、`lombok`；`frame-me-starter-sensi-encrypt` 为 **optional** 依赖——消费方同时引入 sensi-encrypt 且配了主密码时，刷新解密监听器才装配。**已移除 `frame-me-starter-base` 依赖**（代码本就 0 处引用 base；base 带 `spring-boot-starter-web`，会使 WebFlux 消费方如网关 classpath 冲突）——web 栈依赖永不下沉进共享 starter。
 - **关键类**：
   - `com.frame.me.cloud.config.CloudAutoConfiguration` — 自动装配入口；注册下线编排 bean + 内部用 `@ConditionalOnClass` 隔离的 `RefreshDecryptAutoConfiguration` 静态内部类承载刷新解密能力，sensi-encrypt 缺席时整体退避（遵循 `docs/conventions.md` 模式 A，不抛 NCDFE）。
   - 优雅下线编排（`com.frame.me.cloud.shutdown` 包）：
@@ -489,12 +490,12 @@ me:
     - `ShutdownReadyFlag` — 下线就绪标志 Bean（`AtomicBoolean`，默认 true）；actuator health indicator 与业务 HealthController 都注入它联动返回 DOWN。
     - `GracefulShutdownExecutor` — 下线编排核心：标记 health DOWN → 反注册（`ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过）→ 等待消费者刷新缓存；被 endpoint 与 listener 共用，幂等。
     - `ShutdownHealthIndicator` — actuator health 联动（Boot 4 新包 `org.springframework.boot.health.contributor`），flag false → `OUT_OF_SERVICE`（HTTP 503）。
-    - `GracefulShutdownEndpoint` — `POST /actuator/offline`，preStop 主路径，同步阻塞到编排完成返回 202；配了 `endpoint-token` 时强制校验请求头 `X-Offline-Token`，不匹配置 403（未配置则放行但每次调用 WARN 提醒，生产必须配置）。
+    - `GracefulShutdownEndpoint` — `POST /actuator/offline/{token}`，preStop 主路径，同步阻塞到编排完成返回 202；token 走 `@Selector` 路径传参（双栈通用，不依赖 Servlet API），配了 `endpoint-token` 时强制校验路径段，不匹配置 403（未配置则放行但每次调用 WARN 提醒，生产必须配置）。
     - `GracefulShutdownListener` — `ApplicationListener<ContextClosedEvent>`，SIGTERM 兜底路径。
   - `com.frame.me.cloud.config.RefreshDecryptListener` — 配置中心无关的刷新解密监听器：`ApplicationListener<EnvironmentChangeEvent>`，刷新后遍历 `ConfigurableEnvironment.getPropertySources()`，把含 `ME(密文)` 的未包装 `EnumerablePropertySource` 原位替换成 `DecryptedPropertySource`；已是 `DecryptedPropertySource` 的跳过（幂等，防重复包装）。
 - **自动装配**：通过 `frame-me-starter-cloud/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `CloudAutoConfiguration`。
 - **启用条件**：
-  - 优雅下线编排：`me.cloud.shutdown.enabled=true`（默认 `true`，可显式关闭）。`ShutdownHealthIndicator` 需 actuator 在场（base 已传递）；`GracefulShutdownEndpoint` 需 actuator + `management.endpoints.web.exposure.include` 含 `offline`；反注册部分用 `ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过（只做 health 联动 + 等待）。
+  - 优雅下线编排：`me.cloud.shutdown.enabled=true`（默认 `true`，可显式关闭）。`ShutdownHealthIndicator` 需 actuator 在场（starter 已显式声明）；`GracefulShutdownEndpoint` 需 actuator + `management.endpoints.web.exposure.include` 含 `offline`；反注册部分用 `ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过（只做 health 联动 + 等待）。
   - `RefreshDecryptAutoConfiguration` 内部类：classpath 存在 `EnumerablePropertySource`（spring-core）、`DecryptedPropertySource` 与 `StringEncryptor`（sensi-encrypt），且容器中有 `StringEncryptor` Bean（即配置了 `me.encrypt.password`）。
   - 未配主密码时 `StringEncryptor` Bean 不存在，监听器不装配——未启用加密则无需解密，合理退避。
 - **可配置项**（前缀 `me.cloud.shutdown`）：
@@ -502,7 +503,7 @@ me:
   - `deregister-wait` — 反注册后等待消费者刷新缓存的时长，默认 `15s`；纯任务服务或无注册中心时可设 `0s` 跳过等待。
   - `health-indicator-enabled` — 是否注册 actuator health indicator，默认 `true`。
   - `endpoint-enabled` — 是否暴露 `POST /actuator/offline` 主动下线端点，默认 `true`。
-  - `endpoint-token` — `/actuator/offline` 的共享密钥；配置后请求头 `X-Offline-Token` 必须匹配否则 403，未配置则放行但每次调用 WARN——该端点是远程下线开关，生产环境必须配置。
+  - `endpoint-token` — `/actuator/offline/{token}` 的共享密钥；配置后路径段 token 必须匹配否则 403，未配置则放行但每次调用 WARN——该端点是远程下线开关，生产环境必须配置。
 - **设计约定**：
   - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-cloud` 以获得云基础底座能力（优雅下线 / 配置刷新解密）。
   - **刷新解密链路时序**：
@@ -1154,7 +1155,7 @@ public class AlertService {
 | `frame-me-audit-service` | `frame-me-audit-api`、`frame-me-sso-starter`、`frame-me-boot`（聚合 multi-redis/l1l2-cache/sensi-encrypt/op-audit/msg-notify）、`frame-me-starter-auth-sa-token`、`frame-me-starter-mybatis-flex`（`frame-me-starter-doc-openapi` 在 swagger profile） |
 | `frame-me-aliyun-common` | `lombok`（占位，后续补充公共 SDK） |
 | `frame-me-aliyun-starter-oss` | `frame-me-aliyun-common`、`lombok`（占位，后续补充 OSS SDK） |
-| `frame-me-gateway` | `lombok`（占位工程，无源码） |
+| `frame-me-gateway` | `spring-cloud-starter-gateway-server-webflux`、`frame-me-starter-cloud`、`frame-me-starter-cloud-nacos`、`spring-boot-starter-data-redis`、`jjwt-api`/`jjwt-impl`/`jjwt-gson`、`lombok`（有意不引 boot/base/auth*/multi-redis/sa-token） |
 
 ## frame-me-sso（SSO 单点登录服务）
 
@@ -1250,18 +1251,30 @@ public class AlertService {
 | `spring.http.serviceclient.sso.base-url` | — | SSO 服务地址（HTTP Interface group=`sso` 的 baseUrl） |
 | `me.audit.target-service` | `frame-me-audit` | 自身审计事件定向发给自己 |
 
-## frame-me-gateway（网关工程·占位）
+## frame-me-gateway（业务网关）
 
-`frame-me-launcher/frame-me-gateway` 是网关工程占位模块，挂在 `frame-me-launcher` 聚合下，后续按需补充网关实现（如 Spring Cloud Gateway）。当前仅声明 `lombok` 依赖，无源码、无自动装配，不纳入 `frame-me-boot`。
+`frame-me-launcher/frame-me-gateway` 是基于 Spring Cloud Gateway（WebFlux）的业务网关应用，挂在 `frame-me-launcher` 聚合下，独立可运行，不纳入 `frame-me-boot`。定位"薄业务网关 + 可向上让渡"——上 MSE 的环境认证/限流可上移，不变量是身份头契约。详见 [guides/gateway.md](./guides/gateway.md)。
 
 ### 模块职责
 
 | 模块 | 职责 |
 |---|---|
-| `frame-me-gateway` | 网关占位工程：后续按需补充网关实现（如 Spring Cloud Gateway），与 `frame-me-starter-cloud` 的优雅下线、`frame-me-starter-auth` 的认证头传播衔接 |
+| `frame-me-gateway` | `lb://` 路由转发；凭证驱动鉴权（`Authorization: Signature` → app 验签，用户 token → user 校验，无凭证按 `allow-anonymous`）；剥离外部身份头 + 认证后注入（`X-User-Id`/`X-User-Account`/`X-App-Key`）；优雅上下线复用 `frame-me-starter-cloud` |
+
+### 关键类（包 `com.frame.me.gateway`）
+
+- `Application` — 启动类，端口 10030，management 独立端口 10031（仅暴露 health/offline）。
+- `auth.GatewayAuthProperties` — `me.gateway.auth.*`：实例级开关 `user-auth-enabled`/`app-auth-enabled`（默认 true，关闭后本实例不识别对应凭证）、全局 `user-validator`（`jwt`/`sa-token` 二选一，默认 `jwt`）、`allow-anonymous`（无凭证请求行为，默认 `false`=401，`true`=匿名放行）、`whitelist`、`jwt`/`sa-token`/`apps` 子配置。
+- `auth.IUserValidator` + 两实现按开关条件装配：`JwtUserValidator`（jjwt 验下游 auth-jwt 签发的 JWT，HS256 共享密钥 + issuer 校验，secret 未配/不足 32 字节启动 fail-fast）；`SaTokenRedisUserValidator`（`ReactiveStringRedisTemplate` 非阻塞直查 `{tokenName}:{logicType}:token:{token}`（sa-token 原生 key 规则，如 `satoken:login:token:xxx`），选中但无 Redis 配置启动 fail-fast）。
+- `auth.IAppAuthenticator` + `ConfigAppAuthenticator` — 配置版 app 鉴权：`Authorization: Signature` + `Date` 头（对齐 APISIX hmac-auth / draft-cavage，HMAC-SHA256 + 300s 时钟偏差容差防重放 + 常量时间比较），认证后注入 `X-App-Key`。
+- `filter.GatewayAuthFilter` — `GlobalFilter`（order -100）：凭证驱动分发——白名单剥离放行；`Authorization: Signature` 前缀走 app 验签（优先于用户凭证）；否则提取用户 token 走 user 校验；无凭证按 `allow-anonymous`（false=401/true 放行）；所有请求无条件剥离外部身份头，认证通过注入对应身份头；认证器因实例级开关未装配时该类凭证 401；401 复用统一错误写出（IResult 结构）。
+- `error.GatewayGlobalExceptionHandler` — 统一错误响应（`@Order(-2)`，必须早于 Spring 的 `ResponseStatusExceptionHandler` 否则 404 被消费成空 body）：未捕获异常与未命中路由输出与 base `IResult` 同构的 `{code, msg, rid}`；`ErrorResponse` 请求侧异常透传状态码与请求级 message，未知异常掩码 500「系统错误」（对齐 base 兜底语义），`rid` 取 WebFlux 请求 ID。
+- `auth.AnonymousAccessGuard` — `allow-anonymous=true` 仅在显式激活 `internal` profile 时合法，否则启动直接失败（fail-closed：公网忘记配拓扑 profile 时匿名配置不会静默生效）；`me.gateway.auth.anonymous-guard-enabled=false` 可显式关闭守卫（默认开启）。
+- `filter.GatewayAccessLogFilter` + `config.GatewayAccessLogProperties` — 访问日志（`me.gateway.access-log.*`）：`enabled=true` 才装配（默认关闭零开销），每请求一行 INFO（method / URI 含 query / status / 耗时 ms / 远端地址），URI 超 `max-length`（默认 2000，0 不限）截断补 `...`。实现为 `WebFilter` 而非 `GlobalFilter`——覆盖未命中路由的 404（GlobalFilter 只在路由命中时进链）。与下游 `me.auth.access-log.*` 同款约定。
 
 ### 设计约定
 
-- **占位工程**：当前无源码、无自动装配，仅保留模块骨架与 Maven 坐标。
-- **不纳入 `frame-me-boot`**，作为 `frame-me-launcher` 下独立可运行工程演进。
-- **扩展提示**：后续接入 Spring Cloud Gateway 时，网关侧负责路由转发、限流、认证头透传（与 `frame-me-starter-auth` 的 `me.auth.propagate.*` 衔接），下游服务侧的优雅下线由 `frame-me-starter-cloud` 承担。
+- **依赖红线**：不引 `frame-me-boot`/`base`/`auth*`/`multi-redis`/sa-token——它们经 base 拖入 `spring-boot-starter-web`（Servlet 栈），与 SC Gateway WebFlux 同 classpath 启动失败。验签/查 Redis 能力在网关内以 web 无关方式重写，约定见 guide。
+- **用户验证器体系级二选一**：体系内统一认证底座，无混合拓扑，故开关在应用级（`me.gateway.auth.user-validator`），Nacos 改配置重启即切换。
+- **拓扑 profile 部署**：`application-public.yml`（对公网，钉死 `allow-anonymous: false`）/ 内网实例激活 `internal` profile 名 + `allow-anonymous: true`（可开 discovery locator），一份代码按需部署；将来拆 app 专属实例只需 `user-auth-enabled: false`，代码零改动。
+- **SSO 零改动**：客户端流程不变（SSO 登录 → 下游 sso-login 换下游 token → 带 token 走网关）。

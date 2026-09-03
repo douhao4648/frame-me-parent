@@ -352,7 +352,7 @@ class JwtTokenServiceTest {
         JwtAuthProperties shortProps = new JwtAuthProperties();
         shortProps.setSecret(SECRET);
         shortProps.setAccessTokenExpires(Duration.ofMinutes(10));
-        shortProps.setRefreshTokenExpires(Duration.ofMillis(2000));
+        shortProps.setRefreshTokenExpires(Duration.ofMillis(4000));
         JwtTokenService shortLived = new JwtTokenService(shortProps, new IAuthUserDetailsService() {
             @Override
             public User loadUserByAccount(String account) {
@@ -373,11 +373,12 @@ class JwtTokenServiceTest {
         String refreshToken = shortLived.loginByUser(rpUser).split(";")[1];
         shortLived.storeUpstreamToken(1L, "fm-audit", "sso-token-abc");
 
-        // t=1300ms：原 TTL（2000ms）过半，refresh 成功并把上游条目续到 t=3300ms
-        Thread.sleep(1300);
+        // 时序余量按 CI/全量构建高负载放宽（曾两次因 sleep 超调 257ms 抖动失败）：
+        // t=2000ms：原 TTL（4000ms）过半，refresh 成功并把上游条目续到 t=6000ms
+        Thread.sleep(2000);
         shortLived.refresh(refreshToken);
-        // t=2600ms：已过原 TTL，未续期的话条目已消失
-        Thread.sleep(1300);
+        // t=4400ms：已过原 TTL，未续期的话条目已消失
+        Thread.sleep(2400);
         assertEquals("sso-token-abc", shortLived.getUpstreamToken(1L, "fm-audit"));
     }
 

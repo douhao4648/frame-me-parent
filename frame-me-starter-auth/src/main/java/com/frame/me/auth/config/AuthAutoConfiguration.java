@@ -7,6 +7,7 @@ import com.frame.me.auth.filter.AuthFilter;
 import com.frame.me.auth.propagation.AuthContextTaskDecorator;
 import com.frame.me.auth.propagation.AuthPropagationInterceptor;
 import com.frame.me.auth.resolver.LoginUserArgumentResolver;
+import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.auth.spi.IServiceInstanceProbe;
 import com.frame.me.auth.util.PasswordUtils;
@@ -94,12 +95,23 @@ public class AuthAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(IAuthUserResolver.class)
     @ConditionalOnProperty(prefix = "me.auth.trusted-header", name = "enabled", havingValue = "true")
-    public IAuthUserResolver trustedHeaderAuthUserResolver() {
+    public IAuthUserResolver trustedHeaderAuthUserResolver(
+            ObjectProvider<IAuthUserDetailsService> userDetailsServiceProvider) {
         if (Boolean.TRUE.equals(properties.getTrustedHeader().getWarnEnabled())) {
             log.warn("已启用信任身份头的用户解析器（X-User-Id），该方式无条件信任客户端传入的身份头，"
                     + "仅适用于前置网关已剥离外部身份头的内网服务间调用，切勿用于直接对外的服务");
         }
-        return new TrustedHeaderAuthUserResolver();
+        if (!Boolean.TRUE.equals(properties.getTrustedHeader().getFetchDetails())) {
+            return new TrustedHeaderAuthUserResolver();
+        }
+        IAuthUserDetailsService userDetailsService = userDetailsServiceProvider.getIfAvailable();
+        if (userDetailsService == null) {
+            throw new IllegalStateException(
+                    "me.auth.trusted-header.fetch-details=true 要求容器中有 IAuthUserDetailsService Bean，"
+                            + "请实现该接口提供用户回源查询，或关闭 fetch-details 退回纯头解析");
+        }
+        log.info("trusted-header 已开启回源补全（fetch-details）：按 X-User-Id 调 loadUserById 补全用户并校验状态");
+        return new TrustedHeaderAuthUserResolver(userDetailsService);
     }
 
     /**
