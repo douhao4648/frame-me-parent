@@ -40,6 +40,13 @@
             <artifactId>frame-me-starter-sensi-encrypt</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- 可选：仅供编译期解析 Spring Cloud 类上的 @JsonInclude(NON_EMPTY) 等注解，消除 javac「未知的枚举常量」警告；
+             optional 不传递给消费方，消费方（web/webflux）自带完整 jackson。 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

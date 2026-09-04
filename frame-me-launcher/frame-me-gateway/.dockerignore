@@ -1,0 +1,36 @@
+# 构建产物（只保留最终 jar，pom finalName=app）
+target/*
+!target/app.jar
+
+# 日志
+logs/
+*.log
+
+# IDE / 工具
+.idea/
+*.iml
+.vscode/
+.claude/
+.omc/
+
+# 版本控制
+.git/
+.gitignore
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 文档（不 COPY 进镜像）
+*.md
+
+# 密钥/证书（防护：绝不进入镜像层）
+*.pem
+*.key
+*.p12
+*.jks
+*.crt
+*.keystore
+
+# 脚本
+*.sh

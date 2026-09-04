@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROJECT_NAME}
+  namespace: app-${ENV}
+  labels:
+    app: ${PROJECT_NAME}
+spec:
+  replicas: ${REPLICAS_NUM}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  selector:
+    matchLabels:
+      app: ${PROJECT_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${PROJECT_NAME}
+        msePilotAutoEnable: "on"
+        mseNamespace: ${ENV}
+        msePilotCreateAppName: ${PROJECT_NAME}
+        armsPilotAutoEnable: "on"
+        armsPilotCreateAppName: "${PROJECT_NAME}-${ENV}"
+        one-agent.jdk.version: "OpenJDK25"
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: ${PROJECT_NAME}
+          image: ${IMAGE}
+          ports:
+            - containerPort: 10030
+              name: http
+            - containerPort: 10031
+              name: management
+            - containerPort: 5050
+              name: jvm-debug
+          volumeMounts:
+            - name: app-logs
+              mountPath: /data/logs
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: ${ENV}
+            - name: JAVA_TOOL_OPTIONS
+              value: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5050
+            - name: NACOS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: me-credentials
+                  key: NACOS_HOST
+            - name: NACOS_AK
+              valueFrom:
+                secretKeyRef:
+                  name: me-credentials
+                  key: NACOS_AK
+            - name: NACOS_SK
+              valueFrom:
+                secretKeyRef:
+                  name: me-credentials
+                  key: NACOS_SK
+            - name: OFFLINE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: me-credentials
+                  key: OFFLINE_TOKEN
+            - name: ME_ENCRYPT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: me-credentials
+                  key: ME_ENCRYPT_PASSWORD
+            - name: LOGGING_FILE_PATH
+              value: /data/logs
+            - name: aliyun_logs_${PROJECT_NAME}-${ENV}_project
+              value: ${SLS_PROJECT}
+            - name: aliyun_logs_${PROJECT_NAME}-${ENV}_logstore
+              value: app-${PROJECT_NAME}-${ENV}
+            - name: aliyun_logs_${PROJECT_NAME}-${ENV}
+              value: /data/logs/${PROJECT_NAME}.log
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 10031
+            failureThreshold: 30
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 10031
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 10031
+            periodSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - |
+                    curl -s -X POST http://localhost:10031/actuator/offline/${OFFLINE_TOKEN} -H 'Content-Length: 0' || true
+                    sleep 15
+      volumes:
+        - name: app-logs
+          emptyDir: { }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${PROJECT_NAME}
+  namespace: app-${ENV}
+spec:
+  selector:
+    app: ${PROJECT_NAME}
+  ports:
+    - name: http
+      port: 80
+      targetPort: 10030

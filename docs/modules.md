@@ -482,7 +482,7 @@ me:
 ## `frame-me-starter-cloud`
 
 - **定位**：微服务云基础底座模块，承载所有云组件共享的基础能力——Spring Cloud 配置刷新体系（`@RefreshScope` / `RefreshEvent` / `EnvironmentChangeEvent` / `ContextRefresher`）、**配置中心无关的刷新解密抽象**、**注册中心无关的优雅下线编排**。具体云组件（Nacos / Gateway / Sentinel 等）各自独立为 `frame-me-starter-cloud-xxx` 模块。
-- **依赖**：`spring-boot-starter-actuator`（web 无关，显式声明）、`spring-cloud-context`（配置刷新体系）+ `spring-cloud-commons`（反注册抽象 `ServiceRegistry`/`Registration`）、`lombok`；`frame-me-starter-sensi-encrypt` 为 **optional** 依赖——消费方同时引入 sensi-encrypt 且配了主密码时，刷新解密监听器才装配。**已移除 `frame-me-starter-base` 依赖**（代码本就 0 处引用 base；base 带 `spring-boot-starter-web`，会使 WebFlux 消费方如网关 classpath 冲突）——web 栈依赖永不下沉进共享 starter。
+- **依赖**：`spring-boot-starter-actuator`（web 无关，显式声明）、`spring-cloud-context`（配置刷新体系）+ `spring-cloud-commons`（反注册抽象 `ServiceRegistry`/`Registration`）、`lombok`；`frame-me-starter-sensi-encrypt` 为 **optional** 依赖——消费方同时引入 sensi-encrypt 且配了主密码时，刷新解密监听器才装配；`jackson-annotations` 同为 **optional** 依赖——本模块为保持 web 无关不引 web 栈（无传递 jackson），但 Spring Cloud 类上带 `@JsonInclude(NON_EMPTY)` 等注解，需其供编译期解析，消除 javac「未知的枚举常量」警告，optional 不传递给自带 jackson 的消费方。**已移除 `frame-me-starter-base` 依赖**（代码本就 0 处引用 base；base 带 `spring-boot-starter-web`，会使 WebFlux 消费方如网关 classpath 冲突）——web 栈依赖永不下沉进共享 starter。
 - **关键类**：
   - `com.frame.me.cloud.config.CloudAutoConfiguration` — 自动装配入口；注册下线编排 bean + 内部用 `@ConditionalOnClass` 隔离的 `RefreshDecryptAutoConfiguration` 静态内部类承载刷新解密能力，sensi-encrypt 缺席时整体退避（遵循 `docs/conventions.md` 模式 A，不抛 NCDFE）。
   - 优雅下线编排（`com.frame.me.cloud.shutdown` 包）：
