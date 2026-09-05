@@ -1,0 +1,35 @@
+# 多阶段构建 context = frame-me-parent/（仓库根）
+# 排除各模块编译产物 + 版本控制，避免 context 过大（frame-me-parent 含数十模块 target）
+
+# 编译产物（阶段1 mvn 会重新编译，context 里不需要预置 target）
+**/target/
+
+# 版本控制
+.git/
+.gitignore
+
+# 日志
+logs/
+*.log
+
+# IDE / 工具
+.idea/
+*.iml
+.vscode/
+.claude/
+.omc/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 文档（不 COPY 进镜像）
+*.md
+
+# 密钥/证书（防护：绝不进入镜像层）
+*.pem
+*.key
+*.p12
+*.jks
+*.crt
+*.keystore
