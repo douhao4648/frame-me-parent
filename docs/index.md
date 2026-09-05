@@ -4,13 +4,13 @@
 
 ## 项目速览
 
-`frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 脚手架工程，groupId 为 `com.frame.me`。项目采用分层模块设计，下层模块为上层提供基础能力；示例模块 `frame-me-tester` 拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现），最终由 `frame-me-tester-service` 作为可运行的 Spring Boot 入口。
+`frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 21** 的多模块 Maven 脚手架工程，groupId 为 `com.frame.me`。项目采用分层模块设计，下层模块为上层提供基础能力；示例模块 `frame-me-tester` 拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现），最终由 `frame-me-tester-service` 作为可运行的 Spring Boot 入口。
 
 ## 阅读前置
 
-- 项目要求 **JDK 25**，当前机器路径为：`/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home`。
+- 项目要求 **JDK 21**，当前机器路径为：`/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home`。
 - 项目已配置 **Maven Wrapper**（`./mvnw`），无需本地安装 Maven 也可构建。以下命令默认使用 Wrapper；若本地已有 Maven，也可将 `./mvnw` 替换为 `mvn`。
-- 运行任何 Maven 命令前建议设置：`export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home`。
+- 运行任何 Maven 命令前建议设置：`export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home`。
 
 ## 文档地图
 

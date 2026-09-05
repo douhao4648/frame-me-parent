@@ -411,7 +411,7 @@ me:
 运行：
 
 ```bash
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
 mvn test -pl frame-me-api,frame-me-starter-base,frame-me-starter-multi-redis,frame-me-tester/frame-me-tester-service -am
 ```
 

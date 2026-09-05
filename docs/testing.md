@@ -51,7 +51,7 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/
 ### 运行全部测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn test
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home mvn test
 ```
 
 Maven 会按 reactor 顺序编译所有模块，最后执行 `frame-me-tester` 中的测试。
@@ -61,21 +61,21 @@ Maven 会按 reactor 顺序编译所有模块，最后执行 `frame-me-tester` �
 ### 运行单个测试类
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
 ```
 
 ### 运行单个测试方法
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
 ```
 
 ### 跳过测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home mvn clean compile -DskipTests
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home mvn clean compile -DskipTests
 ```
 
 ## 认证实现切换（jwt / sa-token）
@@ -93,17 +93,17 @@ sa-token 模式的运行配置已预置在 `application.yml`：框架自有配�
 ### 通过 Maven 启动
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
 ### 运行打包后的 Jar
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service package
 
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   java -jar frame-me-tester/frame-me-tester-service/target/frame-me-tester-service-1.0.0-SNAPSHOT.jar
 ```
 
@@ -184,14 +184,14 @@ public class HealthController {
 ### 运行集成测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service test
 ```
 
 仅运行集成测试类：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=DemoMapperIntegrationTest
 ```
 

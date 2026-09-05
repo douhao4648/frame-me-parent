@@ -2,7 +2,7 @@
 
 > 个人 Spring Boot 脚手架工程：一套可按需拆分的多模块 Java 框架。
 
-`frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 项目，用于沉淀通用的基础设施、响应规范、异常处理与自动装配约定。
+`frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 21** 的多模块 Maven 项目，用于沉淀通用的基础设施、响应规范、异常处理与自动装配约定。
 
 项目采用 **接口 / Service 分离** 的设计：
 
@@ -13,10 +13,10 @@
 
 ## 快速开始
 
-项目要求 **JDK 25**，当前机器路径：
+项目要求 **JDK 21**，当前机器路径：
 
 ```bash
-/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
+/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
 ```
 
 项目已配置 **Maven Wrapper**（`./mvnw`），无需本地安装 Maven 也可构建。以下命令默认使用 Wrapper；若本地已有 Maven，也可将 `./mvnw` 替换为 `mvn`。
@@ -24,19 +24,19 @@
 编译全部模块：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw clean compile
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw clean compile
 ```
 
 运行测试：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw test
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw test
 ```
 
 启动示例应用：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
@@ -47,7 +47,7 @@ Wrapper 的 JVM 参数已配置在 `.mvn/jvm.config`（UTF-8、最大堆 2G）�
 启动 SSO 认证服务：
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-launcher/frame-me-sso/frame-me-sso-service spring-boot:run
 ```
 

@@ -5,7 +5,7 @@
 # 构建期变量（云效流水线通过 docker build --build-arg 注入，对齐 EVALUATION-DAILY 的 ARGS 约定）
 # ARG 必须在 FROM 之后声明才能在后续指令中引用（FROM 之前的 ARG 只供 FROM 行使用）
 
-FROM eclipse-temurin:25-jre-alpine
+FROM eclipse-temurin:21-jre-alpine
 
 ARG PROJECT_NAME
 ARG PROJECT_VERSION

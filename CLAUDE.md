@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # 项目身份
 
-`frame-me-parent` 是基于 **Spring Boot 4.0.7 + Java 25** 的多模块 Maven 脚手架，采用 `frame-me-api` / `frame-me-boot` 分离设计，示例模块 `frame-me-tester` 进一步拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现）。详细架构、约定、命令和类索引见 `docs/` 知识库。
+`frame-me-parent` 是基于 **Spring Boot 4.0.7 + Java 21** 的多模块 Maven 脚手架，采用 `frame-me-api` / `frame-me-boot` 分离设计，示例模块 `frame-me-tester` 进一步拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现）。详细架构、约定、命令和类索引见 `docs/` 知识库。
 
 # 知识库检索
 
@@ -28,11 +28,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # 最常用命令速查
 
-项目要求 **JDK 25**，当前机器路径：
+项目要求 **JDK 21**，当前机器路径：
 
 ```bash
-/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
+/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
 ```
 
 ```bash

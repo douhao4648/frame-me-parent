@@ -24,7 +24,7 @@ spec:
         msePilotCreateAppName: ${PROJECT_NAME}
         armsPilotAutoEnable: "on"
         armsPilotCreateAppName: "${PROJECT_NAME}-${ENV}"
-        one-agent.jdk.version: "OpenJDK25"
+        one-agent.jdk.version: "OpenJDK21"
     spec:
       terminationGracePeriodSeconds: 60
       containers:

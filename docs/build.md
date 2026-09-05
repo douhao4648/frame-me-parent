@@ -2,18 +2,18 @@
 
 ## Java 版本要求
 
-- 项目使用 **Java 25**（`pom.xml` 中 `java.version`、`maven.compiler.source`、`maven.compiler.target` 均设置为 `25`）。
+- 项目使用 **Java 21**（`pom.xml` 中 `java.version`、`maven.compiler.source`、`maven.compiler.target` 均设置为 `25`）。
 - 如果当前 JDK 低于 25，`mvn` 会报错：`错误: 不支持发行版本 25`。
-- 当前机器已安装 JDK 25 的路径：
+- 当前机器已安装 JDK 21 的路径：
 
 ```bash
-/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
+/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
 ```
 
 建议在 shell 中导出：
 
 ```bash
-export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
+export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
 ```
 
 ## Maven Wrapper
@@ -45,40 +45,40 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home
 ### 编译整个工程
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw clean compile
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw clean compile
 ```
 
 ### 运行所有测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home ./mvnw test
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw test
 ```
 
 ### 运行单个测试类
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
 ```
 
 ### 运行单个测试方法
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
 ```
 
 ### 打包可运行 Jar
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service package
 ```
 
 ### 启动应用
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
@@ -101,7 +101,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
 ### `p6spy` — SQL 监控
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pp6spy
 ```
 
@@ -120,7 +120,7 @@ p6spy 的 `spy.properties` 配置文件位于 `frame-me-starter-base/src/main/re
 ### `swagger` — 接口文档
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-25.jdk/Contents/Home \
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run -Pswagger
 ```
 
