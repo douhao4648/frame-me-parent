@@ -5,7 +5,7 @@
 # 构建期变量（云效流水线通过 docker build --build-arg 注入，对齐 EVALUATION-DAILY 的 ARGS 约定）
 # ARG 必须在 FROM 之后声明才能在后续指令中引用（FROM 之前的 ARG 只供 FROM 行使用）
 
-FROM eclipse-temurin:21-jre-alpine
+FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21
 
 ARG PROJECT_NAME
 ARG PROJECT_VERSION
@@ -18,7 +18,6 @@ RUN test -n "$PROJECT_NAME" && test -n "$PROJECT_VERSION" && test -n "$ENV" \
     && test -n "$BUILD_DATE" && test -n "$GIT_COMMIT" \
     || (echo "ERROR: build args PROJECT_NAME/PROJECT_VERSION/ENV/BUILD_DATE/GIT_COMMIT must not be empty" && exit 1)
 
-RUN apk add --no-cache curl tzdata
 ENV TZ=Asia/Shanghai
 
 # 运行期可见（容器内可通过 System.getenv() 读取）
