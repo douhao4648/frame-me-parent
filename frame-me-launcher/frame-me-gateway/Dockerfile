@@ -1,17 +1,10 @@
-# 多阶段构建：阶段1 用 maven:25 编译，阶段2 用 eclipse-temurin:25-jre-alpine 运行
-# 构建上下文 = frame-me-parent/（仓库根，mvn -pl -am 需要父 pom + 依赖模块）
-# 云效流水线只做 docker build（DockerBuildPushACREE），不再单独执行 mvn package
+# 构建上下文 = frame-me-parent/frame-me-launcher/frame-me-gateway/
+# 前置：mvn -B clean package -pl frame-me-launcher/frame-me-gateway -am -Dmaven.test.skip=true
+#       （在 frame-me-parent/ 目录执行，云效"构建"阶段）
 #
 # 构建期变量（云效流水线通过 docker build --build-arg 注入，对齐 EVALUATION-DAILY 的 ARGS 约定）
 # ARG 必须在 FROM 之后声明才能在后续指令中引用（FROM 之前的 ARG 只供 FROM 行使用）
 
-# ── 阶段1：编译（JDK 25 + Maven 3.9）──
-FROM maven:3.9-eclipse-temurin-25 AS build
-WORKDIR /build
-COPY . .
-RUN mvn -B clean package -pl frame-me-launcher/frame-me-gateway -am -Dmaven.test.skip=true
-
-# ── 阶段2：运行镜像（JRE 25，无 JDK/构建工具）──
 FROM eclipse-temurin:25-jre-alpine
 
 ARG PROJECT_NAME
@@ -34,8 +27,8 @@ ENV PROJECT_NAME=${PROJECT_NAME} \
     ENV=${ENV}
 
 WORKDIR /app
-# 从阶段1拷贝编译产物（pom 已配 finalName=app，避免 *-sources.jar 参与 *.jar 通配导致多源 COPY 失败）
-COPY --from=build /build/frame-me-launcher/frame-me-gateway/target/app.jar app.jar
+# COPY 精确文件名：pom 已配 finalName=app，避免 *-sources.jar 参与 *.jar 通配导致多源 COPY 失败
+COPY target/app.jar app.jar
 
 # OCI 镜像元数据（构建期注入，便于追溯来源）
 LABEL org.opencontainers.image.title="${PROJECT_NAME}" \
