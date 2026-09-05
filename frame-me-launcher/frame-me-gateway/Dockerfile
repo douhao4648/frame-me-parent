@@ -2,7 +2,6 @@
 # 前置：mvn -B clean package -pl frame-me-launcher/frame-me-gateway -am -Dmaven.test.skip=true
 #       （在 frame-me-parent/ 目录执行，云效"构建"阶段）
 #
-# 构建期变量（云效流水线通过 docker build --build-arg 注入，对齐 EVALUATION-DAILY 的 ARGS 约定）
 # ARG 必须在 FROM 之后声明才能在后续指令中引用（FROM 之前的 ARG 只供 FROM 行使用）
 
 FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21
