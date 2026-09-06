@@ -26,7 +26,7 @@ spec:
         armsPilotCreateAppName: "${PROJECT_NAME}-${ENV}"
         one-agent.jdk.version: "OpenJDK21"
     spec:
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 90
       containers:
         - name: ${PROJECT_NAME}
           image: ${IMAGE}
@@ -111,7 +111,7 @@ spec:
                   - -c
                   - |
                     curl -s -X POST http://localhost:10031/actuator/offline/${OFFLINE_TOKEN} -H 'Content-Length: 0' || true
-                    sleep 15
+                    sleep 30
       volumes:
         - name: app-logs
           emptyDir: { }
