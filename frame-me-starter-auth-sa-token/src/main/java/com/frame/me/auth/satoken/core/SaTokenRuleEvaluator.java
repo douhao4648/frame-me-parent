@@ -63,11 +63,19 @@ public final class SaTokenRuleEvaluator {
      * @param stpLogic 目标账号体系的 {@link StpLogic}
      */
     public static void check(Rule rule, StpLogic stpLogic) {
+        // 经典冒号式 switch：P3C SwitchStatementRule 认不出箭头式 default 标签，会误报缺少 default
         switch (rule.kind()) {
-            case LOGIN -> stpLogic.checkLogin();
-            case ROLE -> stpLogic.checkRole(rule.value());
-            case PERMISSION -> stpLogic.checkPermission(rule.value());
-            default -> throw new BusinessException("未知规则类型: " + rule.kind());
+            case LOGIN:
+                stpLogic.checkLogin();
+                break;
+            case ROLE:
+                stpLogic.checkRole(rule.value());
+                break;
+            case PERMISSION:
+                stpLogic.checkPermission(rule.value());
+                break;
+            default:
+                throw new BusinessException("未知规则类型: " + rule.kind());
         }
     }
 
