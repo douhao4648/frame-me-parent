@@ -123,7 +123,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 - `frame-me-starter-auth` 注册 `com.frame.me.auth.config.AuthAutoConfiguration`
   - 注册 Bean：`AuthFilter`（注册为 FilterRegistrationBean，缺少 `IAuthUserResolver` 实现时启动直接失败并给出指引）、`TrustedHeaderAuthUserResolver`（兜底，`me.auth.trusted-header.enabled=true` 才装配；显式 `false` 时装配 `NoOpAuthUserResolver` 空操作解析器）、`LoginUserArgumentResolver` 配置、`AuditAuthOperatorSupplier`（可选）。
 - `frame-me-starter-auth-jwt` 注册 `com.frame.me.auth.jwt.config.JwtAutoConfiguration`
-  - 注册 Bean：`JwtTokenService`（实现 `IAuthService`）、`JwtAuthUserResolver`（实现 `IAuthUserResolver`）、`JwtAuthController`、默认 `RedisRefreshTokenStore`。通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 优先于 auth 抽象层加载，从而完全接管认证实现。
+  - 注册 Bean：`JwtTokenServiceImpl`（实现 `IAuthService`）、`JwtAuthUserResolver`（实现 `IAuthUserResolver`）、`JwtAuthController`、默认 `RedisRefreshTokenStore`。通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 优先于 auth 抽象层加载，从而完全接管认证实现。
 - `frame-me-starter-auth-sa-token` 注册 `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration`、`com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration`
   - 注册 Bean：`SaTokenAuthService`（实现 `IAuthService`）、`SaTokenAuthUserResolver`（实现 `IAuthUserResolver`）、配置版 `StpInterface`（`ConfigStpInterface`）、`SaTokenAuthController`、`SaTokenExceptionAdvice`、注册 `SaInterceptor` 的 `WebMvcConfigurer`，以及内存存储 WARN（`SmartInitializingSingleton`）；sa-token 原生 `SaTokenConfig` 由官方 starter 绑定 `sa-token.*` 配置路径提供（本模块不声明）；classpath 存在 `frame-me-starter-multi-redis` 时由 `SaTokenRedisDaoAutoConfiguration` 注册 `RedisSaTokenDao` 取代 sa-token 内存 DAO。同样 `@AutoConfigureBefore(AuthAutoConfiguration.class)`。
 - `frame-me-starter-sse-mvc` 注册 `com.frame.me.sse.mvc.config.SseAutoConfiguration`

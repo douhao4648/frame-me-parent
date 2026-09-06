@@ -1,7 +1,7 @@
 package com.frame.me.tester.event;
 
 import com.frame.me.event.EventClientPermit;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import lombok.Getter;
 
 /**
@@ -11,7 +11,7 @@ import lombok.Getter;
  */
 @Getter
 @EventClientPermit
-public class UserCreatedEvent extends MeApplicationEvent {
+public class UserCreatedEvent extends AbstractMeApplicationEvent {
 
     private static final long serialVersionUID = 1L;
 

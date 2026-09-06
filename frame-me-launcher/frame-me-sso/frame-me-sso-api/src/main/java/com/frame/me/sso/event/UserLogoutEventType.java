@@ -1,7 +1,7 @@
 package com.frame.me.sso.event;
 
 import com.frame.me.event.IEventType;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 
 /**
  * 用户登出事件类型注册项.
@@ -24,7 +24,7 @@ public class UserLogoutEventType implements IEventType<UserLogoutEvent.Payload> 
     }
 
     @Override
-    public MeApplicationEvent toLocalEvent(UserLogoutEvent.Payload payload, String source, String sourceInstanceId) {
+    public AbstractMeApplicationEvent toLocalEvent(UserLogoutEvent.Payload payload, String source, String sourceInstanceId) {
         UserLogoutEvent event = new UserLogoutEvent(source, payload.getUserId(), payload.getAppId(), payload.getReason());
         // 还原原始登出时间，不用重建时的当前时间
         event.setLogoutTime(payload.getLogoutTime());

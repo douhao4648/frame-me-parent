@@ -92,9 +92,44 @@ public final class SaTokenRuleEvaluator {
     /**
      * 解析后的规则.
      *
-     * @param kind  规则类型
-     * @param value 角色标识或权限码（LOGIN 类型时为 {@code null}）
+     * <p>不用 record：P3C 会把 record 头误判为方法名（Rule 不符合 lowerCamelCase），
+     * 普通 final class 构造器不会被扫描.</p>
      */
-    public record Rule(Kind kind, String value) {
+    public static final class Rule {
+
+        /** 规则类型. */
+        private final Kind kind;
+
+        /** 角色标识或权限码（LOGIN 类型时为 {@code null}）. */
+        private final String value;
+
+        /**
+         * 创建规则.
+         *
+         * @param kind  规则类型
+         * @param value 角色标识或权限码
+         */
+        public Rule(Kind kind, String value) {
+            this.kind = kind;
+            this.value = value;
+        }
+
+        /**
+         * 规则类型.
+         *
+         * @return 类型
+         */
+        public Kind kind() {
+            return kind;
+        }
+
+        /**
+         * 角色标识或权限码.
+         *
+         * @return 值
+         */
+        public String value() {
+            return value;
+        }
     }
 }

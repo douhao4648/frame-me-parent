@@ -1,7 +1,7 @@
 package com.frame.me.tester.event;
 
 import com.frame.me.event.IEventType;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 
 /**
  * 用户创建事件类型注册项.
@@ -24,7 +24,7 @@ public class UserCreatedEventType implements IEventType<UserCreatedPayload> {
     }
 
     @Override
-    public MeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source, String sourceInstanceId) {
+    public AbstractMeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source, String sourceInstanceId) {
         return new UserCreatedEvent(source, payload);
     }
 }

@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class SnowflakeUtils {
 
-    private static final AtomicReference<Snowflake> snowflakeRef =
+    private static final AtomicReference<Snowflake> SNOWFLAKE_REF =
             new AtomicReference<>(IdUtil.getSnowflake());
 
     private SnowflakeUtils() {
@@ -45,7 +45,7 @@ public class SnowflakeUtils {
     public static long nextId() {
         for (int attempt = 0; ; attempt++) {
             try {
-                return snowflakeRef.get().nextId();
+                return SNOWFLAKE_REF.get().nextId();
             } catch (IllegalStateException e) {
                 if (attempt >= 2) {
                     throw e;
@@ -81,7 +81,7 @@ public class SnowflakeUtils {
      * @param datacenterId 数据中心 ID（0~31）
      */
     public static void configure(long workerId, long datacenterId) {
-        snowflakeRef.set(IdUtil.getSnowflake(workerId, datacenterId));
+        SNOWFLAKE_REF.set(IdUtil.getSnowflake(workerId, datacenterId));
     }
 
 }

@@ -60,7 +60,7 @@ frame-me-launcher/frame-me-sso/               [改为聚合 pom，packaging=pom]
         │   │   ├── SsoAuthCodeService.java
         │   │   ├── SsoUserService.java
         │   │   ├── SsoTokenService.java
-        │   │   ├── SsoUserDetailsService.java  [implements IAuthUserDetailsService]
+        │   │   ├── SsoUserDetailsServiceImpl.java  [implements IAuthUserDetailsService]
         │   │   └── SsoLogoutService.java
         │   ├── entity/
         │   │   ├── SsoApp.java
@@ -1402,14 +1402,14 @@ public class SsoTokenService {
 
 ---
 
-## Task 7: SsoUserService + SsoUserDetailsService
+## Task 7: SsoUserService + SsoUserDetailsServiceImpl
 
 **Files:**
 - Create: `.../sso/service/SsoUserService.java`
-- Create: `.../sso/service/SsoUserDetailsService.java`
+- Create: `.../sso/service/SsoUserDetailsServiceImpl.java`
 
 **Interfaces:**
-- Produces: `SsoUserService`（用户 CRUD）、`SsoUserDetailsService implements IAuthUserDetailsService`
+- Produces: `SsoUserService`（用户 CRUD）、`SsoUserDetailsServiceImpl implements IAuthUserDetailsService`
 
 - [ ] **Step 1: SsoUserService**
 
@@ -1457,7 +1457,7 @@ public class SsoUserService {
 }
 ```
 
-- [ ] **Step 2: SsoUserDetailsService**
+- [ ] **Step 2: SsoUserDetailsServiceImpl**
 
 ```java
 package com.frame.me.sso.service;
@@ -1477,7 +1477,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class SsoUserDetailsService implements IAuthUserDetailsService {
+public class SsoUserDetailsServiceImpl implements IAuthUserDetailsService {
 
     private final SsoUserService ssoUserService;
 
@@ -1848,7 +1848,7 @@ void registerExternalHasSecret() {
 - Create: `src/test/.../SsoAuthControllerTest.java`
 
 **Interfaces:**
-- Consumes: `SsoAppService`、`SsoAuthCodeService`、`SsoTokenService`、`SsoUserDetailsService`、`SsoProperties`
+- Consumes: `SsoAppService`、`SsoAuthCodeService`、`SsoTokenService`、`SsoUserDetailsServiceImpl`、`SsoProperties`
 - Produces: 授权码流程端点
 
 - [ ] **Step 1: SsoStpInterface（infrastructure/web）**
@@ -1941,7 +1941,7 @@ import com.frame.me.sso.infrastructure.config.SsoProperties;
 import com.frame.me.sso.service.SsoAppService;
 import com.frame.me.sso.service.SsoAuthCodeService;
 import com.frame.me.sso.service.SsoTokenService;
-import com.frame.me.sso.service.SsoUserDetailsService;
+import com.frame.me.sso.service.SsoUserDetailsServiceImpl;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -1967,7 +1967,7 @@ public class SsoAuthController {
     private final SsoAppService ssoAppService;
     private final SsoAuthCodeService ssoAuthCodeService;
     private final SsoTokenService ssoTokenService;
-    private final SsoUserDetailsService ssoUserDetailsService;
+    private final SsoUserDetailsServiceImpl ssoUserDetailsService;
     private final SsoProperties properties;
 
     @GetMapping("/authorize")

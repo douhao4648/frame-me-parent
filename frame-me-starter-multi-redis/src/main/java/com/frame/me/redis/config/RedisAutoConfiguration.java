@@ -129,6 +129,7 @@ public class RedisAutoConfiguration implements DisposableBean {
                 applyAuth(config, standalone::setUsername, standalone::setPassword);
                 yield standalone;
             }
+            default -> throw new IllegalArgumentException("不支持的 Redis 部署模式: " + config.getMode());
         };
 
         LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(redisConfiguration, clientConfiguration);

@@ -5,7 +5,7 @@ import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.user.User;
 import com.frame.me.sso.api.IAuthApi;
 import com.frame.me.sso.api.IUserApi;
-import com.frame.me.sso.auth.SsoAuthUserDetailsService;
+import com.frame.me.sso.auth.SsoAuthUserDetailsServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /**
- * {@link SsoAuthAutoConfiguration} 装配测试：{@link SsoAuthUserDetailsService} 的
+ * {@link SsoAuthAutoConfiguration} 装配测试：{@link SsoAuthUserDetailsServiceImpl} 的
  * 兜底/退让语义（{@code @ConditionalOnMissingBean}）.
  *
  * @author frame-me
@@ -34,9 +34,9 @@ class SsoAuthAutoConfigurationTest {
     @Test
     void providesFallbackUserDetailsServiceWhenAbsent() {
         runner.run(context -> {
-            assertThat(context).hasSingleBean(SsoAuthUserDetailsService.class);
+            assertThat(context).hasSingleBean(SsoAuthUserDetailsServiceImpl.class);
             assertThat(context.getBean(IAuthUserDetailsService.class))
-                    .isInstanceOf(SsoAuthUserDetailsService.class);
+                    .isInstanceOf(SsoAuthUserDetailsServiceImpl.class);
         });
     }
 
@@ -56,7 +56,7 @@ class SsoAuthAutoConfigurationTest {
                 return null;
             }
         }).run(context -> {
-            assertThat(context).doesNotHaveBean(SsoAuthUserDetailsService.class);
+            assertThat(context).doesNotHaveBean(SsoAuthUserDetailsServiceImpl.class);
             assertThat(context).hasSingleBean(IAuthUserDetailsService.class);
         });
     }

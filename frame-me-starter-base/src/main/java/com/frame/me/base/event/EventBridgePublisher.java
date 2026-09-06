@@ -1,7 +1,7 @@
 package com.frame.me.base.event;
 
 import com.alibaba.fastjson2.JSON;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,7 +34,7 @@ public class EventBridgePublisher {
      *
      * @param event 本地事件
      */
-    public void publish(MeApplicationEvent event) {
+    public void publish(AbstractMeApplicationEvent event) {
         // 1. 本地发布（同进程内所有 @EventListener 立即收到）
         localPublisher.publishEvent(event);
 

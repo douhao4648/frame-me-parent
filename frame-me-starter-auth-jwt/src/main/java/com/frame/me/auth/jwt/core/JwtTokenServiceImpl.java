@@ -27,7 +27,7 @@ import java.util.UUID;
  */
 @Slf4j
 @RequiredArgsConstructor
-public class JwtTokenService implements IAuthService {
+public class JwtTokenServiceImpl implements IAuthService {
 
     /**
      * 原始登录时间（Epoch 毫秒）claim，仅 Refresh Token 携带，续期时原样透传，

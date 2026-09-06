@@ -34,7 +34,7 @@ public final class SsoStpUtil {
     /**
      * SSO 体系 StpLogic：本服务所有登录/登出/验 token 动作的统一入口.
      */
-    public static final StpLogic stpLogic = SaManager.getStpLogic(TYPE);
+    public static final StpLogic STP_LOGIC = SaManager.getStpLogic(TYPE);
 
     private SsoStpUtil() {
     }

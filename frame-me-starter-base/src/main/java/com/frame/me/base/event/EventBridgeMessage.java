@@ -1,6 +1,6 @@
 package com.frame.me.base.event;
 
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +12,7 @@ import java.time.Instant;
  * 跨服务事件桥接的通用消息包装.
  *
  * <p>通过传输通道广播时，所有具体事件被序列化为该包装类型。
- * 接收方根据 {@code type} 字段分发到对应的本地 {@link MeApplicationEvent}。</p>
+ * 接收方根据 {@code type} 字段分发到对应的本地 {@link AbstractMeApplicationEvent}。</p>
  *
  * @author frame-me
  */
@@ -57,7 +57,7 @@ public class EventBridgeMessage implements Serializable {
     private String targetId;
 
     /**
-     * 事件唯一 ID（从 {@code MeApplicationEvent} 透传，用于消费方去重/幂等）.
+     * 事件唯一 ID（从 {@code AbstractMeApplicationEvent} 透传，用于消费方去重/幂等）.
      */
     private String eventId;
 

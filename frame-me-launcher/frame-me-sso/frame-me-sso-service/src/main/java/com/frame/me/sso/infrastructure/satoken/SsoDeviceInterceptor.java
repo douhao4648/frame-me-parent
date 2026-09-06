@@ -26,10 +26,10 @@ public class SsoDeviceInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        if (!SsoStpUtil.stpLogic.isLogin()) {
+        if (!SsoStpUtil.STP_LOGIC.isLogin()) {
             return true;
         }
-        String device = SsoStpUtil.stpLogic.getLoginDeviceType();
+        String device = SsoStpUtil.STP_LOGIC.getLoginDeviceType();
         if (!SaTokenConsts.DEFAULT_LOGIN_DEVICE_TYPE.equals(device)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "管理端点仅接受 SSO 登录会话");
         }

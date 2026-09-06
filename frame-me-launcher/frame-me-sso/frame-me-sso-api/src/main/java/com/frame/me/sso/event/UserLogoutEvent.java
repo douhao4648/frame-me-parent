@@ -1,6 +1,6 @@
 package com.frame.me.sso.event;
 
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Setter
-public class UserLogoutEvent extends MeApplicationEvent {
+public class UserLogoutEvent extends AbstractMeApplicationEvent {
 
     @Serial
     private static final long serialVersionUID = 1L;

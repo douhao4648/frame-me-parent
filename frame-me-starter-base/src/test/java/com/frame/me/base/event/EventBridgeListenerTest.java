@@ -1,7 +1,7 @@
 package com.frame.me.base.event;
 
 import com.frame.me.event.IEventType;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
@@ -56,7 +56,7 @@ class EventBridgeListenerTest {
     void sameServiceOtherInstanceIsDispatchedInInstanceMode() {
         listener.onMessage(message(SELF_NAME, "other-instance"));
 
-        verify(publisher).publishEvent(any(MeApplicationEvent.class));
+        verify(publisher).publishEvent(any(AbstractMeApplicationEvent.class));
     }
 
     /**
@@ -78,7 +78,7 @@ class EventBridgeListenerTest {
     void messageFromOtherServiceIsDispatched() {
         listener.onMessage(message("other-service", "other-instance"));
 
-        verify(publisher).publishEvent(any(MeApplicationEvent.class));
+        verify(publisher).publishEvent(any(AbstractMeApplicationEvent.class));
     }
 
     private static EventBridgeMessage message(String sourceService, String sourceInstanceId) {
@@ -102,8 +102,8 @@ class EventBridgeListenerTest {
         }
 
         @Override
-        public MeApplicationEvent toLocalEvent(String payload, String source, String sourceInstanceId) {
-            return new MeApplicationEvent(payload) {
+        public AbstractMeApplicationEvent toLocalEvent(String payload, String source, String sourceInstanceId) {
+            return new AbstractMeApplicationEvent(payload) {
                 @Override
                 public String getEventType() {
                     return type();

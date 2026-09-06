@@ -10,14 +10,14 @@ SSO 服务（`frame-me-sso-service`）是独立 Spring Boot 认证服务，提�
 
 - **应用注册表**：登记内部/外部应用，分配 `appId`（外部额外分配 `appSecret`）
 - **授权码流程**：`/api/auth/authorize` → 登录（`POST /base/auth/login`）→ 回调带 code → `/api/auth/token` 换 sa-token 不透明 token
-- **/userinfo 端点**：`GET /api/users/info`，下游凭 token 调用，SSO 用 sa-token 原生验 token（`SsoStpUtil.stpLogic.getLoginIdByToken`），返回用户信息
-- **踢人（档3事件）**：SSO 踢人 `SsoStpUtil.stpLogic.logout(userId)` 即时清 SSO 侧 sa-token 会话 + 发 `UserLogoutEvent` 跨进程广播，下游订阅清自己 session
+- **/userinfo 端点**：`GET /api/users/info`，下游凭 token 调用，SSO 用 sa-token 原生验 token（`SsoStpUtil.STP_LOGIC.getLoginIdByToken`），返回用户信息
+- **踢人（档3事件）**：SSO 踢人 `SsoStpUtil.STP_LOGIC.logout(userId)` 即时清 SSO 侧 sa-token 会话 + 发 `UserLogoutEvent` 跨进程广播，下游订阅清自己 session
 
 ### 账号体系：独立 `sso` loginType
 
-SSO 服务整体使用 sa-token 多账号体系中的独立 `sso` 体系（`SsoStpUtil.stpLogic`，即 `new StpLogic("sso")`），与其他服务默认的 `login` 体系（`StpUtil`）共存：
+SSO 服务整体使用 sa-token 多账号体系中的独立 `sso` 体系（`SsoStpUtil.STP_LOGIC`，即 `new StpLogic("sso")`），与其他服务默认的 `login` 体系（`StpUtil`）共存：
 
-- 配置：`me.auth.sa-token.logic-type: sso`（starter 全部认证动作改走该体系）；业务侧经 `SsoStpUtil.stpLogic` 调用，`@SaCheck*` 注解加 `type = SsoStpUtil.TYPE`
+- 配置：`me.auth.sa-token.logic-type: sso`（starter 全部认证动作改走该体系）；业务侧经 `SsoStpUtil.STP_LOGIC` 调用，`@SaCheck*` 注解加 `type = SsoStpUtil.TYPE`
 - Redis key：`satoken:sso:token|session:*`（key 规则 `{tokenName}:{loginType}:*`），与下游的 `satoken:login:*` 在同一 Redis 中命名空间隔离、互不串号
 - 请求头/Cookie 名仍为全局 `sa-token.token-name`（`satoken`），两体系共用通道名但 key 空间不同
 - 若开启 `sa-token.token-prefix`（如 `Bearer`）：`satoken` 头须按 `Bearer <token>` 提交（大小写敏感，未带前缀视为未登录）；Cookie 通道存裸 token 不受影响；`Authorization: Bearer` 应用 token 通道（`SsoTokenUtils` 手工解析）与该配置无关
@@ -26,10 +26,10 @@ SSO 服务整体使用 sa-token 多账号体系中的独立 `sso` 体系（`SsoS
 
 SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 独立时效**：
 
-- 签发：`SsoStpUtil.stpLogic.createLoginSession(userId, SaLoginParameter().setDeviceType(appId).setTimeout(7d))`，不依赖请求上下文（下游服务端 POST 调用无浏览器上下文）；签发后调用 `SaTokenAuthService.markLoginTime(SsoStpUtil.stpLogic, loginId)` 补记登录时间戳——该路径绕过了 starter 的 `login/loginByUser`，不补记则 refresh 的绝对寿命闸门（`me.auth.sa-token.max-lifetime`）会从第一次续期起算（宽限路径）
+- 签发：`SsoStpUtil.STP_LOGIC.createLoginSession(userId, SaLoginParameter().setDeviceType(appId).setTimeout(7d))`，不依赖请求上下文（下游服务端 POST 调用无浏览器上下文）；签发后调用 `SaTokenAuthService.markLoginTime(SsoStpUtil.STP_LOGIC, loginId)` 补记登录时间戳——该路径绕过了 starter 的 `login/loginByUser`，不补记则 refresh 的绝对寿命闸门（`me.auth.sa-token.max-lifetime`）会从第一次续期起算（宽限路径）
 - app 维度：`deviceType=appId`，会话绑定具体应用，可按 app 单独踢人
 - 独立时效：`me.sso.token.app-timeout`（默认 1d），与浏览器登录会话（`sa-token.timeout` 7d + `active-timeout` 8h 闲置冻结）分开，互不影响
-- 验证：`SsoStpUtil.stpLogic.getLoginIdByToken(token)`，查 sa-token Redis（sso 体系），原生能力，零自写验签代码
+- 验证：`SsoStpUtil.STP_LOGIC.getLoginIdByToken(token)`，查 sa-token Redis（sso 体系），原生能力，零自写验签代码
 - 下游不自己验 token，调 `/userinfo` 由 SSO 代劳验证 + 返回用户信息
 - 无 JWT、无公钥私钥、无 jjwt 依赖
 
@@ -109,7 +109,7 @@ curl -X POST http://sso:10010/api/auth/token \
      -H 'Authorization: Bearer <sa-token>'
    ```
    返回 `{ "data": { "sub":"1001", "account":"alice", "name":"Alice", "roles":"admin" } }`。
-   - SSO 用 `SsoStpUtil.stpLogic.getLoginIdByToken` 验 token（查 sa-token Redis 的 sso 体系），无效返 401
+   - SSO 用 `SsoStpUtil.STP_LOGIC.getLoginIdByToken` 验 token（查 sa-token Redis 的 sso 体系），无效返 401
    - 用户信息走 L1/L2 缓存（60s，写路径同步失效），改名不需重签 token
    - 下游不自己验 token，零验签代码、零密钥管理
 
@@ -133,7 +133,7 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > `SsoAuthService.loadUserByUpstreamToken(userId)`（取留存 token → 重拉 /userinfo →
 > 重建 User，含 sub 一致性校验防串号，取不到/失败返回 null 即 fail-closed）——RP 下游
 > （无本地用户表）无需自己实现 `IAuthUserDetailsService`：starter 在未自定义时兜底装配
-> `SsoAuthUserDetailsService`（`loadUserById` 即委托该方法），自定义则自动退让。
+> `SsoAuthUserDetailsServiceImpl`（`loadUserById` 即委托该方法），自定义则自动退让。
 > **appId 隔离的意义**：不同应用的 token 互不覆盖，共用存储后端的多个下游结构性免疫互撞。
 > **安全约定**：SSO token 是 bearer 凭证，只存服务端，不得写入下发客户端的凭证（如 JWT claims）。
 > 注意留存的 token 是 app 维度凭证（`deviceType=appId`），受 SSO 设备闸限制，
@@ -165,7 +165,7 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > 无 code 的直达访问不跳转（防自转循环）。
 >
 > **认证实现通用**：端点依赖 `IAuthService.loginByUser`，sa-token/JWT 两套实现均覆盖
-> （`SaTokenAuthService` 建会话 + Account-Session 快照缓存；`JwtTokenService` 建 token 对并写入
+> （`SaTokenAuthService` 建会话 + Account-Session 快照缓存；`JwtTokenServiceImpl` 建 token 对并写入
 > `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` miss 时从 claims 重建 User），下游任选其一。
 
 ## 回调落地：两种方式
@@ -214,14 +214,14 @@ authorize 回调带 code 回到下游后，starter 提供两种落地方式（�
 
 | 层 | 机制 | 即时性 |
 |---|---|---|
-| SSO 侧（默认） | `SsoStpUtil.stpLogic.logout(userId)` 清 SSO 的 sa-token 会话（含给下游的 token） | 即时，下游持有的 SSO token 立即失效 |
+| SSO 侧（默认） | `SsoStpUtil.STP_LOGIC.logout(userId)` 清 SSO 的 sa-token 会话（含给下游的 token） | 即时，下游持有的 SSO token 立即失效 |
 | 下游侧（可选） | 档3事件：SSO 发 `UserLogoutEvent`，下游订阅清自己 sa-token session | 事件到达即清 |
 
 ### SSO 侧踢人
 
 `POST /api/auth/{userId}/logout?appId=xxx&reason=xxx`：
-- 传 `appId` → `SsoStpUtil.stpLogic.logout(userId, appId)` 只清该用户在该 app 的会话（deviceType 匹配），其他 app 会话和浏览器登录态不受影响
-- 不传 `appId` → `SsoStpUtil.stpLogic.logout(userId)` 清该用户所有 sa-token 会话（含浏览器登录态 + 各 app 的下游 token）
+- 传 `appId` → `SsoStpUtil.STP_LOGIC.logout(userId, appId)` 只清该用户在该 app 的会话（deviceType 匹配），其他 app 会话和浏览器登录态不受影响
+- 不传 `appId` → `SsoStpUtil.STP_LOGIC.logout(userId)` 清该用户所有 sa-token 会话（含浏览器登录态 + 各 app 的下游 token）
 - 给下游的 token 立即失效，下游调 /userinfo 会 401
 - 但下游**已建的 sa-token session** SSO 清不到，靠下游 session 短时效兜底（建议配 30min~2h）或档3事件即时清
 
@@ -363,6 +363,6 @@ public class YourLogoutListener {
 starter 不绑认证底座，下游按需选择：
 
 - **sa-token**：引 `frame-me-starter-auth-sa-token`，调 `IAuthService.loginByUser(user)` 建 sa-token 会话（`SaTokenAuthService` 覆盖了 default 方法，内部 `StpLogic.login` + 用户快照写 Account-Session 缓存）。
-- **JWT**：引 `frame-me-starter-auth-jwt`，`JwtTokenService.loginByUser` 签发 token 对并写入 `rp`/`nickname` 快照 claims——下游无本地用户表（`loadUserById` 恒 null）时，`getUser`/`refresh` 从 claims 快照重建 User。
+- **JWT**：引 `frame-me-starter-auth-jwt`，`JwtTokenServiceImpl.loginByUser` 签发 token 对并写入 `rp`/`nickname` 快照 claims——下游无本地用户表（`loadUserById` 恒 null）时，`getUser`/`refresh` 从 claims 快照重建 User。
 
 `IAuthService.loginByUser(User)` 是 RP 场景的统一入口（接口 default 抛异常，sa-token/JWT 两套实现均覆盖）。

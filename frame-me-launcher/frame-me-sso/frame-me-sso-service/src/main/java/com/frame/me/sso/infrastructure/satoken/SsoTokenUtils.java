@@ -41,7 +41,7 @@ public final class SsoTokenUtils {
      * 从 Authorization 头解析 Bearer token 并验证.
      *
      * <p>按 RFC 6750 §2.1，Bearer 前缀大小写不敏感（{@code Bearer} / {@code bearer} /
-     * {@code BEARER} 均应接受），与 JWT 侧 {@code JwtTokenService#extractToken} 的
+     * {@code BEARER} 均应接受），与 JWT 侧 {@code JwtTokenServiceImpl#extractToken} 的
      * {@code regionMatches(true,...)} 语义对齐——客户端发小写前缀不应导致验签失败.</p>
      *
      * @param authorization Authorization 头值，形如 "Bearer &lt;token&gt;"（兼容裸 token）
@@ -50,7 +50,7 @@ public final class SsoTokenUtils {
      */
     public static String requireBearerLoginId(String authorization) {
         String token = extractBearerToken(authorization);
-        Object loginId = token == null || token.isBlank() ? null : SsoStpUtil.stpLogic.getLoginIdByToken(token);
+        Object loginId = token == null || token.isBlank() ? null : SsoStpUtil.STP_LOGIC.getLoginIdByToken(token);
         if (loginId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "token 无效或已过期");
         }

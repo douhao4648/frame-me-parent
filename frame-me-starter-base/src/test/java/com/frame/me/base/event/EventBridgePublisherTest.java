@@ -2,7 +2,7 @@ package com.frame.me.base.event;
 
 import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.event.IEventType;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -203,7 +203,7 @@ class EventBridgePublisherTest {
      * 测试事件.
      */
     @SuppressWarnings("serial")
-    private static class TestEvent extends MeApplicationEvent {
+    private static class TestEvent extends AbstractMeApplicationEvent {
 
         private final String type;
         private final String value;
@@ -274,7 +274,7 @@ class EventBridgePublisherTest {
         }
 
         @Override
-        public MeApplicationEvent toLocalEvent(TestPayload payload, String source, String sourceInstanceId) {
+        public AbstractMeApplicationEvent toLocalEvent(TestPayload payload, String source, String sourceInstanceId) {
             return new TestEvent(source, type(), payload.getValue());
         }
     }

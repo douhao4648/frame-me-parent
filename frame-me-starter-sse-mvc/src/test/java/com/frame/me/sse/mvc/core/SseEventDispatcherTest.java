@@ -1,7 +1,7 @@
 package com.frame.me.sse.mvc.core;
 
 import com.frame.me.event.EventClientPermit;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import com.frame.me.sse.mvc.config.SseProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -82,7 +82,7 @@ class SseEventDispatcherTest {
 
     @SuppressWarnings("serial")
     @EventClientPermit
-    private static class TestEvent extends MeApplicationEvent {
+    private static class TestEvent extends AbstractMeApplicationEvent {
 
         private final String eventType;
         private final String targetId;
@@ -105,7 +105,7 @@ class SseEventDispatcherTest {
     }
 
     @SuppressWarnings("serial")
-    private static class ForbiddenEvent extends MeApplicationEvent {
+    private static class ForbiddenEvent extends AbstractMeApplicationEvent {
 
         private final String eventType;
         private final String targetId;

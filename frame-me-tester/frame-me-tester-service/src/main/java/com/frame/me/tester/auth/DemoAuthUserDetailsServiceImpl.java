@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
  * @author frame-me
  */
 @Service
-public class DemoAuthUserDetailsService implements IAuthUserDetailsService {
+public class DemoAuthUserDetailsServiceImpl implements IAuthUserDetailsService {
 
     /**
      * 示例加密密码：明文从 {@code DEMO_PASSWORD} 环境变量读取，默认 {@code 123456} 仅供演示.

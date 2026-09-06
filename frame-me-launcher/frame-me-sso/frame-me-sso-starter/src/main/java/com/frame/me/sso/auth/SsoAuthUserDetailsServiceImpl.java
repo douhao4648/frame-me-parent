@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Lazy;
  *
  * @author frame-me
  */
-public class SsoAuthUserDetailsService implements IAuthUserDetailsService {
+public class SsoAuthUserDetailsServiceImpl implements IAuthUserDetailsService {
 
     private final SsoAuthService ssoAuthService;
 
@@ -28,7 +28,7 @@ public class SsoAuthUserDetailsService implements IAuthUserDetailsService {
      * {@code @Lazy} 打破构造环：认证实现（{@code SaTokenAuthService}）构造依赖本接口，
      * 本类经 {@link SsoAuthService} 又依赖 {@code IAuthService}；延迟注入后首次调用时才解析.
      */
-    public SsoAuthUserDetailsService(@Lazy SsoAuthService ssoAuthService) {
+    public SsoAuthUserDetailsServiceImpl(@Lazy SsoAuthService ssoAuthService) {
         this.ssoAuthService = ssoAuthService;
     }
 

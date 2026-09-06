@@ -40,10 +40,10 @@ public class LogoutServiceImpl implements ILogoutService {
         try {
             if (appId != null && !appId.isBlank()) {
                 // 按 app 踢：deviceType=appId，只清该 userId 在该 appId 的会话
-                SsoStpUtil.stpLogic.logout(userId, appId);
+                SsoStpUtil.STP_LOGIC.logout(userId, appId);
             } else {
                 // 踢所有 app 会话
-                SsoStpUtil.stpLogic.logout(userId);
+                SsoStpUtil.STP_LOGIC.logout(userId);
             }
             log.info("强制登出用户: userId={}, appId={}, reason={}", userId, appId, reason);
         } catch (Exception e) {
@@ -70,22 +70,22 @@ public class LogoutServiceImpl implements ILogoutService {
         int kicked = 0;
         try {
             // 应用 token 会话（client_credentials 颁发，loginId="app:"+appId）
-            SsoStpUtil.stpLogic.logout(SsoTokenUtils.appLoginId(appId));
+            SsoStpUtil.STP_LOGIC.logout(SsoTokenUtils.appLoginId(appId));
             kicked++;
             // 遍历 sso 体系全部会话，踢 deviceType=appId 的用户 token。
             // searchSessionId("", 0, -1) 全量扫描——应用数/会话数有限，可接受。
             // 前缀经 splicingKeySession("") 动态生成（satoken:sso:session:），跟随体系配置
-            String prefix = SsoStpUtil.stpLogic.splicingKeySession("");
-            for (String sessionId : SsoStpUtil.stpLogic.searchSessionId("", 0, -1, false)) {
+            String prefix = SsoStpUtil.STP_LOGIC.splicingKeySession("");
+            for (String sessionId : SsoStpUtil.STP_LOGIC.searchSessionId("", 0, -1, false)) {
                 String loginId = sessionId.substring(prefix.length());
-                SaSession session = SsoStpUtil.stpLogic.getSessionByLoginId(loginId, false);
+                SaSession session = SsoStpUtil.STP_LOGIC.getSessionByLoginId(loginId, false);
                 if (session == null) {
                     continue;
                 }
                 // terminalListCopy：logoutByTokenValue 会改 terminalList，直接遍历 Vector 抛 CME
                 for (SaTerminalInfo terminal : session.terminalListCopy()) {
                     if (appId.equals(terminal.getDeviceType())) {
-                        SsoStpUtil.stpLogic.logoutByTokenValue(terminal.getTokenValue());
+                        SsoStpUtil.STP_LOGIC.logoutByTokenValue(terminal.getTokenValue());
                         kicked++;
                     }
                 }

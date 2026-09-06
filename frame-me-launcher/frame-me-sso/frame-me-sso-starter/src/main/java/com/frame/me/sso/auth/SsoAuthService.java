@@ -32,7 +32,7 @@ import org.springframework.stereotype.Service;
  *
  * <p><b>认证实现通用</b>：{@link IAuthService#loginByUser} 由下游认证实现覆盖——
  * {@code SaTokenAuthService} 调 {@code StpLogic.login} 建会话（默认 {@code login} 账号体系），
- * {@code JwtTokenService} 调 {@code buildTokenPair} 建 token 对。sa-token/JWT 两套下游均可用
+ * {@code JwtTokenServiceImpl} 调 {@code buildTokenPair} 建 token 对。sa-token/JWT 两套下游均可用
  * sso-login 端点。</p>
  *
  * @author frame-me

@@ -94,12 +94,9 @@ class RedissonLockTest {
         String key = "test:lock:exclusive";
         assertTrue(RedissonLock.tryLock(key, 0, 30000), "第一个线程应能获取锁");
 
-        // 在另一个线程尝试获取同一把锁，应失败
+        // 在另一个线程尝试获取同一把锁，应失败（虚拟线程，JVM 托管）
         boolean[] acquired = {false};
-        Thread t = new Thread(() -> {
-            acquired[0] = RedissonLock.tryLock(key, 100, 100);
-        });
-        t.start();
+        Thread t = Thread.startVirtualThread(() -> acquired[0] = RedissonLock.tryLock(key, 100, 100));
         t.join();
 
         assertFalse(acquired[0], "第二个线程在租期内不应获取到锁");

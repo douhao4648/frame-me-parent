@@ -1,17 +1,17 @@
 package com.frame.me.op.audit.core;
 
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import lombok.Getter;
 
 /**
  * 审计日志事件.
  *
- * <p>继承 {@link MeApplicationEvent}，可通过 {@code me.audit.target-service}
+ * <p>继承 {@link AbstractMeApplicationEvent}，可通过 {@code me.audit.target-service}
  * 配置决定是否桥接到专门的审计服务。</p>
  *
  * @author frame-me
  */
-public class AuditLogEvent extends MeApplicationEvent {
+public class AuditLogEvent extends AbstractMeApplicationEvent {
 
     private static final long serialVersionUID = 1L;
 

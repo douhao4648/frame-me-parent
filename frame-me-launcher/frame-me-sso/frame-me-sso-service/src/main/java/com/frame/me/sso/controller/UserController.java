@@ -42,7 +42,7 @@ public class UserController implements IUserApi {
     /**
      * 用户信息端点.
      *
-     * <p>下游凭 token 调用，SSO 用 {@code SsoStpUtil.stpLogic.getLoginIdByToken} 原生验 token
+     * <p>下游凭 token 调用，SSO 用 {@code SsoStpUtil.STP_LOGIC.getLoginIdByToken} 原生验 token
      * （查 sa-token Redis 的 {@code sso} 账号体系），通过后从 userId 现查 {@code sso_user}
      * 返回 account/name/roles. 无 JWT 验签代码.</p>
      *
@@ -121,7 +121,7 @@ public class UserController implements IUserApi {
         if (user == null) {
             return Result.error(ResultCode.ERROR, "用户不存在");
         }
-        if ("DISABLED".equals(dto.getStatus()) && SsoStpUtil.stpLogic.getLoginIdAsLong() == id) {
+        if ("DISABLED".equals(dto.getStatus()) && SsoStpUtil.STP_LOGIC.getLoginIdAsLong() == id) {
             return Result.error(ResultCode.ERROR, "不能禁用当前登录账号");
         }
         boolean kick = false;
@@ -159,7 +159,7 @@ public class UserController implements IUserApi {
         if (user == null) {
             return Result.error(ResultCode.ERROR, "用户不存在");
         }
-        if (SsoStpUtil.stpLogic.getLoginIdAsLong() == id) {
+        if (SsoStpUtil.STP_LOGIC.getLoginIdAsLong() == id) {
             return Result.error(ResultCode.ERROR, "不能删除当前登录账号");
         }
         userService.delete(id);

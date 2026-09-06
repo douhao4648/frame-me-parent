@@ -12,7 +12,7 @@
 
 Spring Cloud Gateway（WebFlux，`spring-cloud-starter-gateway-server-webflux`，SC 2025.1.2 BOM 管控）。
 
-**依赖红线**：网关**不引** `frame-me-boot` / `frame-me-starter-base` / `frame-me-starter-auth*` / `frame-me-starter-multi-redis` / sa-token——它们经 base 拖入 `spring-boot-starter-web`（Servlet 栈），与 SC Gateway WebFlux 同 classpath 直接启动失败。网关侧不引用也不复用这些模块的类（如 `JwtTokenService`/`RedisSaTokenDao`），对应能力在网关内以 web 无关方式重写，约定以防漂移测试与本文档维护。
+**依赖红线**：网关**不引** `frame-me-boot` / `frame-me-starter-base` / `frame-me-starter-auth*` / `frame-me-starter-multi-redis` / sa-token——它们经 base 拖入 `spring-boot-starter-web`（Servlet 栈），与 SC Gateway WebFlux 同 classpath 直接启动失败。网关侧不引用也不复用这些模块的类（如 `JwtTokenServiceImpl`/`RedisSaTokenDao`），对应能力在网关内以 web 无关方式重写，约定以防漂移测试与本文档维护。
 
 反向同样成立：共享 starter（含 `frame-me-starter-cloud`）不声明任何 web 栈硬依赖，Servlet 应用不会因本工程支持 WebFlux 网关而拿到 flux jar。
 

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
-public class SsoUserDetailsService implements IAuthUserDetailsService {
+public class SsoUserDetailsServiceImpl implements IAuthUserDetailsService {
 
     private final IUserService userService;
 

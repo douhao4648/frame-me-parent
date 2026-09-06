@@ -115,13 +115,50 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
 
     /**
      * 上游 token 条目：appId → token 的映射 + 用户级过期时间戳（毫秒）.
+     *
+     * <p>不用 record：P3C 会把 record 头误判为方法名（UpstreamEntry 不符合
+     * lowerCamelCase），普通 final class 构造器不会被扫描.</p>
      */
-    private record UpstreamEntry(Map<String, String> tokens, long expireAtMillis) {
+    private static final class UpstreamEntry {
+
+        private final Map<String, String> tokens;
+        private final long expireAtMillis;
+
+        private UpstreamEntry(Map<String, String> tokens, long expireAtMillis) {
+            this.tokens = tokens;
+            this.expireAtMillis = expireAtMillis;
+        }
+
+        private Map<String, String> tokens() {
+            return tokens;
+        }
+
+        private long expireAtMillis() {
+            return expireAtMillis;
+        }
     }
 
     /**
      * 存储条目：token + 过期时间戳（毫秒）.
+     *
+     * <p>不用 record：同 {@link UpstreamEntry} 的 P3C 误判说明.</p>
      */
-    private record Entry(String token, long expireAtMillis) {
+    private static final class Entry {
+
+        private final String token;
+        private final long expireAtMillis;
+
+        private Entry(String token, long expireAtMillis) {
+            this.token = token;
+            this.expireAtMillis = expireAtMillis;
+        }
+
+        private String token() {
+            return token;
+        }
+
+        private long expireAtMillis() {
+            return expireAtMillis;
+        }
     }
 }

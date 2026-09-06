@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * JWT 用户 token 验证器：本地验签下游 auth-jwt 签发的 access token（无状态，不查 Redis）.
  *
- * <p>约定与 {@code frame-me-starter-auth-jwt} 的 JwtTokenService 对齐（docs/guides/gateway.md
+ * <p>约定与 {@code frame-me-starter-auth-jwt} 的 JwtTokenServiceImpl 对齐（docs/guides/gateway.md
  * 维护漂移防线）：HS256 共享密钥（≥256 位）、{@code iss} 必须匹配、
  * {@code type=access}、{@code userId}/{@code account} claims。</p>
  *
@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 public class JwtUserValidator implements IUserValidator {
 
     /**
-     * HMAC 密钥最低字节数（256 位），与 JwtTokenService 一致.
+     * HMAC 密钥最低字节数（256 位），与 JwtTokenServiceImpl 一致.
      */
     private static final int MIN_KEY_BYTES = 32;
 

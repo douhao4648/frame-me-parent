@@ -16,7 +16,7 @@
   - `com.frame.me.api.enums.IEnum` — 通用枚举接口。
   - `com.frame.me.api.enums.GenderEnum` — 示例枚举（实现 `IEnum`）。
   - `com.frame.me.api.enums.YesNoEnum` — 是/否枚举（实现 `IEnum`）。
-  - `com.frame.me.event.MeApplicationEvent` — 可桥接的本地事件基类。
+  - `com.frame.me.event.AbstractMeApplicationEvent` — 可桥接的本地事件基类。
   - `com.frame.me.event.IEventType<T>` — 事件类型映射接口。
   - `com.frame.me.event.EventBridgeMessage` — 跨服务传输的通用包装。
   - `com.frame.me.event.EventClientPermit` — 允许通过 SSE/WebSocket 推送给客户端的事件标记注解。
@@ -411,7 +411,7 @@ me:
 - **关键类**：
   - `com.frame.me.auth.jwt.config.JwtAutoConfiguration` — 自动装配入口，通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 保证优先于 auth 抽象层加载。
   - `com.frame.me.auth.jwt.config.JwtAuthProperties` — `me.auth.jwt.*` 配置属性绑定。
-  - `com.frame.me.auth.jwt.core.JwtTokenService` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。**RP 快照**：`loginByUser`（SSO 下游等无本地用户表场景）签发的 token 额外写入 `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` 返回 null 且 token 带 `rp` 标记时从 claims 重建 User（否则 JWT 无状态下 RP 每请求 401）；密码登录签发的 token 无 `rp` 标记，"删用户即时失效"语义不受影响。RP 续期链路原样透传快照。
+  - `com.frame.me.auth.jwt.core.JwtTokenServiceImpl` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。**RP 快照**：`loginByUser`（SSO 下游等无本地用户表场景）签发的 token 额外写入 `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` 返回 null 且 token 带 `rp` 标记时从 claims 重建 User（否则 JWT 无状态下 RP 每请求 401）；密码登录签发的 token 无 `rp` 标记，"删用户即时失效"语义不受影响。RP 续期链路原样透传快照。
   - `com.frame.me.auth.jwt.core.JwtAuthUserResolver` — `IAuthUserResolver` 实现，从 `Authorization: Bearer ...` 解析当前用户。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户、校验密码（与 Sa-Token 实现共用）。
   - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。兼作 RP 上游 token 存储：`saveUpstreamToken(userId, appId, token, expires)`/`getUpstreamToken(userId, appId)`/`deleteUpstreamTokens(userId)`/`renewUpstreamTokens(userId, expires)`（default no-op；Redis 实现为用户级 hash——key `me.auth.jwt.upstream-token-prefix` + userId（默认 `auth:upstream:`），field=appId，应用维度隔离、多下游共用 Redis 结构性免疫互撞，TTL 用户级共享；InMemory 实现同语义独立 map 惰性过期），JWT 无 session，上游 token 借此落地服务端、随本地会话同生共死（`refresh` 续期条目 TTL，logout/logoutByUserId 同步清除）。
@@ -427,7 +427,7 @@ me:
   - `me.auth.jwt.refresh-token-expires` — Refresh Token 有效期，默认 `P7D`。
   - `me.auth.jwt.max-lifetime` — 会话绝对寿命上限，默认 `P30D`；`<= 0` 表示不限制。登录时把登录时间写入 Refresh Token 的 `auth_time` 签名 claim 并随续期链路透传，累计超过上限即拒绝续期（4001），防止被偷的 Refresh Token 无限链式续期；存量无 `auth_time` 的 token 按当前时间起算（一次宽限）。
   - `me.auth.jwt.token-header` — Token 请求头，默认 `Authorization`。鉴权解析、logout、refresh 全部共用此配置源（refresh 不硬编码 `Authorization`）。
-  - `me.auth.jwt.token-prefix` — Token 前缀，默认 `Bearer `。按 RFC 6750 §2.1 前缀大小写不敏感（`Bearer`/`bearer`/`BEARER` 均接受），`JwtTokenService.extractToken` 与 `JwtAuthController.extractToken` 用 `regionMatches(true, ...)` 忽略大小写匹配剥离。
+  - `me.auth.jwt.token-prefix` — Token 前缀，默认 `Bearer `。按 RFC 6750 §2.1 前缀大小写不敏感（`Bearer`/`bearer`/`BEARER` 均接受），`JwtTokenServiceImpl.extractToken` 与 `JwtAuthController.extractToken` 用 `regionMatches(true, ...)` 忽略大小写匹配剥离。
   - `me.auth.jwt.cookie-domain` — Refresh Token Cookie 的 Domain。未配置时 JSON 返回 Refresh Token；配置后（如 `.example.com`）将 Refresh Token 作为 `HttpOnly`/`Secure`/`SameSite=Lax` Cookie 下发，JSON 中不再返回，且 `refresh`/`logout` 自动读写/清除 Cookie。
   - `me.auth.jwt.path` — JWT 认证接口基础路径，默认 `/api/auth`；配置后登录/登出/刷新/当前用户接口均迁移到该路径下。
 - **设计约定**：
@@ -677,7 +677,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
 - **依赖**：`frame-me-starter-base`、`spring-boot-starter-web`、`fastjson2`、`lombok`。
 - **关键类**：
   - `com.frame.me.sse.mvc.core.SseEmitterManager` — Emitter 生命周期与路由管理；提供 `heartbeat()` 发送 SSE comment 保活并清理失败连接。
-  - `com.frame.me.sse.mvc.core.SseEventDispatcher` — 监听 `MeApplicationEvent` 并转发到 SSE。
+  - `com.frame.me.sse.mvc.core.SseEventDispatcher` — 监听 `AbstractMeApplicationEvent` 并转发到 SSE。
   - `com.frame.me.sse.mvc.service.SsePushService` — 业务推送 API。
   - `com.frame.me.sse.mvc.web.SseController` — SSE 订阅端点。
   - `com.frame.me.sse.mvc.config.SseAutoConfiguration` — 自动装配入口。
@@ -694,7 +694,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - `me.sse.timeout` — `SseEmitter` 超时时间（毫秒），`0` 表示不超时，默认 `0`。
   - `me.sse.retry` — 客户端重连间隔（毫秒），订阅建立时以 `retry:` 指令发送给客户端，默认 `3000`。
   - `me.sse.heartbeat-interval` — 心跳间隔（秒），大于 0 时启用调度并发送 SSE comment 保活、探测死连接，默认 `0`（不发）。
-  - `me.sse.broadcast-enabled` — 是否自动把 `MeApplicationEvent` 广播到 SSE，默认 `true`。
+  - `me.sse.broadcast-enabled` — 是否自动把 `AbstractMeApplicationEvent` 广播到 SSE，默认 `true`。
   - `me.sse.targeted-enabled` — 是否启用定向订阅，默认 `true`。
   - 两个开关任一开启即装配 `SseEventDispatcher`（分发时按开关拦截对应分支）；仅当两者同时关闭才不装配。
   - `me.sse.max-emitters` — 单服务实例最大并发 Emitter 数，默认 `1000`（`0` 表示不限制）；每个长连接占用容器线程与句柄，无上限可被 DoS，超限返回 429。
@@ -702,7 +702,7 @@ RedissonTopic.topicUnsubscribe("order:event", listenerId);
   - 广播订阅：`GET {path}/subscribe/{eventType}`（默认 `/api/sse/subscribe/{eventType}`）。
   - 定向订阅：`GET {path}/subscribe?receiverId={receiverId}`（默认 `/api/sse/subscribe?receiverId={receiverId}`）。
   - 业务推送：注入 `SsePushService` 调用 `broadcast` / `pushToReceiver`。
-  - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 SSE 客户端自动收到。
+  - 自动转发：发布 `AbstractMeApplicationEvent` 后，订阅该事件类型的 SSE 客户端自动收到。
 - **设计约定**：
   - **不纳入 `frame-me-boot`**，业务 `xx-service` 需显式引入 `frame-me-starter-sse-mvc` 以获得 SSE 能力（`me.sse.enabled=false` 可关闭）。
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
@@ -731,7 +731,7 @@ me:
 - **依赖**：`frame-me-starter-base`、`spring-boot-starter-websocket`、`fastjson2`、`lombok`。
 - **关键类**：
   - `com.frame.me.ws.mvc.core.WsMvcSessionManager` — WebSocketSession 生命周期与路由管理。
-  - `com.frame.me.ws.mvc.core.WsMvcEventDispatcher` — 监听 `MeApplicationEvent` 并转发到 WebSocket。
+  - `com.frame.me.ws.mvc.core.WsMvcEventDispatcher` — 监听 `AbstractMeApplicationEvent` 并转发到 WebSocket。
   - `com.frame.me.ws.mvc.service.WsMvcPushService` — 业务推送 API。
   - `com.frame.me.ws.mvc.handler.MeWsMvcHandler` — WebSocket 连接与消息处理。
   - `com.frame.me.ws.mvc.config.WsMvcAutoConfiguration` — 自动装配入口（类 Javadoc 记录 WebFlux WebSocket / STOMP / RSocket 后续扩展方向）。
@@ -745,7 +745,7 @@ me:
 - **可配置项**：
   - `me.ws.mvc.enabled` — 是否启用 WebSocket MVC，默认 `true`。
   - `me.ws.mvc.path` — WebSocket 端点路径，默认 `/api/ws`。
-  - `me.ws.mvc.broadcast-enabled` — 是否自动广播 `MeApplicationEvent`，默认 `true`。
+  - `me.ws.mvc.broadcast-enabled` — 是否自动广播 `AbstractMeApplicationEvent`，默认 `true`。
   - `me.ws.mvc.targeted-enabled` — 是否启用定向订阅，默认 `true`。
   - 两个开关任一开启即装配 `WsMvcEventDispatcher`（分发时按开关拦截对应分支）；仅当两者同时关闭才不装配。
   - `me.ws.mvc.max-sessions` — 单服务实例最大并发 session 数，默认 `1000`（`0` 表示不限制）；每个长连接占用内存与发送线程，无上限可被 DoS，超限的新连接以 `POLICY_VIOLATION` 关闭。
@@ -758,7 +758,7 @@ me:
   - 广播订阅：`ws://host{path}?type=broadcast&eventType=user:created`（默认 `/api/ws?type=broadcast&eventType=user:created`）。
   - 定向订阅：`ws://host{path}?type=targeted&receiverId=user:123`（默认 `/api/ws?type=targeted&receiverId=user:123`）。
   - 业务推送：注入 `WsMvcPushService` 调用 `broadcast` / `pushToReceiver`。
-  - 自动转发：发布 `MeApplicationEvent` 后，订阅该事件类型的 WebSocket 客户端自动收到。
+  - 自动转发：发布 `AbstractMeApplicationEvent` 后，订阅该事件类型的 WebSocket 客户端自动收到。
 - **设计约定**：
   - **不纳入 `frame-me-boot`**，由业务 `xx-service` 按需引入。
   - session 注册时以 `ConcurrentWebSocketSessionDecorator` 包装一次并统一持有装饰实例：心跳、广播、pong 等多线程发送由此串行化（避免帧交错），慢客户端受 `send-time-limit` / `buffer-size-limit` 防护；移除按 session id 匹配，原始 session 与装饰实例均可传入。
@@ -895,7 +895,7 @@ public Boolean delete(Long id) { ... }
 - **关键类**：
   - `com.frame.me.op.audit.annotation.AuditLog` — 标记需要记录审计日志的方法。
   - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`；操作人 SPI 异常降级为 `anonymous`，不阻断业务；`maxParamLength` 同时约束参数与返回值。
-  - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `MeApplicationEvent`。
+  - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `AbstractMeApplicationEvent`。
   - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
   - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志；仅打印本实例产生的事件（按 `sourceInstanceId` 与 `me.event-bridge.instance-id` 比对），不重复打印其他实例广播来的事件。
   - `com.frame.me.op.audit.spi.IAuditLogOperatorSupplier` — 操作人提供接口，默认返回 `anonymous`。
@@ -1077,7 +1077,7 @@ public class AlertService {
   - `com.frame.me.tester.api.vo.FlexDemoVO` — 演示返回视图对象（Flex 版）。
   - `com.frame.me.tester.api.vo.DemoComplexVO` — 演示复杂查询返回视图对象。
   - `com.frame.me.tester.event.UserCreatedPayload` — 用户创建事件负载。
-  - `com.frame.me.tester.event.UserCreatedEvent` — 用户创建事件（继承 `MeApplicationEvent`）。
+  - `com.frame.me.tester.event.UserCreatedEvent` — 用户创建事件（继承 `AbstractMeApplicationEvent`）。
   - `com.frame.me.tester.event.UserCreatedEventType` — 用户创建事件类型映射。
   - `com.frame.me.tester.event.UserCreatedEventConfiguration` — 事件配置类（暴露 `UserCreatedEventType` Bean）。
 - **设计约定**：
@@ -1094,7 +1094,7 @@ public class AlertService {
   - `com.frame.me.tester.controller.FlexDemoController` — 实现 `IFlexDemoApi`，演示 MyBatis-Flex CRUD、分页、校验分组。
   - `com.frame.me.tester.controller.DataSourceController` — 实现 `IDataSourceApi`，演示多数据源切换与连接池信息查询；**当前整体注释保留**（未装配），如需启用须先加字段白名单脱敏（jdbc-url/密码不可外泄）。
   - `com.frame.me.tester.controller.RedisController` — 实现 `IRedisApi`，演示 Redis 操作与 Redisson 分布式锁。
-  - `com.frame.me.tester.auth.DemoAuthUserDetailsService` — `IAuthUserDetailsService` 演示实现，接入 JWT 登录（`PasswordUtils` BCrypt 校验）；硬编码 `admin/123456` 示例账号与 `application.yml` 中硬编码 JWT secret 仅供演示，真实业务必须改为数据库查询与独立密钥（starter 层 `JwtTokenService` 启动校验保证密钥非空）。
+  - `com.frame.me.tester.auth.DemoAuthUserDetailsServiceImpl` — `IAuthUserDetailsService` 演示实现，接入 JWT 登录（`PasswordUtils` BCrypt 校验）；硬编码 `admin/123456` 示例账号与 `application.yml` 中硬编码 JWT secret 仅供演示，真实业务必须改为数据库查询与独立密钥（starter 层 `JwtTokenServiceImpl` 启动校验保证密钥非空）。
   - `com.frame.me.tester.service.IFlexDemoService` / `com.frame.me.tester.service.impl.FlexDemoServiceImpl` — 演示 Service 层（Flex 版）；`update` 校验 version 非空，避免 MyBatis-Flex 在 version 为 null 时静默跳过乐观锁。
   - `com.frame.me.tester.service.convert.FlexDemoConvert` — MapStruct 转换器（`@Mapper(componentModel = "spring")`）。
   - `com.frame.me.tester.entity.FlexDemoEntity` — 演示实体，继承 MyBatis-Flex `BaseVersionEntity`。
@@ -1166,7 +1166,7 @@ public class AlertService {
 | 模块 | 职责 |
 |---|---|
 | `frame-me-sso-api` | `@HttpExchange` API 契约（`IAuthApi`/`IAppApi`/`IUserApi`）+ dto/vo/enums，供下游引模块用 Spring HTTP Interface 调用 |
-| `frame-me-sso-starter` | 下游应用一键接入 SSO 的 starter：注册 SSO HTTP Interface 客户端代理（`IAuthApi`/`IUserApi`/`IAppApi`，group=`sso`）+ `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件；**RP 全家桶**：`SsoAuthAutoConfiguration` 装配 `SsoAuthController`+`SsoAuthService`+`SsoCallbackController`+`SsoLogoutEventListener`（+ `SsoAuthUserDetailsService` 兜底）。下游引本 starter + auth-sa-token/auth-jwt 即开箱获得 `POST /api/auth/sso-login` 端点 + 回调落地两端点（`GET /index` hash 落地页 / `GET /callback` 服务端 Cookie 会话回调）+ 踢人监听。强依赖 `frame-me-starter-auth`；登录端点（`loginByUser`）与踢人监听（`logoutByUserId`）均走 SPI，sa-token/JWT 两套实现都覆盖 |
+| `frame-me-sso-starter` | 下游应用一键接入 SSO 的 starter：注册 SSO HTTP Interface 客户端代理（`IAuthApi`/`IUserApi`/`IAppApi`，group=`sso`）+ `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件；**RP 全家桶**：`SsoAuthAutoConfiguration` 装配 `SsoAuthController`+`SsoAuthService`+`SsoCallbackController`+`SsoLogoutEventListener`（+ `SsoAuthUserDetailsServiceImpl` 兜底）。下游引本 starter + auth-sa-token/auth-jwt 即开箱获得 `POST /api/auth/sso-login` 端点 + 回调落地两端点（`GET /index` hash 落地页 / `GET /callback` 服务端 Cookie 会话回调）+ 踢人监听。强依赖 `frame-me-starter-auth`；登录端点（`loginByUser`）与踢人监听（`logoutByUserId`）均走 SPI，sa-token/JWT 两套实现都覆盖 |
 | `frame-me-sso-service` | 启动服务：应用注册表、授权码流程、sa-token 会话治理、用户 CRUD、踢人事件 |
 
 ### 关键类
@@ -1186,7 +1186,7 @@ public class AlertService {
 | `SsoTokenUtils` | `sso/infrastructure/satoken/SsoTokenUtils` | app token 身份收口（`app:` loginId 前缀、Bearer 解析） |
 | `DefaultDeviceInterceptor` | `sso/infrastructure/satoken/DefaultDeviceInterceptor` | 管理端点设备闸：仅认默认设备会话，匿名放行 |
 | `SsoStpInterface` | `sso/infrastructure/satoken/SsoStpInterface` | sa-token 角色源，走 `IUserService#findById` 缓存读 `UserEntity.roles`（app loginId 空列表 fail-closed） |
-| `SsoUserDetailsService` | `sso/infrastructure/satoken/SsoUserDetailsService` | 认证 SPI 适配：UserEntity → base User |
+| `SsoUserDetailsServiceImpl` | `sso/infrastructure/satoken/SsoUserDetailsServiceImpl` | 认证 SPI 适配：UserEntity → base User |
 | `SsoProperties`/`SsoConfiguration` | `sso/infrastructure/config/` | `me.sso.*` 配置 + 拦截器装配 |
 
 **sso-starter 关键类**（`frame-me-sso-starter`）：
@@ -1195,9 +1195,9 @@ public class AlertService {
 |---|---|---|
 | `SsoClientAutoConfiguration` | `sso-starter/config/SsoClientAutoConfiguration` | 注册 HTTP Interface 代理（`IAuthApi`/`IUserApi`/`IAppApi`，group=`sso`）+ `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件 |
 | `SsoClientProperties` | `sso-starter/config/SsoClientProperties` | `me.sso.client.*` 配置（appId/appSecret/redirectUri/indexPath/callbackPath） |
-| `SsoAuthAutoConfiguration` | `sso-starter/config/SsoAuthAutoConfiguration` | RP 装配：`@Import(SsoAuthService/SsoAuthController/SsoCallbackController/SsoLogoutEventListener)` + `@ConditionalOnMissingBean` 兜底装配 `SsoAuthUserDetailsService`（下游自定义 `IAuthUserDetailsService` 时自动退让）；`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；登录端点与踢人监听均走 SPI，sa-token/JWT 两套通用 |
+| `SsoAuthAutoConfiguration` | `sso-starter/config/SsoAuthAutoConfiguration` | RP 装配：`@Import(SsoAuthService/SsoAuthController/SsoCallbackController/SsoLogoutEventListener)` + `@ConditionalOnMissingBean` 兜底装配 `SsoAuthUserDetailsServiceImpl`（下游自定义 `IAuthUserDetailsService` 时自动退让）；`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；登录端点与踢人监听均走 SPI，sa-token/JWT 两套通用 |
 | `SsoCallbackController` | `sso-starter/auth/SsoCallbackController` + `resources/sso/index.html` | 回调落地两端点（匿名）：**方式 A** `GET /index`（`me.sso.client.index-path` 可配）hash 落地页（text/html）——authorize 回调带 code/state 落在该页，页面 JS 校验 state（仅站内相对路径，缺失/为空/不合法回落 `/`，防 open redirect）后经 URL hash 携带 code 重定向到 state 标记地址，目标页（SPA 路由）取 code 调 `/sso-login`；无 code 访问不跳转（防自转循环）；HTML 以 `Resource` 形式返回（不走 `static/`：避免劫持下游 `/` welcome page 与静态资源互踩，且 `@Anonymous` 可随 starter 分发、免配 whitelist）。**方式 B** `GET /callback`（`me.sso.client.callback-path` 可配）服务端回调——code 由服务端直接换 token 建本地会话（sa-token 原生写 Cookie），state 服务端校验（同落地页规则，保留 hash 片段、非法字符按需 percent-encode）后 302 回跳；浏览器同站 Cookie 会话场景前端零 JS，JWT 下游不适用（详见 `docs/guides/sso.md` 回调落地两种方式） |
-| `SsoAuthUserDetailsService` | `sso-starter/auth/SsoAuthUserDetailsService` | RP 兜底 `IAuthUserDetailsService`（无本地用户表下游通用）：`loadUserByAccount` 返回 null；`loadUserById` 薄委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建；`@Lazy` 注入破构造环 |
+| `SsoAuthUserDetailsServiceImpl` | `sso-starter/auth/SsoAuthUserDetailsServiceImpl` | RP 兜底 `IAuthUserDetailsService`（无本地用户表下游通用）：`loadUserByAccount` 返回 null；`loadUserById` 薄委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建；`@Lazy` 注入破构造环 |
 | `SsoAuthService` | `sso-starter/auth/SsoAuthService` | RP 登录编排：code → SSO token → /userinfo 取用户 → `IAuthService.loginByUser` 建本地会话 → `storeUpstreamToken(userId, appId, token)` 按应用隔离留存 SSO token（随本地会话同生共死）；另提供 `loadUserByUpstreamToken(userId)` 回源接口：下游 `IAuthUserDetailsService.loadUserById` 快照 miss 时委托调用，用留存 token 重拉 /userinfo 重建 User（含 sub 一致性校验，取不到/失败返回 null → fail-closed 401 重登）。**M2M**：`getAppToken()` 用 client_credentials 换应用 token 并实例内存缓存（单条目，`me.sso.client.app-token-cache-ttl` 默认 1h），过期自动重取、失败抛 4001 不写缓存，`invalidateAppToken()` 应对缓存 token 401 |
 | `SsoAuthController` | `sso-starter/auth/SsoAuthController` | `POST /api/auth/sso-login`：授权码换本地会话；`@AuditLog` 标注（recordParams/recordResult=false 防敏感数据入审计） |
 | `SsoLoginDTO` | `sso-starter/auth/SsoLoginDTO`（`frame-me-sso-starter`） | RP 登录请求体（code + 可选 redirectUri） |

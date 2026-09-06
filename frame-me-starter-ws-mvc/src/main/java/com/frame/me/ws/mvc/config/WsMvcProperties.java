@@ -21,7 +21,7 @@ public class WsMvcProperties {
     private boolean enabled = true;
 
     /**
-     * 是否自动广播 {@link com.frame.me.event.MeApplicationEvent}，默认 true.
+     * 是否自动广播 {@link com.frame.me.event.AbstractMeApplicationEvent}，默认 true.
      */
     private boolean broadcastEnabled = true;
 

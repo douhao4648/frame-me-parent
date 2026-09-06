@@ -39,7 +39,7 @@ public class DocOpenApiAutoConfiguration {
      * @return OpenAPI
      */
     @Bean
-    public OpenAPI openAPI(DocOpenApiProperties properties) {
+    public OpenAPI openApi(DocOpenApiProperties properties) {
         Contact contact = new Contact();
         contact.setName(properties.getContact().getName());
         contact.setEmail(properties.getContact().getEmail());

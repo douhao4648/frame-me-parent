@@ -2,7 +2,7 @@ package com.frame.me.base.event;
 
 import com.alibaba.fastjson2.JSON;
 import com.frame.me.event.IEventType;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 事件桥接监听器.
  *
  * <p>负责注册事件类型、订阅跨服务通道，并在收到 {@link EventBridgeMessage} 后根据 {@code type}
- * 查找注册器，反序列化负载并还原为本地 {@link MeApplicationEvent}，再次通过 Spring 本地管道发布。
+ * 查找注册器，反序列化负载并还原为本地 {@link AbstractMeApplicationEvent}，再次通过 Spring 本地管道发布。
  * 这样同服务的 {@link org.springframework.context.event.EventListener} 无需关心事件来源。</p>
  *
  * <p>启动时会自动从 Spring 上下文收集所有 {@link IEventType} Bean 并注册；
@@ -152,7 +152,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             @SuppressWarnings("unchecked")
             IEventType<Object> typedEventType = (IEventType<Object>) eventType;
             Object payload = JSON.parseObject(message.getPayload(), typedEventType.payloadClass());
-            MeApplicationEvent localEvent = typedEventType.toLocalEvent(payload,
+            AbstractMeApplicationEvent localEvent = typedEventType.toLocalEvent(payload,
                     message.getSourceService(), message.getSourceInstanceId());
             localEvent.setEventId(message.getEventId());
             localPublisher.publishEvent(localEvent);

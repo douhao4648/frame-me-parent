@@ -25,15 +25,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * {@link JwtTokenService} 单元测试.
+ * {@link JwtTokenServiceImpl} 单元测试.
  *
  * @author frame-me
  */
-class JwtTokenServiceTest {
+class JwtTokenServiceImplTest {
 
     private static final String SECRET = "frame-me-jwt-secret-key-at-least-32-characters-long";
 
-    private JwtTokenService tokenService;
+    private JwtTokenServiceImpl tokenService;
 
     @BeforeEach
     void setUp() {
@@ -73,7 +73,7 @@ class JwtTokenServiceTest {
             }
         };
 
-        tokenService = new JwtTokenService(properties, userDetailsService, new InMemoryRefreshTokenStore());
+        tokenService = new JwtTokenServiceImpl(properties, userDetailsService, new InMemoryRefreshTokenStore());
     }
 
     @Test
@@ -95,7 +95,7 @@ class JwtTokenServiceTest {
     @Test
     void testBlankSecretFailsFast() {
         JwtAuthProperties properties = new JwtAuthProperties();
-        JwtTokenService noSecret = new JwtTokenService(properties, null, null);
+        JwtTokenServiceImpl noSecret = new JwtTokenServiceImpl(properties, null, null);
         IllegalStateException ex = assertThrows(IllegalStateException.class, noSecret::validateSecret);
         assertTrue(ex.getMessage().contains("me.auth.jwt.secret"), ex.getMessage());
 
@@ -114,7 +114,7 @@ class JwtTokenServiceTest {
     void testWeakSecretFailsFast() {
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret("too-short");
-        JwtTokenService weakSecret = new JwtTokenService(properties, null, null);
+        JwtTokenServiceImpl weakSecret = new JwtTokenServiceImpl(properties, null, null);
         IllegalStateException ex = assertThrows(IllegalStateException.class, weakSecret::validateSecret);
         assertTrue(ex.getMessage().contains("强度不足"), ex.getMessage());
     }
@@ -146,7 +146,7 @@ class JwtTokenServiceTest {
         props.setSecret(SECRET);
         props.setRefreshTokenExpires(Duration.ofDays(7));
         InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
-        JwtTokenService service = new JwtTokenService(props, new IAuthUserDetailsService() {
+        JwtTokenServiceImpl service = new JwtTokenServiceImpl(props, new IAuthUserDetailsService() {
             @Override
             public User loadUserByAccount(String account) {
                 return null;
@@ -172,7 +172,7 @@ class JwtTokenServiceTest {
                 .subject("1")
                 .claim("userId", 1L)
                 .claim("type", "refresh")
-                .claim(JwtTokenService.CLAIM_AUTH_TIME,
+                .claim(JwtTokenServiceImpl.CLAIM_AUTH_TIME,
                         now.getTime() - 40L * 24 * 3600 * 1000)
                 .issuer(props.getIssuer())
                 .issuedAt(now)
@@ -243,7 +243,7 @@ class JwtTokenServiceTest {
         otherProps.setAccessTokenExpires(Duration.ofMinutes(10));
         otherProps.setRefreshTokenExpires(Duration.ofMinutes(30));
         otherProps.setIssuer("other-issuer");
-        JwtTokenService otherService = new JwtTokenService(otherProps, tokenService.getClass() != null
+        JwtTokenServiceImpl otherService = new JwtTokenServiceImpl(otherProps, tokenService.getClass() != null
                 ? new IAuthUserDetailsService() {
                     @Override
                     public User loadUserByAccount(String account) {
@@ -288,7 +288,7 @@ class JwtTokenServiceTest {
         };
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret(SECRET);
-        JwtTokenService serviceWithFailingStore = new JwtTokenService(properties, null, failingStore);
+        JwtTokenServiceImpl serviceWithFailingStore = new JwtTokenServiceImpl(properties, null, failingStore);
 
         // 用同密钥的正常服务签发合法 Refresh Token，故障服务解析通过后 get 抛基础设施异常
         String tokenPair = tokenService.login("admin", "123456");
@@ -353,7 +353,7 @@ class JwtTokenServiceTest {
         shortProps.setSecret(SECRET);
         shortProps.setAccessTokenExpires(Duration.ofMinutes(10));
         shortProps.setRefreshTokenExpires(Duration.ofMillis(4000));
-        JwtTokenService shortLived = new JwtTokenService(shortProps, new IAuthUserDetailsService() {
+        JwtTokenServiceImpl shortLived = new JwtTokenServiceImpl(shortProps, new IAuthUserDetailsService() {
             @Override
             public User loadUserByAccount(String account) {
                 return null;
@@ -407,7 +407,7 @@ class JwtTokenServiceTest {
         expiredProps.setAccessTokenExpires(Duration.ofSeconds(-60));
         expiredProps.setRefreshTokenExpires(Duration.ofMinutes(30));
         InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
-        JwtTokenService expiredService = new JwtTokenService(expiredProps,
+        JwtTokenServiceImpl expiredService = new JwtTokenServiceImpl(expiredProps,
                 new IAuthUserDetailsService() {
                     @Override
                     public User loadUserByAccount(String account) {
@@ -450,7 +450,7 @@ class JwtTokenServiceTest {
         expiredProps.setRefreshTokenExpires(Duration.ofSeconds(-60));
         // 不过期的简易存储：模拟 TTL 与 token 有效期不同步导致的残留
         LingeringRefreshTokenStore store = new LingeringRefreshTokenStore();
-        JwtTokenService expiredService = new JwtTokenService(expiredProps,
+        JwtTokenServiceImpl expiredService = new JwtTokenServiceImpl(expiredProps,
                 new IAuthUserDetailsService() {
                     @Override
                     public User loadUserByAccount(String account) {
@@ -488,7 +488,7 @@ class JwtTokenServiceTest {
      */
     @Test
     void testRpFallback_getUserRebuildsFromClaims() {
-        JwtTokenService rpService = rpService();
+        JwtTokenServiceImpl rpService = rpService();
         User rpUser = new User();
         rpUser.setId(443549360765247488L);
         rpUser.setAccount("cuijiji");
@@ -511,7 +511,7 @@ class JwtTokenServiceTest {
      */
     @Test
     void testRpFallback_refreshKeepsSnapshot() {
-        JwtTokenService rpService = rpService();
+        JwtTokenServiceImpl rpService = rpService();
         User rpUser = new User();
         rpUser.setId(99L);
         rpUser.setAccount("rp-user");
@@ -532,7 +532,7 @@ class JwtTokenServiceTest {
      */
     @Test
     void testRpFallback_passwordLoginTokenNotAffected() {
-        JwtTokenService rpService = rpService();
+        JwtTokenServiceImpl rpService = rpService();
         // 手工签发无 rp 标记的 token（等价于密码登录签发的 token 遇上用户被删）
         Date now = new Date();
         String plainToken = Jwts.builder()
@@ -552,12 +552,12 @@ class JwtTokenServiceTest {
     /**
      * 构造 RP 场景服务：loadUserById 恒返回 null（无本地用户表）.
      */
-    private JwtTokenService rpService() {
+    private JwtTokenServiceImpl rpService() {
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret(SECRET);
         properties.setAccessTokenExpires(Duration.ofMinutes(10));
         properties.setRefreshTokenExpires(Duration.ofMinutes(30));
-        return new JwtTokenService(properties, new IAuthUserDetailsService() {
+        return new JwtTokenServiceImpl(properties, new IAuthUserDetailsService() {
             @Override
             public User loadUserByAccount(String account) {
                 return null;

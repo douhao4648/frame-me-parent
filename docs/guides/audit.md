@@ -82,7 +82,7 @@ public OrderUpdateResult updateOrderStatus(Long orderId, String status) { ... }
 - 非审计服务收到消息后，因 `targetService` 不匹配而忽略，避免重复落库。
 - **审计中心（接收侧）需显式启用订阅**：在启动类或任意配置类加 `@Import(AuditLogEventConfiguration.class)`（`com.frame.me.op.audit`），注册 `AuditLogEventType` 后 `EventBridgeListener` 才会订阅 `audit:op-log` 通道并还原消息。该配置刻意不随自动装配生效——发送侧经 `EventBridgePublisher` 直发不查注册表，自动注册只会让无关服务白订阅通道。
 - 审计服务还原 `AuditLogEvent` 后，可自定义 `@EventListener` 或持久化监听器写入数据库/ES。
-- **多实例去重**：audit 多实例部署时，同一广播事件会被每个实例收到。`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），全局只入库一次。**锁不主动释放**，靠 TTL（30s）自动过期——覆盖 pub/sub "至少一次"语义下的重投递窗口（先后来到，非并发）；Redis 故障降级放行（审计是旁路，宁可重复不可丢失）。`eventId` 由事件层 `MeApplicationEvent` 提供（缺省 UUID，业务可自定义）。
+- **多实例去重**：audit 多实例部署时，同一广播事件会被每个实例收到。`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），全局只入库一次。**锁不主动释放**，靠 TTL（30s）自动过期——覆盖 pub/sub "至少一次"语义下的重投递窗口（先后来到，非并发）；Redis 故障降级放行（审计是旁路，宁可重复不可丢失）。`eventId` 由事件层 `AbstractMeApplicationEvent` 提供（缺省 UUID，业务可自定义）。
 
 ```java
 @Component

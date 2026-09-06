@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
  *
  * <p>sa-token 原生 starter 不对 {@code jwt-secret-key} 做强制校验，缺失时会用空密钥签发 JWT，
  * 网关独立验签时可能因密钥缺失而通过非法 token。本类在启动期 fail-fast，
- * 与 frame-me-starter-auth-jwt 的 {@code JwtTokenService.validateSecret()} 对齐。</p>
+ * 与 frame-me-starter-auth-jwt 的 {@code JwtTokenServiceImpl.validateSecret()} 对齐。</p>
  *
  * @author frame-me
  */

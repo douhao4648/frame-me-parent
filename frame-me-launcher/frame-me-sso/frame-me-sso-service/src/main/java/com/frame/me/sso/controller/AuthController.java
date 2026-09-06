@@ -37,9 +37,9 @@ import java.nio.charset.StandardCharsets;
 /**
  * SSO 授权码流程端点，实现 {@link IAuthApi}.
  *
- * <p>token 用 sa-token 不透明 token（{@code SsoStpUtil.stpLogic.createLoginSession}，独立
+ * <p>token 用 sa-token 不透明 token（{@code SsoStpUtil.STP_LOGIC.createLoginSession}，独立
  * {@code sso} 账号体系，Redis key {@code satoken:sso:*}），验 token 用
- * {@code SsoStpUtil.stpLogic.getLoginIdByToken}（查 sa-token Redis），无 JWT 验签代码.
+ * {@code SsoStpUtil.STP_LOGIC.getLoginIdByToken}（查 sa-token Redis），无 JWT 验签代码.
  * 下游拿 token 调 {@code /userinfo} 取用户信息，SSO 原生验 token.</p>
  *
  * <p>登录/登出/续期复用 starter-sa-token 的 {@code /api/auth/*} 端点，本类不重复定义.</p>
@@ -85,13 +85,13 @@ public class AuthController implements IAuthApi {
         if (!appService.isScopeAllowed(app, scope)) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "scope 超出应用授权范围");
         }
-        if (!SsoStpUtil.stpLogic.isLogin()) {
+        if (!SsoStpUtil.STP_LOGIC.isLogin()) {
             String target = "/sso-login.html?redirect=" +
                     URLEncoder.encode("/api/auth/authorize?" +
                             buildQuery(appId, redirectUri, scope, nonce, state), StandardCharsets.UTF_8);
             return ResponseEntity.status(302).location(URI.create(target)).build();
         }
-        Long userId = SsoStpUtil.stpLogic.getLoginIdAsLong();
+        Long userId = SsoStpUtil.STP_LOGIC.getLoginIdAsLong();
         String code = authCodeService.issue(appId, userId, scope, redirectUri);
         String sep = redirectUri.contains("?") ? "&" : "?";
         String location = redirectUri + sep + "code=" + code;
@@ -118,7 +118,7 @@ public class AuthController implements IAuthApi {
     /**
      * 换 token：按 {@code grantType} 分派.
      *
-     * <p>用 {@code SsoStpUtil.stpLogic.createLoginSession} 而非 {@code login}：本端点由下游服务端
+     * <p>用 {@code SsoStpUtil.STP_LOGIC.createLoginSession} 而非 {@code login}：本端点由下游服务端
      * POST 调用，无浏览器请求上下文，{@code createLoginSession} 不依赖上下文纯建会话返 token.
      * {@code is-concurrent: true} 保证与浏览器会话独立.</p>
      *
@@ -204,14 +204,14 @@ public class AuthController implements IAuthApi {
      */
     private TokenVO issueToken(Object loginId, String appId) {
         long timeout = properties.getToken().getAppTimeout().getSeconds();
-        String token = SsoStpUtil.stpLogic.createLoginSession(loginId,
+        String token = SsoStpUtil.STP_LOGIC.createLoginSession(loginId,
                 new SaLoginParameter()
                         .setDeviceType(appId)
                         .setTimeout(timeout)
                         .setActiveTimeout(timeout));
         // createLoginSession 绕过了 starter 的 login/loginByUser，需补记登录时间戳（sso 体系），
         // 否则 refresh 的绝对寿命闸门会从第一次续期起算（宽限路径）
-        SaTokenAuthService.markLoginTime(SsoStpUtil.stpLogic, loginId);
+        SaTokenAuthService.markLoginTime(SsoStpUtil.STP_LOGIC, loginId);
         TokenVO vo = new TokenVO();
         vo.setAccessToken(token);
         return vo;
@@ -240,11 +240,11 @@ public class AuthController implements IAuthApi {
     @SaCheckLogin(type = SsoStpUtil.TYPE)
     @Override
     public IResult<Boolean> logout() {
-        Object loginId = SsoStpUtil.stpLogic.getLoginId();
+        Object loginId = SsoStpUtil.STP_LOGIC.getLoginId();
         if (SsoTokenUtils.isAppLoginId(loginId)) {
             throw new BusinessException(ResultCode.FORBIDDEN, "应用 token 不支持全局登出");
         }
-        logoutService.logout(SsoStpUtil.stpLogic.getLoginIdAsLong(), null, "user-logout");
+        logoutService.logout(SsoStpUtil.STP_LOGIC.getLoginIdAsLong(), null, "user-logout");
         return Result.success(true);
     }
 

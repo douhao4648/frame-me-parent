@@ -43,21 +43,21 @@ class SsoSessionTtlTest {
     @Test
     void createLoginSession_ttlBehavior() {
         // 1. 传 timeout=1天 建会话（模拟 app token）
-        SsoStpUtil.stpLogic.createLoginSession(USER_ID,
+        SsoStpUtil.STP_LOGIC.createLoginSession(USER_ID,
                 new SaLoginParameter().setDeviceType("DEF").setTimeout(86400L));
         long ttl1 = printSessionTtl("新建(传1天)");
 
         // 2. 再传 timeout=7天（session 已存在，模拟浏览器登录后 app 授权）
-        SsoStpUtil.stpLogic.createLoginSession(USER_ID,
+        SsoStpUtil.STP_LOGIC.createLoginSession(USER_ID,
                 new SaLoginParameter().setDeviceType("app-x").setTimeout(604800L));
         long ttl2 = printSessionTtl("再建(传7天)");
 
         // 3. 再传 timeout=1天（session 当前应=7天，看是否被缩短）
-        SsoStpUtil.stpLogic.createLoginSession(USER_ID,
+        SsoStpUtil.STP_LOGIC.createLoginSession(USER_ID,
                 new SaLoginParameter().setDeviceType("app-y").setTimeout(86400L));
         long ttl3 = printSessionTtl("再建(传1天)");
 
-        SsoStpUtil.stpLogic.logout(USER_ID);
+        SsoStpUtil.STP_LOGIC.logout(USER_ID);
 
         System.out.println("=== 结论 ===");
         System.out.println("新建(传1天)  → session TTL = " + ttl1 + "秒 (" + (ttl1 / 3600) + "h)");
@@ -66,7 +66,7 @@ class SsoSessionTtlTest {
     }
 
     private long printSessionTtl(String label) {
-        SaSession session = SsoStpUtil.stpLogic.getSessionByLoginId(USER_ID, false);
+        SaSession session = SsoStpUtil.STP_LOGIC.getSessionByLoginId(USER_ID, false);
         if (session == null) {
             System.out.println(label + " → session 不存在");
             return -1;

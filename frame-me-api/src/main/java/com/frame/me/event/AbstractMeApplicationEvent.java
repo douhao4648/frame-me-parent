@@ -20,7 +20,7 @@ import java.util.UUID;
  *
  * @author frame-me
  */
-public abstract class MeApplicationEvent implements Serializable {
+public abstract class AbstractMeApplicationEvent implements Serializable {
 
     @Serial
     private static final long serialVersionUID = 1L;
@@ -47,7 +47,7 @@ public abstract class MeApplicationEvent implements Serializable {
      *
      * @param source 事件源
      */
-    public MeApplicationEvent(Object source) {
+    public AbstractMeApplicationEvent(Object source) {
         this.source = source;
         this.eventId = UUID.randomUUID().toString();
     }

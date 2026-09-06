@@ -56,8 +56,8 @@ public class JwtAutoConfiguration {
     public IAuthService jwtAuthService(JwtAuthProperties properties,
                                        IAuthUserDetailsService userDetailsService,
                                        IRefreshTokenStore refreshTokenStore) {
-        log.info("JwtTokenService initialized");
-        return new JwtTokenService(properties, userDetailsService, refreshTokenStore);
+        log.info("JwtTokenServiceImpl initialized");
+        return new JwtTokenServiceImpl(properties, userDetailsService, refreshTokenStore);
     }
 
     @Bean

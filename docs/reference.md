@@ -127,7 +127,7 @@
 | `RedisAuthPermissionProvider` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-rbac/src/main/java/com/frame/me/auth/rbac/redis/RedisAuthPermissionProvider.java` |
 | `JwtAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAutoConfiguration.java` |
 | `JwtAuthProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/config/JwtAuthProperties.java` |
-| `JwtTokenService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtTokenService.java` |
+| `JwtTokenServiceImpl` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtTokenServiceImpl.java` |
 | `JwtAuthUserResolver` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/JwtAuthUserResolver.java` |
 | `IAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/spi/IAuthUserDetailsService.java` |
 | `IRefreshTokenStore` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-jwt/src/main/java/com/frame/me/auth/jwt/core/IRefreshTokenStore.java` |
@@ -195,7 +195,7 @@
 | `FlexDemoController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/FlexDemoController.java` |
 | `FlexDemoEntity` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/entity/FlexDemoEntity.java` |
 | `FlexDemoMapper` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/mapper/FlexDemoMapper.java` |
-| `DemoAuthUserDetailsService` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/auth/DemoAuthUserDetailsService.java` |
+| `DemoAuthUserDetailsServiceImpl` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/auth/DemoAuthUserDetailsServiceImpl.java` |
 | `DemoController`（MyBatis-Plus 版，整体注释保留） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/controller/DemoController.java` |
 | `DemoEntity`（整体注释保留） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/entity/DemoEntity.java` |
 | `DemoMapper`（整体注释保留） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/main/java/com/frame/me/tester/mapper/DemoMapper.java` |
@@ -295,9 +295,9 @@
 | `SsoCallbackController` | 回调落地两端点（`frame-me-sso-starter`）：`GET /index`（`me.sso.client.index-path` 可配）hash 落地页（SPA 场景）；`GET /callback`（`me.sso.client.callback-path` 可配）服务端回调——code 换会话 + sa-token 写 Cookie + 302 回跳 state |
 | `SsoLoginDTO` | RP 登录请求体（`frame-me-sso-starter`：code + 可选 redirectUri） |
 | `IAuthService.loginByUser` | 按已知用户直接建立会话（RP 场景，default 抛异常；`SaTokenAuthService` 覆盖为 `StpLogic.login` + 快照缓存） |
-| `SsoStpUtil` | SSO 独立账号体系入口（`frame-me-sso-service`）：`TYPE="sso"` + `stpLogic`（`new StpLogic("sso")` 经 `SaManager.getStpLogic` 注册），SSO 全部登录/登出/验 token 动作与 `@SaCheck*(type=...)` 的统一体系标识 |
+| `SsoStpUtil` | SSO 独立账号体系入口（`frame-me-sso-service`）：`TYPE="sso"` + `STP_LOGIC`（`new StpLogic("sso")` 经 `SaManager.getStpLogic` 注册），SSO 全部登录/登出/验 token 动作与 `@SaCheck*(type=...)` 的统一体系标识 |
 | `Application`（audit） | 审计中心主启动类，`@Import(AuditLogEventConfiguration.class)` 订阅 `audit:log` 通道 |
-| `SsoAuthUserDetailsService` | sso-starter 的 RP 兜底 `IAuthUserDetailsService`（下游未自定义时自动装配，`loadUserById` 委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建，取不到返回 null → 401 重登） |
+| `SsoAuthUserDetailsServiceImpl` | sso-starter 的 RP 兜底 `IAuthUserDetailsService`（下游未自定义时自动装配，`loadUserById` 委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建，取不到返回 null → 401 重登） |
 | `SsoLogoutEventListener` | `@EventListener(UserLogoutEvent)`（`frame-me-sso-starter`）：调 `IAuthService.logoutByUserId` 清本地会话（走 SPI，sa-token/JWT 两套通用） |
 | `LogEntity` / `LogMapper` | audit 审计日志实体（`@Table("audit_log")` extends `BaseEntity`）+ Mapper |
 | `LogEventListener` | audit `@EventListener(AuditLogEvent)`：持久化审计记录到 MySQL；多实例以 eventId 加 Redis 锁去重 |
@@ -319,7 +319,7 @@
 | `GroupedOpenApiRegistrar` | 动态注册 API 分组 |
 | `AuditLog` | 标记需要记录审计日志的方法 |
 | `AuditLogAspect` | AOP 切面，拦截方法并组装 `AuditLogRecord` |
-| `AuditLogEvent` | 审计事件，继承 `MeApplicationEvent` |
+| `AuditLogEvent` | 审计事件，继承 `AbstractMeApplicationEvent` |
 | `AuditLogRecord` | 审计记录负载 |
 | `AuditLogLogger` | 本地 `@EventListener`，默认输出结构化日志 |
 | `IAuditLogOperatorSupplier` | 操作人提供接口，默认返回 `anonymous` |
@@ -349,7 +349,7 @@
 | `AuthPermissionTaskDecorator` | `@Async` 权限上下文传播 TaskDecorator |
 | `RedisAuthPermissionProvider` | `@Primary` Redis 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 |
 |  `TrustedHeaderAuthUserResolver` | 信任身份头兜底用户解析器（`me.auth.trusted-header.enabled=true` 开启，仅内网服务间调用；显式 `false` 为空操作解析器；`fetch-details=true` 时经 `IAuthUserDetailsService` 回源补全并校验禁用状态） |
-| `JwtTokenService` | JWT 认证服务实现：登录/登出/按用户 ID 强制登出/刷新/解析 |
+| `JwtTokenServiceImpl` | JWT 认证服务实现：登录/登出/按用户 ID 强制登出/刷新/解析 |
 | `JwtAuthUserResolver` | 从 `Authorization: Bearer ...` 解析当前用户 |
 | `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码（抽象层 `com.frame.me.auth.spi`，JWT 与 Sa-Token 实现共用） |
 | `RedisRefreshTokenStore` | 基于 Redis 的 Refresh Token 存储 |
@@ -377,13 +377,13 @@
 | `JasyptEncryptCli` | 离线生成 `ME(密文)` 的 `main` 工具 |
 | `EncryptAutoConfiguration` | 暴露 `StringEncryptor` Bean 的自动装配入口 |
 | `SseEmitterManager` | Emitter 生命周期与路由管理 |
-| `SseEventDispatcher` | 监听 `MeApplicationEvent` 并转发到 SSE |
+| `SseEventDispatcher` | 监听 `AbstractMeApplicationEvent` 并转发到 SSE |
 | `SsePushService` | 业务推送 API |
 | `SseController` | SSE 订阅端点 |
 | `SseAutoConfiguration` | SSE 自动装配入口 |
 | `SseProperties` | `me.sse` 配置属性绑定 |
 | `WsMvcSessionManager` | WebSocketSession 生命周期与路由管理 |
-| `WsMvcEventDispatcher` | 监听 `MeApplicationEvent` 并转发到 WebSocket |
+| `WsMvcEventDispatcher` | 监听 `AbstractMeApplicationEvent` 并转发到 WebSocket |
 | `WsMvcPushService` | 业务推送 API |
 | `MeWsMvcHandler` | WebSocket 连接与消息处理 |
 | `WsMvcAutoConfiguration` | WebSocket 自动装配入口 |

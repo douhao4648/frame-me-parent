@@ -40,7 +40,7 @@ public class SseProperties {
     private long heartbeatInterval = 0L;
 
     /**
-     * 是否自动把 {@link com.frame.me.event.MeApplicationEvent} 广播到 SSE，默认 true.
+     * 是否自动把 {@link com.frame.me.event.AbstractMeApplicationEvent} 广播到 SSE，默认 true.
      */
     private boolean broadcastEnabled = true;
 

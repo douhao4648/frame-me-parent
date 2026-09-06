@@ -20,13 +20,13 @@
 1. **进程内解耦**：一个业务动作完成后，需要触发多个本地处理逻辑（如发通知、更新索引、记日志）。
 2. **跨服务通信**：同一事件需要被其他服务实例感知。
 
-Spring 事件机制只能解决第一类；Redis Pub/Sub、MQ 能解决第二类，但会把事件模型和传输细节耦合到业务代码里。事件桥接把两者统一：业务始终面向 `MeApplicationEvent` 编程，传输通道可配置、可切换。
+Spring 事件机制只能解决第一类；Redis Pub/Sub、MQ 能解决第二类，但会把事件模型和传输细节耦合到业务代码里。事件桥接把两者统一：业务始终面向 `AbstractMeApplicationEvent` 编程，传输通道可配置、可切换。
 
 ## 核心概念
 
 | 类型 | 职责 | 所在模块 |
 |---|---|---|
-| `MeApplicationEvent` | 可桥接的本地事件基类（含 `eventId` 唯一 ID，缺省 UUID，可自定义） | `frame-me-api` |
+| `AbstractMeApplicationEvent` | 可桥接的本地事件基类（含 `eventId` 唯一 ID，缺省 UUID，可自定义） | `frame-me-api` |
 | `IEventType<T>` | 把 `type` 字符串映射到负载类与本地事件构造 | `frame-me-api` |
 | `EventBridgeMessage` | 跨服务传输的通用包装：`type + payload + sourceService + sourceInstanceId + targetService + targetId + eventId + timestamp` | `frame-me-api` |
 | `IEventTransport` | 传输通道抽象（`send` / `subscribe`） | `frame-me-starter-base` |
@@ -35,13 +35,13 @@ Spring 事件机制只能解决第一类；Redis Pub/Sub、MQ 能解决第二类
 | `EventBridgeProperties` | `me.event-bridge.*` 配置 | `frame-me-starter-base` |
 | `RedisEventTransport` | Redis Pub/Sub 实现 | `frame-me-starter-multi-redis` |
 
-> 说明：`MeApplicationEvent` 是普通 POJO，不继承 Spring 的 `ApplicationEvent`。`EventBridgePublisher` 通过 `ApplicationEventPublisher.publishEvent(Object)` 发布，Spring 会将其包装为 `PayloadApplicationEvent`；`@EventListener` 方法仍按参数类型正常接收。
+> 说明：`AbstractMeApplicationEvent` 是普通 POJO，不继承 Spring 的 `ApplicationEvent`。`EventBridgePublisher` 通过 `ApplicationEventPublisher.publishEvent(Object)` 发布，Spring 会将其包装为 `PayloadApplicationEvent`；`@EventListener` 方法仍按参数类型正常接收。
 
 ## 模块划分
 
 ```mermaid
 graph TD
-    A[业务 xx-api] -->|定义事件继承 MeApplicationEvent| B[frame-me-api]
+    A[业务 xx-api] -->|定义事件继承 AbstractMeApplicationEvent| B[frame-me-api]
     B --> C[frame-me-starter-base]
     C -->|核心桥接| D[EventBridgePublisher]
     C -->|核心桥接| E[EventBridgeListener]
@@ -136,7 +136,7 @@ graph LR
 
 ### 事件唯一 ID 与消费方幂等
 
-`MeApplicationEvent` 基类带 `eventId` 字段：
+`AbstractMeApplicationEvent` 基类带 `eventId` 字段：
 
 - **发送时**缺省生成 UUID，业务可在构造后 `setEventId` 覆盖自定义值（如业务流水号、雪花 ID）
 - **广播时** `EventBridgePublisher` 把 `eventId` 透传进 `EventBridgeMessage`
@@ -152,7 +152,7 @@ graph LR
 
 ```java
 @Getter
-public class UserNotifyEvent extends MeApplicationEvent {
+public class UserNotifyEvent extends AbstractMeApplicationEvent {
 
     private final UserNotifyPayload payload;
     private final String targetService;
@@ -204,14 +204,14 @@ graph LR
 
 ### SSE / WebSocket 广播控制
 
-`SseEventDispatcher` 与 `WsMvcEventDispatcher` 默认监听所有 `MeApplicationEvent` 子类。为避免内部事件意外暴露到前端，只有标注了 `@EventClientPermit` 的事件类才会被转发：
+`SseEventDispatcher` 与 `WsMvcEventDispatcher` 默认监听所有 `AbstractMeApplicationEvent` 子类。为避免内部事件意外暴露到前端，只有标注了 `@EventClientPermit` 的事件类才会被转发：
 
 ```java
 import com.frame.me.event.EventClientPermit;
 
 @EventClientPermit
 @Getter
-public class UserNotifyEvent extends MeApplicationEvent {
+public class UserNotifyEvent extends AbstractMeApplicationEvent {
     ...
 }
 ```
@@ -236,7 +236,7 @@ public class UserCreatedPayload implements Serializable {
 
 ```java
 @Getter
-public class UserCreatedEvent extends MeApplicationEvent {
+public class UserCreatedEvent extends AbstractMeApplicationEvent {
 
     private final UserCreatedPayload payload;
 
@@ -275,7 +275,7 @@ public class UserCreatedEventType implements IEventType<UserCreatedPayload> {
     }
 
     @Override
-    public MeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source, String sourceInstanceId) {
+    public AbstractMeApplicationEvent toLocalEvent(UserCreatedPayload payload, String source, String sourceInstanceId) {
         return new UserCreatedEvent(source, payload);
     }
 }

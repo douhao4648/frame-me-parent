@@ -9,15 +9,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * {@link SsoAuthUserDetailsService} 单元测试：薄委托层——loadUserById 委托
+ * {@link SsoAuthUserDetailsServiceImpl} 单元测试：薄委托层——loadUserById 委托
  * {@link SsoAuthService#loadUserByUpstreamToken}，loadUserByAccount 恒 null.
  *
  * @author frame-me
  */
-class SsoAuthUserDetailsServiceTest {
+class SsoAuthUserDetailsServiceImplTest {
 
     private final SsoAuthService ssoAuthService = mock(SsoAuthService.class);
-    private final SsoAuthUserDetailsService service = new SsoAuthUserDetailsService(ssoAuthService);
+    private final SsoAuthUserDetailsServiceImpl service = new SsoAuthUserDetailsServiceImpl(ssoAuthService);
 
     @Test
     void loadUserById_delegatesToSsoAuthService() {

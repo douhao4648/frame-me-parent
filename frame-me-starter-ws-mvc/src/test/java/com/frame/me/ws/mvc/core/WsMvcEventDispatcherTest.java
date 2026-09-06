@@ -1,7 +1,7 @@
 package com.frame.me.ws.mvc.core;
 
 import com.frame.me.event.EventClientPermit;
-import com.frame.me.event.MeApplicationEvent;
+import com.frame.me.event.AbstractMeApplicationEvent;
 import com.frame.me.ws.mvc.config.WsMvcProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -81,7 +81,7 @@ class WsMvcEventDispatcherTest {
 
     @SuppressWarnings("serial")
     @EventClientPermit
-    private static class TestEvent extends MeApplicationEvent {
+    private static class TestEvent extends AbstractMeApplicationEvent {
 
         private final String eventType;
         private final String targetId;
@@ -104,7 +104,7 @@ class WsMvcEventDispatcherTest {
     }
 
     @SuppressWarnings("serial")
-    private static class ForbiddenEvent extends MeApplicationEvent {
+    private static class ForbiddenEvent extends AbstractMeApplicationEvent {
 
         private final String eventType;
         private final String targetId;

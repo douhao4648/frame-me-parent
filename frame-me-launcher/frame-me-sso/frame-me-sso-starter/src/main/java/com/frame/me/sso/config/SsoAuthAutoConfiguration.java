@@ -4,7 +4,7 @@ import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.sso.auth.SsoAuthController;
 import com.frame.me.sso.auth.SsoAuthService;
-import com.frame.me.sso.auth.SsoAuthUserDetailsService;
+import com.frame.me.sso.auth.SsoAuthUserDetailsServiceImpl;
 import com.frame.me.sso.auth.SsoCallbackController;
 import com.frame.me.sso.auth.SsoLogoutEventListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Lazy;
  * 即开箱获得 {@code POST /api/auth/sso-login} 端点（code 换本地会话）与
  * {@link SsoCallbackController} 的回调落地两端点（hash 落地页 + 服务端 Cookie 会话回调）；
  * 并在下游未自定义 {@link IAuthUserDetailsService} 时兜底装配
- * {@link SsoAuthUserDetailsService}（RP 无本地用户表场景的快照 miss 回源重建）。</p>
+ * {@link SsoAuthUserDetailsServiceImpl}（RP 无本地用户表场景的快照 miss 回源重建）。</p>
  *
  * <p><b>守卫</b>：
  * <ul>
@@ -46,7 +46,7 @@ public class SsoAuthAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(IAuthUserDetailsService.class)
-    public SsoAuthUserDetailsService ssoAuthUserDetailsService(@Lazy SsoAuthService ssoAuthService) {
-        return new SsoAuthUserDetailsService(ssoAuthService);
+    public SsoAuthUserDetailsServiceImpl ssoAuthUserDetailsService(@Lazy SsoAuthService ssoAuthService) {
+        return new SsoAuthUserDetailsServiceImpl(ssoAuthService);
     }
 }
