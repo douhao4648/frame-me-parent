@@ -207,34 +207,19 @@ class EventBridgePublisherTest {
 
         private final String type;
         private final String value;
-        private final String targetService;
-        private final String targetId;
-
         TestEvent(Object source, String type, String value) {
             this(source, type, value, null, null);
         }
 
         TestEvent(Object source, String type, String value, String targetService, String targetId) {
-            super(value);
+            super(value, targetService, targetId);
             this.type = type;
             this.value = value;
-            this.targetService = targetService;
-            this.targetId = targetId;
         }
 
         @Override
         public String getEventType() {
             return type;
-        }
-
-        @Override
-        public String getTargetService() {
-            return targetService;
-        }
-
-        @Override
-        public String getTargetId() {
-            return targetId;
         }
 
         public String getValue() {

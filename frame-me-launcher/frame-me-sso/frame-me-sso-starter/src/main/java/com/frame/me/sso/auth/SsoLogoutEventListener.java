@@ -16,7 +16,8 @@ import org.springframework.stereotype.Component;
  * （Access Token 自然过期后无法续期），两套认证实现通用。</p>
  *
  * <p>{@code userId=null}（按应用踢）时，单应用 RP 暂不处理按应用维度踢人；
- * 后续如有多应用场景再扩展。消费方需幂等（跨服务事件"至少一次"语义）。</p>
+ * 后续如有多应用场景再扩展。当前 Redis Pub/Sub 是 best-effort、at-most-once，
+ * 离线下游可能错过本次即时清理。</p>
  *
  * @author frame-me
  */
@@ -40,7 +41,6 @@ public class SsoLogoutEventListener {
             log.info("SSO 踢人已清本地会话: userId={}, reason={}",
                     userId, event.getReason());
         } catch (Exception e) {
-            // 清会话失败不阻断事件链路（幂等，下次事件可补偿）
             log.warn("清本地会话失败: userId={}", userId, e);
         }
     }

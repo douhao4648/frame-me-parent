@@ -1,14 +1,16 @@
 package com.frame.me.base.event;
 
-import com.frame.me.event.IEventType;
 import com.frame.me.event.AbstractMeApplicationEvent;
+import com.frame.me.event.IEventType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -79,6 +81,23 @@ class EventBridgeListenerTest {
         listener.onMessage(message("other-service", "other-instance"));
 
         verify(publisher).publishEvent(any(AbstractMeApplicationEvent.class));
+    }
+
+    @Test
+    void targetedMessageRestoresRoutingMetadataOnLocalEvent() {
+        Instant occurredAt = Instant.parse("2026-09-16T12:00:00Z");
+        EventBridgeMessage message = new EventBridgeMessage("test:event", "\"hello\"",
+                "other-service", "other-instance", SELF_NAME, "user:123", "event-1", occurredAt);
+
+        listener.onMessage(message);
+
+        ArgumentCaptor<AbstractMeApplicationEvent> captor = ArgumentCaptor.forClass(AbstractMeApplicationEvent.class);
+        verify(publisher).publishEvent(captor.capture());
+        AbstractMeApplicationEvent restored = captor.getValue();
+        assertThat(restored.getEventId()).isEqualTo("event-1");
+        assertThat(restored.getTargetService()).isEqualTo(SELF_NAME);
+        assertThat(restored.getTargetId()).isEqualTo("user:123");
+        assertThat(restored.getTimestamp()).isEqualTo(occurredAt);
     }
 
     private static EventBridgeMessage message(String sourceService, String sourceInstanceId) {

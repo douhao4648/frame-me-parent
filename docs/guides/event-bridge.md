@@ -37,6 +37,16 @@ Spring 事件机制只能解决第一类；Redis Pub/Sub、MQ 能解决第二类
 
 > 说明：`AbstractMeApplicationEvent` 是普通 POJO，不继承 Spring 的 `ApplicationEvent`。`EventBridgePublisher` 通过 `ApplicationEventPublisher.publishEvent(Object)` 发布，Spring 会将其包装为 `PayloadApplicationEvent`；`@EventListener` 方法仍按参数类型正常接收。
 
+### 投递模型边界
+
+| 模型 | 当前实现 | 适用场景 | 保证 |
+|---|---|---|---|
+| local event | Spring `ApplicationEventPublisher` | 同 JVM 解耦 | 同步进程内调用，不持久化 |
+| best-effort broadcast | `RedisEventTransport` / Redis Pub/Sub | 在线通知、缓存失效、SSE/WS 实时推送 | at-most-once，离线或失败即丢，不回放 |
+| durable integration event | 尚未实现 | 审计、计费、订单、可靠安全撤销 | 需要 Outbox + 持久化 MQ/Stream + ACK/重试/DLQ |
+
+`eventId` 只提供幂等标识，不会让 Redis Pub/Sub 自动重投，也不能把 at-most-once 提升为 at-least-once。
+
 ## 模块划分
 
 ```mermaid
@@ -142,28 +152,23 @@ graph LR
 - **广播时** `EventBridgePublisher` 把 `eventId` 透传进 `EventBridgeMessage`
 - **接收方** `EventBridgeListener` 重建本地事件后回填 `eventId`，消费方从 `event.getEventId()` 拿
 
-使用方自行决定是否用于去重/幂等。跨服务事件"至少一次"语义下同一事件可能重复投递，消费方可按 `eventId` 加分布式锁或唯一索引保证幂等。
+使用方自行决定是否用于去重/幂等。Redis Pub/Sub 会把同一广播分别交给每个在线实例；多个实例写同一份共享数据时，可按 `eventId` 加分布式锁或唯一索引去重。未来接入带重试的持久化 transport 时，同一个 `eventId` 也可用于处理重复投递。
 
-> 示例：`frame-me-audit-service` 的 `LogEventListener` 以 `audit:log:dedup:<eventId>` 为 key 加 Redis 分布式锁，保证多实例部署时同一审计事件全局只入库一次。**锁不主动释放**，靠 TTL（30s）自动过期——覆盖 pub/sub "至少一次"语义下的重投递窗口（先后来到，非并发）；锁失败降级放行（遵"审计是旁路"原则，宁可重复不可丢失）。
+> 示例：`frame-me-audit-service` 的 `LogEventListener` 以 `audit:log:dedup:<eventId>` 为 key 加 Redis 分布式锁，保证多实例部署时同一广播事件全局只入库一次。**锁不主动释放**，靠 TTL（30s）覆盖各实例广播副本先后到达的窗口；锁失败降级放行时可能重复入库。
 
 ### 点对点路由
 
-事件默认按 `eventType` 广播给所有订阅该类型的服务。若只想发给特定服务或特定实体，可在事件中覆盖 `getTargetService()` / `getTargetId()`：
+事件默认按 `eventType` 广播给所有订阅该类型的服务。若只想发给特定服务或特定实体，通过基类构造器传入 `targetService` / `targetId`：
 
 ```java
 @Getter
 public class UserNotifyEvent extends AbstractMeApplicationEvent {
 
     private final UserNotifyPayload payload;
-    private final String targetService;
-    private final String targetId;
-
     public UserNotifyEvent(Object source, UserNotifyPayload payload,
                            String targetService, String targetId) {
-        super(source);
+        super(source, targetService, targetId);
         this.payload = payload;
-        this.targetService = targetService;
-        this.targetId = targetId;
     }
 
     @Override
@@ -176,15 +181,6 @@ public class UserNotifyEvent extends AbstractMeApplicationEvent {
         return payload;
     }
 
-    @Override
-    public String getTargetService() {
-        return targetService;
-    }
-
-    @Override
-    public String getTargetId() {
-        return targetId;
-    }
 }
 ```
 
@@ -400,7 +396,7 @@ me:
       order:paid: mq
 ```
 
-核心层代码无需改动。
+上述接口足以接入与 Redis 相同的 best-effort transport。若要实现 at-least-once，必须同时扩展消费结果与 ACK/NACK 契约，让 `EventBridgeListener` 的失败可以触发重试或死信；仅替换 transport 实现类不构成可靠投递。
 
 ## 测试
 

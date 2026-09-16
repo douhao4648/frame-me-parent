@@ -16,8 +16,8 @@ import java.util.Map;
  *
  * <p><b>本地发布与远程发送非原子</b>：{@link #publish} 先同步执行本地 {@code @EventListener}
  * （可能已写库、发通知），再 {@code transport.send} 广播。远程发送失败时本地副作用已产生、
- * 无法回滚——这是事件驱动的固有局限，真正原子需事务消息（本地消息表 + 轮询补偿）基础设施.
- * 消费方必须幂等（跨服务事件「至少一次」语义），payload 应携带业务幂等键.</p>
+ * 无法回滚。当前 Redis Pub/Sub transport 是 best-effort、at-most-once，订阅方离线或处理失败都会丢消息；
+ * 需要可靠送达时应使用事务 Outbox + 支持确认/重试的持久化消息通道。</p>
  *
  * @author frame-me
  */

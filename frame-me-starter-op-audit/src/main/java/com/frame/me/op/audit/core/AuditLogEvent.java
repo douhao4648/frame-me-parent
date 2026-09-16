@@ -18,8 +18,6 @@ public class AuditLogEvent extends AbstractMeApplicationEvent {
     @Getter
     private final AuditLogRecord record;
 
-    private final String targetService;
-
     @Getter
     private final String sourceInstanceId;
 
@@ -32,9 +30,8 @@ public class AuditLogEvent extends AbstractMeApplicationEvent {
      * @param sourceInstanceId 来源实例标识（JVM 进程级），本地直接发布时可与桥接回声区分
      */
     public AuditLogEvent(Object source, AuditLogRecord record, String targetService, String sourceInstanceId) {
-        super(source);
+        super(source, targetService, null);
         this.record = record;
-        this.targetService = targetService;
         this.sourceInstanceId = sourceInstanceId;
     }
 
@@ -48,8 +45,4 @@ public class AuditLogEvent extends AbstractMeApplicationEvent {
         return record;
     }
 
-    @Override
-    public String getTargetService() {
-        return targetService;
-    }
 }

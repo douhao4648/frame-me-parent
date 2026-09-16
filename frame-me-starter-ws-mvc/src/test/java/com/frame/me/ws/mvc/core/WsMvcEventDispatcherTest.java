@@ -84,12 +84,9 @@ class WsMvcEventDispatcherTest {
     private static class TestEvent extends AbstractMeApplicationEvent {
 
         private final String eventType;
-        private final String targetId;
-
         TestEvent(String eventType, String targetId) {
-            super("data");
+            super("data", null, targetId);
             this.eventType = eventType;
-            this.targetId = targetId;
         }
 
         @Override
@@ -97,22 +94,15 @@ class WsMvcEventDispatcherTest {
             return eventType;
         }
 
-        @Override
-        public String getTargetId() {
-            return targetId;
-        }
     }
 
     @SuppressWarnings("serial")
     private static class ForbiddenEvent extends AbstractMeApplicationEvent {
 
         private final String eventType;
-        private final String targetId;
-
         ForbiddenEvent(String eventType, String targetId) {
-            super("data");
+            super("data", null, targetId);
             this.eventType = eventType;
-            this.targetId = targetId;
         }
 
         @Override
@@ -120,9 +110,5 @@ class WsMvcEventDispatcherTest {
             return eventType;
         }
 
-        @Override
-        public String getTargetId() {
-            return targetId;
-        }
     }
 }

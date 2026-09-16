@@ -1232,7 +1232,7 @@ public class AlertService {
 | `SsoLogoutEventListener` | `sso-starter/auth/SsoLogoutEventListener`（已搬到 `frame-me-sso-starter`） | `@EventListener(UserLogoutEvent)`：调 `IAuthService.logoutByUserId(userId)` 清本地会话——走 SPI，sa-token 清 sa-token 会话，JWT 删 Refresh Token，两套认证实现通用 |
 | `LogEntity` | `audit/entity/LogEntity` | `@Table("audit_log") extends BaseEntity`，字段映射 `AuditLogRecord` |
 | `LogMapper` | `audit/mapper/LogMapper` | `@Mapper extends BaseMapper<LogEntity>`；`getById` 走 `resources/mapper/LogMapper.xml` 自定义 SQL（详情查询统一走 XML） |
-| `LogEventListener` | `audit/service/listener/LogEventListener` | `@EventListener(AuditLogEvent)`：取 record 写 `audit_log` 表；**多实例去重**以 `event.getEventId()` 为 key 加 Redis 锁（`audit:log:dedup:<eventId>`）全局只入库一次，锁不主动释放靠 TTL(30s)过期覆盖重投递窗口，Redis 故障降级放行（旁路原则）；失败不阻断事件链路 |
+| `LogEventListener` | `audit/service/listener/LogEventListener` | `@EventListener(AuditLogEvent)`：取 record 写 `audit_log` 表；**多实例去重**以 `event.getEventId()` 为 key 加 Redis 锁（`audit:log:dedup:<eventId>`）全局只入库一次，锁不主动释放靠 TTL(30s)覆盖各实例广播副本到达窗口，Redis 故障降级放行时可能重复；失败不阻断事件链路 |
 | `ILogApi` | `audit-api/ILogApi` | 审计日志管理查询契约（`@HttpExchange("/api/log")`）：`/list`、`/page`、`/{id}`，均收 `@QueryMap LogQuery`（action/operatorId/description 模糊，category/sourceService/success 精确，startTime/endTime 按 timestamp 圈区间，`@TimeRange` 校验） |
 | `LogController` | `audit/controller/LogController` | 实现 `ILogApi`，全局 `me.auth.enforce-login` 强制登录保护 |
 | `LogServiceImpl` | `audit/service/impl/LogServiceImpl` | `QueryWrapper` + `LogEntityTableDef` 类型安全拼条件，默认 `timestamp desc` 排序（`PageUtils.toOrderBy` 白名单） |

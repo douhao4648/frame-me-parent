@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>启动时会自动从 Spring 上下文收集所有 {@link IEventType} Bean 并注册；
  * 业务也可手动调用 {@link #register(IEventType)}。</p>
  *
- * <p>消费失败时，若注册了 {@link IEventErrorHandler} 则委托处理（重试/死信/告警），
- * 否则仅 {@code log.error} 后丢弃（保持兼容）.</p>
+ * <p>消费失败时，若注册了 {@link IEventErrorHandler} 则委托业务方记录、告警或补偿，
+ * 否则仅 {@code log.error} 后丢弃。当前 transport 契约不包含 ACK/NACK，错误处理器本身不会触发自动重投。</p>
  *
  * @author frame-me
  */
@@ -59,7 +59,7 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
      * @param localPublisher 本地事件发布器
      * @param properties     桥接配置
      * @param transports     transport 实现
-     * @param errorHandler   可选的错误处理器，消费失败时委托（重试/死信/告警）
+     * @param errorHandler   可选的错误处理器，消费失败时委托业务方记录、告警或补偿
      */
     public EventBridgeListener(ApplicationEventPublisher localPublisher,
                                EventBridgeProperties properties,
@@ -155,11 +155,13 @@ public class EventBridgeListener implements SmartInitializingSingleton, Applicat
             AbstractMeApplicationEvent localEvent = typedEventType.toLocalEvent(payload,
                     message.getSourceService(), message.getSourceInstanceId());
             localEvent.setEventId(message.getEventId());
+            localEvent.setTargetService(message.getTargetService());
+            localEvent.setTargetId(message.getTargetId());
+            localEvent.setTimestamp(message.getTimestamp());
             localPublisher.publishEvent(localEvent);
             log.debug("Event dispatched locally: type={}, source={}", type, message.getSourceService());
         } catch (Exception e) {
             log.error("Failed to dispatch event: type={}, payload={}", type, message.getPayload(), e);
-            // 委托错误处理器（重试/死信/告警），未注册则保持原行为（仅记日志）
             errorHandler.ifPresent(h -> {
                 try {
                     h.handleError(message, e);

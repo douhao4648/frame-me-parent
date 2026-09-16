@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -42,14 +43,29 @@ public abstract class AbstractMeApplicationEvent implements Serializable {
     @Setter
     private String eventId;
 
+    private String targetService;
+
+    private String targetId;
+
+    @Getter
+    @Setter
+    private Instant timestamp;
+
     /**
      * 创建事件.
      *
      * @param source 事件源
      */
     public AbstractMeApplicationEvent(Object source) {
+        this(source, null, null);
+    }
+
+    protected AbstractMeApplicationEvent(Object source, String targetService, String targetId) {
         this.source = source;
         this.eventId = UUID.randomUUID().toString();
+        this.targetService = targetService;
+        this.targetId = targetId;
+        this.timestamp = Instant.now();
     }
 
     /**
@@ -73,8 +89,12 @@ public abstract class AbstractMeApplicationEvent implements Serializable {
      *
      * @return 目标服务名
      */
-    public String getTargetService() {
-        return null;
+    public final String getTargetService() {
+        return targetService;
+    }
+
+    public final void setTargetService(String targetService) {
+        this.targetService = targetService;
     }
 
     /**
@@ -82,8 +102,12 @@ public abstract class AbstractMeApplicationEvent implements Serializable {
      *
      * @return 目标标识
      */
-    public String getTargetId() {
-        return null;
+    public final String getTargetId() {
+        return targetId;
+    }
+
+    public final void setTargetId(String targetId) {
+        this.targetId = targetId;
     }
 
     /**

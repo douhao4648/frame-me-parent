@@ -27,8 +27,8 @@ import java.time.ZoneId;
  * （审计是旁路，宁可重复不可丢失）；锁 waitMs=0 不阻塞，leaseMs=30s。</p>
  *
  * <p><b>锁不主动释放</b>：insert 完后<b>不</b> unlock，靠 leaseMs=30s 自动过期。
- * 这样"至少一次"语义下的重投递（先后来到，非并发）在 TTL 窗口内都拿不到锁，
- * 真正去重——若 unlock，锁只覆盖单次 insert，后续重投递仍会再入库。
+ * 这样同一 Pub/Sub 广播被多个在线审计实例收到时，在 TTL 窗口内只有一个实例可以入库。
+ * 若 unlock，锁只覆盖单次 insert，其他实例随后仍可能重复入库。
  * 代价：持锁实例 insert 失败时锁仍占用 TTL，该 eventId 的日志在窗口内丢失
  * （遵"审计是旁路"原则，DB 故障下丢日志可接受）。</p>
  *
@@ -67,7 +67,7 @@ public class LogEventListener {
             log.debug("审计日志已由其他实例入库，跳过: eventId={}", eventId);
             return;
         }
-        // 不主动 unlock：靠 leaseMs=30s 自动过期，覆盖重投递窗口（见类 Javadoc）
+        // 不主动 unlock：靠 leaseMs=30s 自动过期，覆盖多实例广播副本的到达窗口（见类 Javadoc）
         persist(event.getRecord());
     }
 

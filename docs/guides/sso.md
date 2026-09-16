@@ -242,7 +242,7 @@ SSO 踢人时通过事件桥接发布 `UserLogoutEvent`（type=`sso:user-logout`
 - `@Import(UserLogoutEventConfiguration.class)` 注册事件类型（已由 `SsoClientAutoConfiguration` 自动 `@Import`；SSO 服务自身无需显式引入：该配置类包 `com.frame.me.sso.event` 在启动类扫描根包 `com.frame.me.sso` 之下，组件扫描自动注册，保证多实例广播互通）
 - `SsoLogoutEventListener` 收到 `UserLogoutEvent` 后调 `IAuthService.logoutByUserId(userId)` 清本地会话——走认证 SPI，sa-token 清 sa-token 会话，JWT 删 Refresh Token，两套认证实现通用；`userId=null` 时（按应用踢）暂不处理
 
-事件 payload：`{ userId, appId, logoutTime, reason }`。消费方需幂等（跨服务事件"至少一次"语义）。
+事件 payload：`{ userId, appId, logoutTime, reason }`。当前 Redis Pub/Sub 是 best-effort、at-most-once：只有在线订阅者能收到，离线或断连期间的事件不会补发。若强制登出要求可靠，应增加持久化撤销状态或改用 durable integration event。
 
 ## 管理端点（需 admin 角色）
 
@@ -356,7 +356,7 @@ public class YourLogoutListener {
 }
 ```
 
-> 需引 `frame-me-starter-multi-redis`（提供 `RedisEventTransport`），否则跨服务踢人事件不可达。消费方需幂等（跨服务事件"至少一次"语义）。
+> 需引 `frame-me-starter-multi-redis`（提供 `RedisEventTransport`），否则跨服务踢人事件不可达。该通道用于在线实例即时通知，不承诺离线补发。
 
 ### 建本地 session（认证底座自选）
 

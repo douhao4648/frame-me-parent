@@ -13,8 +13,9 @@ import java.util.function.Consumer;
 /**
  * 基于 Redis Pub/Sub 的事件传输实现.
  *
- * <p>使用 {@link RedissonTopic} 完成 Topic 发布与订阅，
- * Bean 名称为 {@code redisEventTransport}。</p>
+ * <p>使用 {@link RedissonTopic} 的普通 Redis Pub/Sub 完成 Topic 发布与订阅，
+ * Bean 名称为 {@code redisEventTransport}。该通道是 best-effort、at-most-once：消息不持久化，
+ * 订阅者离线、断连或处理失败时不会自动重投。</p>
  *
  * @author frame-me
  */

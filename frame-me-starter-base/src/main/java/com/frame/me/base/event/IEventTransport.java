@@ -8,6 +8,9 @@ import java.util.function.Consumer;
  * <p>不同传输实现（Redis、MQ 等）通过该接口接入事件桥接核心。
  * 每种实现需注册为 Spring Bean，Bean 名称即为配置中使用的 transport 名称，如 {@code redisEventTransport}。</p>
  *
+ * <p>本接口只抽象 best-effort 的发送与订阅，不包含发布确认、ACK/NACK、重试和死信语义。
+ * 需要 at-least-once 的持久化 transport 时必须扩展确认契约，不能仅替换实现类。</p>
+ *
  * @author frame-me
  */
 public interface IEventTransport {

@@ -82,7 +82,7 @@ public OrderUpdateResult updateOrderStatus(Long orderId, String status) { ... }
 - 非审计服务收到消息后，因 `targetService` 不匹配而忽略，避免重复落库。
 - **审计中心（接收侧）需显式启用订阅**：在启动类或任意配置类加 `@Import(AuditLogEventConfiguration.class)`（`com.frame.me.op.audit`），注册 `AuditLogEventType` 后 `EventBridgeListener` 才会订阅 `audit:op-log` 通道并还原消息。该配置刻意不随自动装配生效——发送侧经 `EventBridgePublisher` 直发不查注册表，自动注册只会让无关服务白订阅通道。
 - 审计服务还原 `AuditLogEvent` 后，可自定义 `@EventListener` 或持久化监听器写入数据库/ES。
-- **多实例去重**：audit 多实例部署时，同一广播事件会被每个实例收到。`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），全局只入库一次。**锁不主动释放**，靠 TTL（30s）自动过期——覆盖 pub/sub "至少一次"语义下的重投递窗口（先后来到，非并发）；Redis 故障降级放行（审计是旁路，宁可重复不可丢失）。`eventId` 由事件层 `AbstractMeApplicationEvent` 提供（缺省 UUID，业务可自定义）。
+- **多实例去重**：audit 多实例部署时，同一 Pub/Sub 广播会被每个在线实例收到。`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），全局只入库一次。**锁不主动释放**，靠 TTL（30s）覆盖各实例广播副本先后到达的窗口；Redis 故障降级放行时可能重复入库。`eventId` 由事件层 `AbstractMeApplicationEvent` 提供（缺省 UUID，业务可自定义）。
 
 ```java
 @Component
@@ -96,7 +96,7 @@ public class AuditLogPersistenceHandler {
 }
 ```
 
-> 注意：当前基于 Redis Pub/Sub 的传输是广播且非持久化的，审计服务离线会丢消息。若需要强一致审计，可后续实现 MQ transport，`IEventTransport` 接口已预留。
+> 注意：当前 Redis Pub/Sub 是 best-effort、at-most-once，审计服务离线或处理失败都会丢消息。若需要不可丢失的审计，应在业务事务中写 Outbox，再由持久化 MQ/Redis Streams 以 ACK、重试、DLQ 投递；当前 `IEventTransport` 还需扩展确认契约，不能只替换实现类。
 
 ## 操作人上下文
 
@@ -184,5 +184,5 @@ me:
     service-name: frame-me-audit
 ```
 
-> 幂等：Redis pub/sub 至少一次语义可能重复投递，重复写入影响小；`when` 重复成为问题再加唯一索引。
+> 幂等：多实例订阅同一 Pub/Sub 通道时，每个在线实例都会收到一个广播副本；写共享审计库时应按 `eventId` 去重或增加唯一索引。
 > 通道名：实际 type 是 `audit:log`（`AuditLogEventType.type()` 返回值），非注释里的 `audit:op-log`。
