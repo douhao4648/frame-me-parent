@@ -1,14 +1,9 @@
 package com.frame.me.auth.satoken.core;
 
 import cn.dev33.satoken.dao.SaTokenDao;
-import com.frame.me.auth.satoken.config.SaTokenAuthProperties;
 import com.frame.me.redis.util.RedisClient;
-import com.frame.me.redis.util.RedisUtils;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisKeyCommands;
@@ -30,7 +25,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,8 +32,8 @@ import static org.mockito.Mockito.when;
 /**
  * {@link RedisSaTokenDao} 单元测试.
  *
- * <p>不引入真实 Redis：静态打桩 {@link RedisUtils#getClient(String)} 返回 mock 客户端，
- * 逐方法验证 timeout 分支语义（对齐官方 {@code SaTokenDaoForRedisTemplate}）与
+ * <p>不引入真实 Redis：构造器注入 mock 客户端，逐方法验证 timeout 分支语义
+ * （对齐官方 {@code SaTokenDaoForRedisTemplate}）与
  * key 原样透传（sa-token 生成的 key 自带 tokenName 前缀，本 DAO 不再叠加命名空间）。</p>
  *
  * @author frame-me
@@ -51,24 +45,10 @@ class RedisSaTokenDaoTest {
      */
     private static final String KEY = "satoken:login:token:k1";
 
-    private final SaTokenAuthProperties properties = new SaTokenAuthProperties();
-    private final RedisSaTokenDao dao = new RedisSaTokenDao(properties.getRedis().getClientName());
     private final RedisClient client = mock(RedisClient.class);
+    private final RedisSaTokenDao dao = new RedisSaTokenDao(client);
     @SuppressWarnings("unchecked")
     private final RedisTemplate<Object, Object> redisTemplate = mock(RedisTemplate.class);
-
-    private MockedStatic<RedisUtils> redisUtilsMock;
-
-    @BeforeEach
-    void setUp() {
-        redisUtilsMock = mockStatic(RedisUtils.class);
-        redisUtilsMock.when(() -> RedisUtils.getClient("default")).thenReturn(client);
-    }
-
-    @AfterEach
-    void tearDown() {
-        redisUtilsMock.close();
-    }
 
     /**
      * 读取：key 原样透传委托客户端.

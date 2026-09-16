@@ -6,12 +6,14 @@ import cn.dev33.satoken.config.SaTokenConfig;
 import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.context.mock.SaResponseForMock;
 import cn.dev33.satoken.context.mock.SaTokenContextMockUtil;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.satoken.config.SaTokenAuthProperties;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.user.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +38,9 @@ class SaTokenAuthServiceCookieTest {
     private static final String RAW_PASSWORD = "123456";
 
     private final IAuthUserDetailsService userDetailsService = mock(IAuthUserDetailsService.class);
-    private final SaTokenAuthService authService = new SaTokenAuthService(userDetailsService, new SaTokenAuthProperties());
+    private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
+    private final SaTokenAuthService authService = new SaTokenAuthService(
+            userDetailsService, new SaTokenAuthProperties(), new AuthUserAuthenticator(passwordEncoder));
 
     @BeforeEach
     void setUp() {
@@ -56,7 +60,7 @@ class SaTokenAuthServiceCookieTest {
         user.setId(92001L);
         user.setAccount("alice");
         when(userDetailsService.loadUserByAccount("alice")).thenReturn(user);
-        when(userDetailsService.matches(eq(RAW_PASSWORD), any())).thenReturn(true);
+        when(passwordEncoder.matches(eq(RAW_PASSWORD), any())).thenReturn(true);
     }
 
     @AfterEach

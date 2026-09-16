@@ -1,7 +1,7 @@
 package com.frame.me.redis.config;
 
-import com.frame.me.redis.util.RedisUtils;
-import org.junit.jupiter.api.AfterEach;
+import com.frame.me.redis.util.RedisClient;
+import com.frame.me.redis.util.RedisClientRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,10 +22,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class RedisAutoConfigurationTest {
 
-    @AfterEach
-    void clearRedisUtils() {
-        // RedisUtils 是静态持有，跨用例清理避免串扰.
-        RedisUtils.init("default", Map.of(), Map.of());
+    @Test
+    void registriesKeepClientMappingsIsolated() {
+        RedisClient firstClient = org.mockito.Mockito.mock(RedisClient.class);
+        RedisClient secondClient = org.mockito.Mockito.mock(RedisClient.class);
+        RedisClientRegistry first = new RedisClientRegistry(
+                "default", Map.of("default", firstClient));
+        RedisClientRegistry second = new RedisClientRegistry(
+                "default", Map.of("default", secondClient));
+
+        assertThat(first.getDefaultClient()).isSameAs(firstClient);
+        assertThat(second.getDefaultClient()).isSameAs(secondClient);
     }
 
     /**
@@ -45,10 +52,9 @@ class RedisAutoConfigurationTest {
 
         RedisAutoConfiguration configuration = new RedisAutoConfiguration(
                 new StringRedisTemplate(), new RedisTemplate<>(), redisProperties);
-        configuration.init();
+        RedisClientRegistry registry = configuration.redisClientRegistry();
 
-        // 额外实例已注册到 RedisUtils
-        assertThat(RedisUtils.getClient("extra")).isNotNull();
+        assertThat(registry.getClient("extra")).isNotNull();
 
         // 额外实例的工厂已被收集到本类字段
         Field field = RedisAutoConfiguration.class.getDeclaredField("extraConnectionFactories");

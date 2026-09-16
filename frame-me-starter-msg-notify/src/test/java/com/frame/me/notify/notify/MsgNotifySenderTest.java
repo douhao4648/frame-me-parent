@@ -4,8 +4,7 @@ import com.frame.me.notify.api.INotifyClient;
 import com.frame.me.notify.config.NotifyProperties;
 import com.frame.me.notify.model.NotifyMessage;
 import com.frame.me.notify.model.NotifyResult;
-import com.frame.me.notify.util.NotifyClientFactory;
-import org.junit.jupiter.api.AfterEach;
+import com.frame.me.notify.util.NotifyClientRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -18,19 +17,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MsgNotifySenderTest {
 
-    @AfterEach
-    void tearDown() {
-        NotifyClientFactory.init(Map.of(), Map.of());
-    }
-
     @Test
     void sendShouldUseGlobalDefaultClient() {
         RecordingClient emailClient = new RecordingClient("email", "email");
-        NotifyClientFactory.init(
+        NotifyClientRegistry registry = registry(
                 Map.of("email", emailClient),
                 Map.of("email", "email"),
                 "email");
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), registry);
 
         boolean result = sender.send("title", "content", List.of("receiver@example.com"));
 
@@ -43,13 +37,13 @@ class MsgNotifySenderTest {
     @Test
     void sendShouldFallbackToGlobalReceivers() {
         RecordingClient emailClient = new RecordingClient("email", "email");
-        NotifyClientFactory.init(
+        NotifyClientRegistry registry = registry(
                 Map.of("email", emailClient),
                 Map.of("email", "email"),
                 "email");
         NotifyProperties properties = new NotifyProperties();
         properties.setGlobalReceivers(List.of("admin@example.com", "ops@example.com"));
-        MsgNotifySender sender = new MsgNotifySender(properties);
+        MsgNotifySender sender = new MsgNotifySender(properties, registry);
 
         boolean result = sender.send("title", "content", List.of());
 
@@ -60,7 +54,7 @@ class MsgNotifySenderTest {
 
     @Test
     void sendShouldReturnFalseWhenNoGlobalDefault() {
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), emptyRegistry());
 
         boolean result = sender.send("title", "content", List.of("receiver@example.com"));
 
@@ -70,10 +64,10 @@ class MsgNotifySenderTest {
     @Test
     void sendChannelShouldUseChannelDefaultClient() {
         RecordingClient emailClient = new RecordingClient("email", "email");
-        NotifyClientFactory.init(
+        NotifyClientRegistry registry = registry(
                 Map.of("email", emailClient),
-                Map.of("email", "email"));
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+                Map.of("email", "email"), null);
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), registry);
 
         boolean result = sender.sendChannel("email", "title", "content", List.of("receiver@example.com"));
 
@@ -83,7 +77,7 @@ class MsgNotifySenderTest {
 
     @Test
     void sendChannelShouldReturnFalseWhenChannelNotConfigured() {
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), emptyRegistry());
 
         boolean result = sender.sendChannel("email", "title", "content", List.of("receiver@example.com"));
 
@@ -95,7 +89,7 @@ class MsgNotifySenderTest {
      */
     @Test
     void sendChannelShouldReturnFalseWhenChannelUnsupported() {
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), emptyRegistry());
 
         assertThat(sender.sendChannel("wechat", "title", "content", List.of("r@example.com"))).isFalse();
     }
@@ -105,7 +99,7 @@ class MsgNotifySenderTest {
      */
     @Test
     void sendChannelShouldReturnFalseWhenChannelIsBlank() {
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), emptyRegistry());
 
         assertThat(sender.sendChannel(null, "title", "content", List.of("receiver@example.com"))).isFalse();
         assertThat(sender.sendChannel("  ", "title", "content", List.of("receiver@example.com"))).isFalse();
@@ -116,7 +110,7 @@ class MsgNotifySenderTest {
      */
     @Test
     void sendClientShouldReturnFalseWhenClientNameIsNull() {
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), emptyRegistry());
 
         assertThat(sender.sendClient(null, "title", "content", List.of("receiver@example.com"))).isFalse();
     }
@@ -124,10 +118,10 @@ class MsgNotifySenderTest {
     @Test
     void sendClientShouldUseNamedClient() {
         RecordingClient alertClient = new RecordingClient("alert", "email");
-        NotifyClientFactory.init(
+        NotifyClientRegistry registry = registry(
                 Map.of("email:alert", alertClient),
-                Map.of("email", "email"));
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+                Map.of("email", "email"), null);
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), registry);
 
         boolean result = sender.sendClient("email:alert", "title", "content", List.of("receiver@example.com"));
 
@@ -137,11 +131,21 @@ class MsgNotifySenderTest {
 
     @Test
     void sendClientShouldReturnFalseWhenClientNotRegistered() {
-        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties());
+        MsgNotifySender sender = new MsgNotifySender(new NotifyProperties(), emptyRegistry());
 
         boolean result = sender.sendClient("email:alert", "title", "content", List.of("receiver@example.com"));
 
         assertThat(result).isFalse();
+    }
+
+    private NotifyClientRegistry emptyRegistry() {
+        return registry(Map.of(), Map.of(), null);
+    }
+
+    private NotifyClientRegistry registry(Map<String, INotifyClient> clients,
+                                          Map<String, String> defaults,
+                                          String globalDefault) {
+        return new NotifyClientRegistry(clients, defaults, globalDefault);
     }
 
     private static class RecordingClient implements INotifyClient {

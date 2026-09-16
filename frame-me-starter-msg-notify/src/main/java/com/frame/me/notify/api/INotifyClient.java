@@ -9,7 +9,7 @@ import java.util.List;
  * 通知客户端统一接口.
  *
  * <p>所有通道实现（邮件、钉钉、飞书等）均需实现此接口，
- * 通过 {@link com.frame.me.notify.util.NotifyClientFactory} 按名称获取实例。</p>
+ * 通过 {@link com.frame.me.notify.util.NotifyClientRegistry} 按名称获取实例。</p>
  */
 public interface INotifyClient {
 

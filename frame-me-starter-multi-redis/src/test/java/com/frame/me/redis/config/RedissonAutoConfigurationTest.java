@@ -1,5 +1,9 @@
 package com.frame.me.redis.config;
 
+import com.frame.me.redis.util.RedissonLimiter;
+import com.frame.me.redis.util.RedissonLock;
+import com.frame.me.redis.util.RedissonSync;
+import com.frame.me.redis.util.RedissonTopic;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -28,7 +32,13 @@ class RedissonAutoConfigurationTest {
     @Test
     void backsOffWhenCustomRedissonClientPresent() {
         runner.withBean(RedissonClient.class, () -> mock(RedissonClient.class))
-                .run(context -> assertThat(context).doesNotHaveBean("meRedissonClient"));
+                .run(context -> {
+                    assertThat(context).doesNotHaveBean("meRedissonClient");
+                    assertThat(context).hasSingleBean(RedissonLock.class);
+                    assertThat(context).hasSingleBean(RedissonSync.class);
+                    assertThat(context).hasSingleBean(RedissonTopic.class);
+                    assertThat(context).hasSingleBean(RedissonLimiter.class);
+                });
     }
 
     /**

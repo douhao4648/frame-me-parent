@@ -68,7 +68,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
 | `frame-me-starter-mybatis-flex` | MyBatis-Flex 数据访问 starter（与 mybatis-plus 二选一）。 |
 | `frame-me-starter-doc-openapi` | 接口文档 starter：基于 SpringDoc OpenAPI，通过 `me.swagger.enabled=true` 开启。 |
 | `frame-me-starter-dynamic-ds` | 多数据源 starter：基于 baomidou dynamic-datasource，按 `spring.datasource.*` 自动创建默认 `master` 数据源。 |
-| `frame-me-starter-multi-redis` | Redis 能力 starter：封装 `RedisUtils`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动启用分布式锁、同步原语、Topic、限流。 |
+| `frame-me-starter-multi-redis` | Redis 能力 starter：提供可注入的 `RedisClientRegistry`（String/Hash/List/Set/ZSet/计数/简单锁，多实例）；引入 Redisson 后自动注册分布式锁、同步原语、Topic、限流 Bean。 |
 | `frame-me-starter-l1l2-cache` | 两级缓存 starter：基于 JetCache，Caffeine（L1）+ Redis（L2），通过 `me.cache.enabled=true` 开启。 |
 | `frame-me-starter-sensi-encrypt` | 配置密钥加密 starter：基于 Jasypt 核心库，启动时解密配置中的 `ME(密文)`，主密码由环境变量注入、不入库。 |
 | `frame-me-starter-op-audit` | 审计/行为日志 starter：方法标注 `@AuditLog` 记录动作/参数/返回/异常/耗时，默认打印日志，可经事件桥接发往审计服务。 |

@@ -4,20 +4,21 @@ import cn.dev33.satoken.SaManager;
 import cn.dev33.satoken.context.mock.SaTokenContextMockUtil;
 import cn.dev33.satoken.session.SaSession;
 import cn.dev33.satoken.stp.StpUtil;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.satoken.config.SaTokenAuthProperties;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
-import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -38,9 +39,11 @@ import static org.mockito.Mockito.when;
 class SaTokenAuthServiceTest {
 
     private static final String RAW_PASSWORD = "123456";
+    private static final PasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder(4);
 
     private final IAuthUserDetailsService userDetailsService = mock(IAuthUserDetailsService.class);
-    private final SaTokenAuthService authService = new SaTokenAuthService(userDetailsService, new SaTokenAuthProperties());
+    private final SaTokenAuthService authService = new SaTokenAuthService(
+            userDetailsService, new SaTokenAuthProperties(), new AuthUserAuthenticator(PASSWORD_ENCODER));
 
     @BeforeEach
     void setUp() {
@@ -59,11 +62,9 @@ class SaTokenAuthServiceTest {
         User user = new User();
         user.setId(userId);
         user.setAccount(account);
-        user.setPassword(PasswordUtils.encode(RAW_PASSWORD));
+        user.setPassword(PASSWORD_ENCODER.encode(RAW_PASSWORD));
         when(userDetailsService.loadUserByAccount(account)).thenReturn(user);
         when(userDetailsService.loadUserById(userId)).thenReturn(user);
-        when(userDetailsService.matches(anyString(), anyString())).thenAnswer(invocation ->
-                PasswordUtils.matches(invocation.getArgument(0), invocation.getArgument(1)));
         return user;
     }
 

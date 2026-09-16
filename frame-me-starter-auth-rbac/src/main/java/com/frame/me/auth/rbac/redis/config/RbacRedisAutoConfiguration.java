@@ -5,11 +5,12 @@ import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.redis.RedisAuthPermissionProvider;
 import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.auth.rbac.redis.store.RedisPermissionCacheStore;
-import com.frame.me.redis.util.RedisUtils;
+import com.frame.me.redis.util.RedisClientRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,9 +30,10 @@ import org.springframework.context.annotation.Primary;
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
-// multi-redis 为 optional 依赖：RedisUtils 缺席时整个配置类在 ASM 元数据阶段跳过。
+// multi-redis 为 optional 依赖：RedisClientRegistry 缺席时整个配置类在 ASM 元数据阶段跳过。
 // 护栏：本条件必须保持在类级（类级 Class 字面量安全）；若改到方法级须换成 name 字符串形式，否则缺席场景会 NCDFE
-@ConditionalOnClass(RedisUtils.class)
+@ConditionalOnClass(RedisClientRegistry.class)
+@ConditionalOnBean(RedisClientRegistry.class)
 // 与 RbacAutoConfiguration 同走总开关：me.auth.enabled=false 或 me.auth.permission.enabled=false 时本配置一并退避，不再空转装配
 @ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.permission", name = "enabled", havingValue = "true", matchIfMissing = true)
@@ -40,7 +42,10 @@ import org.springframework.context.annotation.Primary;
 // 必须在 RbacAutoConfiguration 之后处理：数据源插槽 authPermissionSource 由它注册；
 // 若本配置先处理，下方的 @Primary 包装器（本身是 IAuthPermissionProvider）会使插槽的
 // @ConditionalOnMissingBean(IAuthPermissionProvider) 误判退避，导致 @Qualifier("authPermissionSource") 注入失败
-@AutoConfigureAfter(RbacAutoConfiguration.class)
+@AutoConfigureAfter(name = {
+        "com.frame.me.auth.rbac.config.RbacAutoConfiguration",
+        "com.frame.me.redis.config.RedisAutoConfiguration"
+})
 public class RbacRedisAutoConfiguration {
 
     /**
@@ -48,8 +53,9 @@ public class RbacRedisAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(IPermissionCacheStore.class)
-    public IPermissionCacheStore permissionCacheStore(RbacRedisProperties properties) {
-        return new RedisPermissionCacheStore(properties);
+    public IPermissionCacheStore permissionCacheStore(RbacRedisProperties properties,
+                                                       RedisClientRegistry redisClients) {
+        return new RedisPermissionCacheStore(properties, redisClients.getClient(properties.getClientName()));
     }
 
     /**

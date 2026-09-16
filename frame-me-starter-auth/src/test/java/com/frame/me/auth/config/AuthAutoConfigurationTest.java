@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,6 +32,19 @@ class AuthAutoConfigurationTest {
     private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(AuthAutoConfiguration.class))
             .withUserConfiguration(StubInfraConfig.class);
+
+    @Test
+    void customPasswordEncoderTakesPrecedence() {
+        PasswordEncoder custom = org.mockito.Mockito.mock(PasswordEncoder.class);
+        runner.withPropertyValues("me.auth.trusted-header.enabled=false")
+                .withBean(PasswordEncoder.class, () -> custom)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(PasswordEncoder.class);
+                    assertThat(context.getBean(PasswordEncoder.class)).isSameAs(custom);
+                    assertThat(context).hasSingleBean(com.frame.me.auth.core.AuthUserAuthenticator.class);
+                });
+    }
 
     /**
      * 非 Servlet Web 应用整体退避：RequestMappingHandlerMapping 不存在，

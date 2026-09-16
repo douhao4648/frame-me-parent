@@ -5,6 +5,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -34,6 +35,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Testcontainers
 @ActiveProfiles("test")
 class RedissonLockTest {
+
+    @Autowired
+    private RedissonLock redissonLock;
 
     private static final boolean DOCKER_AVAILABLE;
 
@@ -71,7 +75,7 @@ class RedissonLockTest {
         if (!DOCKER_AVAILABLE) {
             return;
         }
-        RedissonLock.unlock("test:lock");
+        redissonLock.unlock("test:lock");
     }
 
     /**
@@ -80,10 +84,10 @@ class RedissonLockTest {
     @Test
     void shouldAcquireAndReleaseReentrantLock() {
         String key = "test:lock:reentrant";
-        assertTrue(RedissonLock.tryLock(key, 0, 30000), "应能获取锁");
-        assertTrue(RedissonLock.tryLock(key, 0, 30000), "同线程应能重入获取锁");
-        RedissonLock.unlock(key);
-        RedissonLock.unlock(key);
+        assertTrue(redissonLock.tryLock(key, 0, 30000), "应能获取锁");
+        assertTrue(redissonLock.tryLock(key, 0, 30000), "同线程应能重入获取锁");
+        redissonLock.unlock(key);
+        redissonLock.unlock(key);
     }
 
     /**
@@ -92,15 +96,15 @@ class RedissonLockTest {
     @Test
     void shouldBeMutuallyExclusive() throws InterruptedException {
         String key = "test:lock:exclusive";
-        assertTrue(RedissonLock.tryLock(key, 0, 30000), "第一个线程应能获取锁");
+        assertTrue(redissonLock.tryLock(key, 0, 30000), "第一个线程应能获取锁");
 
         // 在另一个线程尝试获取同一把锁，应失败（虚拟线程，JVM 托管）
         boolean[] acquired = {false};
-        Thread t = Thread.startVirtualThread(() -> acquired[0] = RedissonLock.tryLock(key, 100, 100));
+        Thread t = Thread.startVirtualThread(() -> acquired[0] = redissonLock.tryLock(key, 100, 100));
         t.join();
 
         assertFalse(acquired[0], "第二个线程在租期内不应获取到锁");
-        RedissonLock.unlock(key);
+        redissonLock.unlock(key);
     }
 
     /**
@@ -122,7 +126,7 @@ class RedissonLockTest {
             executor.submit(() -> {
                 try {
                     startLatch.await();
-                    if (RedissonLock.tryLock(key, 5000, 30000)) {
+                    if (redissonLock.tryLock(key, 5000, 30000)) {
                         try {
                             successCount.incrementAndGet();
                             int current = inCriticalSection.incrementAndGet();
@@ -132,7 +136,7 @@ class RedissonLockTest {
                             Thread.sleep(50);
                         } finally {
                             inCriticalSection.decrementAndGet();
-                            RedissonLock.unlock(key);
+                            redissonLock.unlock(key);
                         }
                     }
                 } catch (InterruptedException e) {
@@ -160,11 +164,11 @@ class RedissonLockTest {
     @Test
     void shouldExpireAfterLeaseTime() throws InterruptedException {
         String key = "test:lock:expire";
-        assertTrue(RedissonLock.tryLock(key, 0, 500), "获取 500ms 租期的锁");
-        RedissonLock.unlock(key);
+        assertTrue(redissonLock.tryLock(key, 0, 500), "获取 500ms 租期的锁");
+        redissonLock.unlock(key);
 
         // 由于已经主动释放，这里验证再次获取即可
-        assertTrue(RedissonLock.tryLock(key, 0, 500), "释放后应能重新获取");
-        RedissonLock.unlock(key);
+        assertTrue(redissonLock.tryLock(key, 0, 500), "释放后应能重新获取");
+        redissonLock.unlock(key);
     }
 }

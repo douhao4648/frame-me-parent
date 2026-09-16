@@ -1,13 +1,14 @@
 package com.frame.me.redis.config;
 
-import com.frame.me.redis.util.RedisUtils;
-import jakarta.annotation.PostConstruct;
+import com.frame.me.redis.util.RedisClient;
+import com.frame.me.redis.util.RedisClientRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
@@ -20,7 +21,7 @@ import java.util.*;
 /**
  * Redis 自动配置.
  *
- * <p>启用后注册 {@link RedisUtils} 所需的 RedisTemplate 引用。
+ * <p>启用后注册当前容器独立的 {@link RedisClientRegistry}。
  * 默认实例来自 {@code spring.data.redis.*}，额外实例通过 {@code me.redis.clients.*} 配置。</p>
  *
  * <p>额外实例的 {@link LettuceConnectionFactory} 由本配置类手动创建、不注册为 Bean，
@@ -47,26 +48,20 @@ public class RedisAutoConfiguration implements DisposableBean {
      */
     private final List<LettuceConnectionFactory> extraConnectionFactories = new ArrayList<>();
 
-    @Autowired(required = false)
     public RedisAutoConfiguration(StringRedisTemplate stringRedisTemplate,
                                   RedisTemplate<Object, Object> redisTemplate,
                                   RedisProperties redisProperties) {
-        this.stringRedisTemplate = stringRedisTemplate;
-        this.redisTemplate = redisTemplate;
-        this.redisProperties = redisProperties;
+        this.stringRedisTemplate = Objects.requireNonNull(stringRedisTemplate, "stringRedisTemplate");
+        this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
+        this.redisProperties = Objects.requireNonNull(redisProperties, "redisProperties");
     }
 
-    @PostConstruct
-    public void init() {
-        Map<String, StringRedisTemplate> stringTemplates = new HashMap<>();
-        Map<String, RedisTemplate<Object, Object>> templates = new HashMap<>();
+    @Bean
+    @ConditionalOnMissingBean(RedisClientRegistry.class)
+    public RedisClientRegistry redisClientRegistry() {
+        Map<String, RedisClient> clients = new HashMap<>();
 
-        if (stringRedisTemplate != null) {
-            stringTemplates.put(DEFAULT_CLIENT, stringRedisTemplate);
-        }
-        if (redisTemplate != null) {
-            templates.put(DEFAULT_CLIENT, redisTemplate);
-        }
+        clients.put(DEFAULT_CLIENT, new RedisClient(stringRedisTemplate, redisTemplate));
 
         redisProperties.getClients().forEach((name, config) -> {
             LettuceConnectionFactory connectionFactory = buildConnectionFactory(config);
@@ -78,15 +73,15 @@ public class RedisAutoConfiguration implements DisposableBean {
             extraTemplate.setConnectionFactory(connectionFactory);
             // ponytail: 额外实例用默认 JdkSerializationRedisSerializer，与 Boot 自动配置的默认实例一致
             // （默认实例也用 JdkSerialization，跨实例兼容）。如业务方为默认实例配置了自定义序列化器，
-            // 应通过 RedisConfig @Bean 同步配置额外实例，或改用 RedisUtils.str() 通道（StringRedisSerializer）.
+            // 应通过 RedisConfig @Bean 同步配置额外实例，或使用 RedisClient 的 String 通道.
             extraTemplate.afterPropertiesSet();
 
-            stringTemplates.put(name, extraStringTemplate);
-            templates.put(name, extraTemplate);
+            clients.put(name, new RedisClient(extraStringTemplate, extraTemplate));
         });
 
-        RedisUtils.init(DEFAULT_CLIENT, stringTemplates, templates);
-        log.info("Redis initialize : {}", stringTemplates.keySet());
+        RedisClientRegistry registry = new RedisClientRegistry(DEFAULT_CLIENT, clients);
+        log.info("Redis initialize : {}", registry.clientNames());
+        return registry;
     }
 
     @Override

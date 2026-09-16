@@ -26,7 +26,7 @@ public class RedisProperties {
      * 多 Redis 实例配置，key 为实例名。
      *
      * <p>默认实例仍由 {@code spring.data.redis.*} 提供，名称为 {@code default}；
-     * 此处配置的是额外实例，可通过 {@code RedisUtils.getClient(name)} 获取。</p>
+     * 此处配置的是额外实例，可通过 {@code RedisClientRegistry.getClient(name)} 获取。</p>
      */
     private Map<String, ClientConfig> clients = new HashMap<>();
 

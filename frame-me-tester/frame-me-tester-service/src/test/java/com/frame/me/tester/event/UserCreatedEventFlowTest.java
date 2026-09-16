@@ -8,7 +8,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -72,7 +71,7 @@ class UserCreatedEventFlowTest {
     private UserCreatedEventHandler handler;
 
     @Autowired
-    private RedissonClient redissonClient;
+    private RedissonTopic redissonTopic;
 
     @Autowired
     private EventBridgeListener eventBridgeListener;
@@ -113,7 +112,7 @@ class UserCreatedEventFlowTest {
         String json = com.alibaba.fastjson2.JSON.toJSONString(payload);
         EventBridgeMessage message = EventBridgeMessage.of("user:created", json, "other-service", "other-instance");
 
-        RedissonTopic.topicPublish("me:event:user:created", message);
+        redissonTopic.topicPublish("me:event:user:created", message);
 
         await().atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertThat(handler.getReceived())

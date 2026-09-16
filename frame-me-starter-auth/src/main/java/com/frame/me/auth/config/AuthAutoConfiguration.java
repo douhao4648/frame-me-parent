@@ -1,6 +1,7 @@
 package com.frame.me.auth.config;
 
 import com.frame.me.auth.audit.AuditAuthOperatorSupplier;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.core.NoOpAuthUserResolver;
 import com.frame.me.auth.core.TrustedHeaderAuthUserResolver;
 import com.frame.me.auth.filter.AuthFilter;
@@ -10,14 +11,12 @@ import com.frame.me.auth.resolver.LoginUserArgumentResolver;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.auth.spi.IServiceInstanceProbe;
-import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.config.AsyncAutoConfiguration;
 import com.frame.me.base.limit.InMemoryLoginRateLimiter;
 import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
 import com.frame.me.op.audit.config.AuditAutoConfiguration;
 import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -35,6 +34,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.task.TaskDecorator;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.client.support.RestClientHttpServiceGroupConfigurer;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -65,10 +66,16 @@ public class AuthAutoConfiguration {
         this.properties = properties;
     }
 
-    @PostConstruct
-    void initPasswordUtils() {
-        PasswordUtils.setBcryptStrength(properties.getBcryptStrength());
-        log.debug("BCrypt strength initialized: {}", properties.getBcryptStrength());
+    @Bean
+    @ConditionalOnMissingBean(PasswordEncoder.class)
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(properties.getBcryptStrength());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AuthUserAuthenticator.class)
+    public AuthUserAuthenticator authUserAuthenticator(PasswordEncoder passwordEncoder) {
+        return new AuthUserAuthenticator(passwordEncoder);
     }
 
     /**

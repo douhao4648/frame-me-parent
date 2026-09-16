@@ -22,6 +22,7 @@ import java.util.function.Consumer;
 @Slf4j
 public class RedisEventTransport implements IEventTransport, MessageListener<EventBridgeMessage> {
 
+    private final RedissonTopic redissonTopic;
     private final String topicPrefix;
     private final Map<String, Consumer<EventBridgeMessage>> dispatchers = new ConcurrentHashMap<>();
     private final Map<String, Integer> listenerIds = new ConcurrentHashMap<>();
@@ -29,23 +30,25 @@ public class RedisEventTransport implements IEventTransport, MessageListener<Eve
     /**
      * 创建 Redis 传输实现.
      *
+     * @param redissonTopic Redisson Topic 客户端
      * @param topicPrefix Topic 前缀
      */
-    public RedisEventTransport(String topicPrefix) {
+    public RedisEventTransport(RedissonTopic redissonTopic, String topicPrefix) {
+        this.redissonTopic = redissonTopic;
         this.topicPrefix = topicPrefix;
     }
 
     @Override
     public void send(String type, EventBridgeMessage message) {
         String topic = topicPrefix + type;
-        long clients = RedissonTopic.topicPublish(topic, message);
+        long clients = redissonTopic.topicPublish(topic, message);
         log.debug("Redis event published: type={}, topic={}, clients={}", type, topic, clients);
     }
 
     @Override
     public void subscribe(String type, Consumer<EventBridgeMessage> dispatcher) {
         String topic = topicPrefix + type;
-        int listenerId = RedissonTopic.topicSubscribe(topic, EventBridgeMessage.class, this);
+        int listenerId = redissonTopic.topicSubscribe(topic, EventBridgeMessage.class, this);
         dispatchers.put(type, dispatcher);
         listenerIds.put(type, listenerId);
         log.debug("Redis event subscribed: type={}, topic={}, listenerId={}", type, topic, listenerId);
@@ -56,7 +59,7 @@ public class RedisEventTransport implements IEventTransport, MessageListener<Eve
         String topic = topicPrefix + type;
         Integer listenerId = listenerIds.remove(type);
         if (listenerId != null) {
-            RedissonTopic.topicUnsubscribe(topic, listenerId);
+            redissonTopic.topicUnsubscribe(topic, listenerId);
         }
         dispatchers.remove(type);
         log.debug("Redis event unsubscribed: type={}, topic={}", type, topic);

@@ -8,16 +8,15 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Redisson 分布式锁与同步原语工具类.
+ * Redisson 分布式锁与同步原语客户端.
  *
  * <p>在 {@link RedissonLock} 已封装 {@link RLock} 的基础上，进一步提供读写锁、公平锁、
  * 红锁、信号量、门闩等同步能力。所有方法均委托给 {@link RedissonClient}，
- * 由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 在启动时初始化。</p>
- *
- * <p>未引入 Redisson 时，调用本类任何方法都会抛出 {@link IllegalStateException}。</p>
+ * 由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 注册为 Bean。</p>
  */
 public final class RedissonSync {
 
@@ -26,28 +25,10 @@ public final class RedissonSync {
      * 门闩等待默认超时（毫秒），避免调用方未指定超时导致线程永久阻塞.
      */
     private static final long DEFAULT_AWAIT_TIMEOUT_MS = 30_000;
-    private static volatile RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
 
-    private RedissonSync() {
-    }
-
-    /**
-     * 初始化 Redisson 客户端.
-     *
-     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
-     *
-     * @param client 默认实例的 Redisson 客户端
-     */
-    public static synchronized void init(RedissonClient client) {
-        RedissonSync.redissonClient = client;
-    }
-
-    private static RedissonClient client() {
-        RedissonClient client = redissonClient;
-        if (client == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
-        }
-        return client;
+    public RedissonSync(RedissonClient redissonClient) {
+        this.redissonClient = Objects.requireNonNull(redissonClient, "redissonClient");
     }
 
     // ============================ 读写锁 ============================
@@ -58,8 +39,8 @@ public final class RedissonSync {
      * @param key 锁键
      * @return RReadWriteLock
      */
-    public static RReadWriteLock getReadWriteLock(String key) {
-        return client().getReadWriteLock(key);
+    public RReadWriteLock getReadWriteLock(String key) {
+        return redissonClient.getReadWriteLock(key);
     }
 
     /**
@@ -68,7 +49,7 @@ public final class RedissonSync {
      * @param key 锁键
      * @return RLock
      */
-    public static RLock readLock(String key) {
+    public RLock readLock(String key) {
         return getReadWriteLock(key).readLock();
     }
 
@@ -78,7 +59,7 @@ public final class RedissonSync {
      * @param key 锁键
      * @return RLock
      */
-    public static RLock writeLock(String key) {
+    public RLock writeLock(String key) {
         return getReadWriteLock(key).writeLock();
     }
 
@@ -90,7 +71,7 @@ public final class RedissonSync {
      * @param leaseMs 锁持有时间（毫秒），{@code <=0} 启用看门狗续期
      * @return 是否获取成功
      */
-    public static boolean tryReadLock(String key, long waitMs, long leaseMs) {
+    public boolean tryReadLock(String key, long waitMs, long leaseMs) {
         try {
             return readLock(key).tryLock(waitMs, leaseMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -107,7 +88,7 @@ public final class RedissonSync {
      * @param leaseMs 锁持有时间（毫秒），{@code <=0} 启用看门狗续期
      * @return 是否获取成功
      */
-    public static boolean tryWriteLock(String key, long waitMs, long leaseMs) {
+    public boolean tryWriteLock(String key, long waitMs, long leaseMs) {
         try {
             return writeLock(key).tryLock(waitMs, leaseMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -121,7 +102,7 @@ public final class RedissonSync {
      *
      * @param key 锁键
      */
-    public static void unlockRead(String key) {
+    public void unlockRead(String key) {
         RLock lock = readLock(key);
         if (lock.isHeldByCurrentThread()) {
             lock.unlock();
@@ -133,7 +114,7 @@ public final class RedissonSync {
      *
      * @param key 锁键
      */
-    public static void unlockWrite(String key) {
+    public void unlockWrite(String key) {
         RLock lock = writeLock(key);
         if (lock.isHeldByCurrentThread()) {
             lock.unlock();
@@ -148,8 +129,8 @@ public final class RedissonSync {
      * @param key 锁键
      * @return RLock（公平锁）
      */
-    public static RLock getFairLock(String key) {
-        return client().getFairLock(key);
+    public RLock getFairLock(String key) {
+        return redissonClient.getFairLock(key);
     }
 
     /**
@@ -160,7 +141,7 @@ public final class RedissonSync {
      * @param leaseMs 锁持有时间（毫秒），{@code <=0} 启用看门狗续期
      * @return 是否获取成功
      */
-    public static boolean tryFairLock(String key, long waitMs, long leaseMs) {
+    public boolean tryFairLock(String key, long waitMs, long leaseMs) {
         try {
             return getFairLock(key).tryLock(waitMs, leaseMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -174,7 +155,7 @@ public final class RedissonSync {
      *
      * @param key 锁键
      */
-    public static void unlockFair(String key) {
+    public void unlockFair(String key) {
         RLock lock = getFairLock(key);
         if (lock.isHeldByCurrentThread()) {
             lock.unlock();
@@ -196,9 +177,9 @@ public final class RedissonSync {
      * @return RedissonRedLock
      */
     @Deprecated
-    public static RedissonRedLock getRedLock(String... keys) {
+    public RedissonRedLock getRedLock(String... keys) {
         RLock[] locks = Arrays.stream(keys)
-                .map(client()::getLock)
+                .map(redissonClient::getLock)
                 .toArray(RLock[]::new);
         return new RedissonRedLock(locks);
     }
@@ -209,9 +190,9 @@ public final class RedissonSync {
      * @param keys 锁键列表
      * @return RedissonMultiLock
      */
-    public static RedissonMultiLock getMultiLock(String... keys) {
+    public RedissonMultiLock getMultiLock(String... keys) {
         RLock[] locks = Arrays.stream(keys)
-                .map(client()::getLock)
+                .map(redissonClient::getLock)
                 .toArray(RLock[]::new);
         return new RedissonMultiLock(locks);
     }
@@ -224,8 +205,8 @@ public final class RedissonSync {
      * @param key 键
      * @return RSemaphore
      */
-    public static RSemaphore getSemaphore(String key) {
-        return client().getSemaphore(key);
+    public RSemaphore getSemaphore(String key) {
+        return redissonClient.getSemaphore(key);
     }
 
     /**
@@ -236,7 +217,7 @@ public final class RedissonSync {
      * @param waitMs  最长等待时间（毫秒）
      * @return 是否获取成功
      */
-    public static boolean tryAcquire(String key, int permits, long waitMs) {
+    public boolean tryAcquire(String key, int permits, long waitMs) {
         try {
             return getSemaphore(key).tryAcquire(permits, Duration.ofMillis(waitMs));
         } catch (InterruptedException e) {
@@ -251,7 +232,7 @@ public final class RedissonSync {
      * @param key     键
      * @param permits 许可数量
      */
-    public static void release(String key, int permits) {
+    public void release(String key, int permits) {
         getSemaphore(key).release(permits);
     }
 
@@ -263,8 +244,8 @@ public final class RedissonSync {
      * @param key 键
      * @return RCountDownLatch
      */
-    public static RCountDownLatch getCountDownLatch(String key) {
-        return client().getCountDownLatch(key);
+    public RCountDownLatch getCountDownLatch(String key) {
+        return redissonClient.getCountDownLatch(key);
     }
 
     /**
@@ -274,7 +255,7 @@ public final class RedissonSync {
      * @param count 计数
      * @return 是否设置成功
      */
-    public static boolean trySetCount(String key, long count) {
+    public boolean trySetCount(String key, long count) {
         return getCountDownLatch(key).trySetCount(count);
     }
 
@@ -286,7 +267,7 @@ public final class RedissonSync {
      *               避免调用方误用导致线程永久阻塞
      * @return 是否归零
      */
-    public static boolean await(String key, long waitMs) {
+    public boolean await(String key, long waitMs) {
         try {
             RCountDownLatch latch = getCountDownLatch(key);
             long effectiveWaitMs = waitMs > 0 ? waitMs : DEFAULT_AWAIT_TIMEOUT_MS;
@@ -305,7 +286,7 @@ public final class RedissonSync {
      *
      * @param key 键
      */
-    public static void countDown(String key) {
+    public void countDown(String key) {
         getCountDownLatch(key).countDown();
     }
 
@@ -317,8 +298,8 @@ public final class RedissonSync {
      * @param key 键
      * @return RPermitExpirableSemaphore
      */
-    public static RPermitExpirableSemaphore getPermitExpirableSemaphore(String key) {
-        return client().getPermitExpirableSemaphore(key);
+    public RPermitExpirableSemaphore getPermitExpirableSemaphore(String key) {
+        return redissonClient.getPermitExpirableSemaphore(key);
     }
 
     /**
@@ -329,7 +310,7 @@ public final class RedissonSync {
      * @param leaseMs 许可租期（毫秒）
      * @return 许可标识，未获取到返回 {@code null}
      */
-    public static String tryAcquireWithExpiry(String key, long waitMs, long leaseMs) {
+    public String tryAcquireWithExpiry(String key, long waitMs, long leaseMs) {
         try {
             return getPermitExpirableSemaphore(key).tryAcquire(waitMs, leaseMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -345,7 +326,7 @@ public final class RedissonSync {
      * @param permitId 许可标识
      * @return 是否释放成功
      */
-    public static boolean release(String key, String permitId) {
+    public boolean release(String key, String permitId) {
         return getPermitExpirableSemaphore(key).tryRelease(permitId);
     }
 }

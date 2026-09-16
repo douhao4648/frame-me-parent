@@ -2,7 +2,6 @@ package com.frame.me.redis.event;
 
 import com.frame.me.base.event.EventBridgeMessage;
 import com.frame.me.redis.util.RedissonTopic;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
@@ -25,19 +24,14 @@ import static org.mockito.Mockito.when;
 @SuppressWarnings("unchecked")
 class RedisEventTransportTest {
 
-    @AfterEach
-    void tearDown() {
-        RedissonTopic.init(null);
-    }
-
     @Test
     void shouldPublishMessageToTopicWithPrefix() {
         RedissonClient client = mock(RedissonClient.class);
         RTopic topic = mock(RTopic.class);
         when(client.getTopic("me:event:user:created")).thenReturn(topic);
-        RedissonTopic.init(client);
+        RedissonTopic redissonTopic = new RedissonTopic(client);
 
-        RedisEventTransport transport = new RedisEventTransport("me:event:");
+        RedisEventTransport transport = new RedisEventTransport(redissonTopic, "me:event:");
         EventBridgeMessage message = EventBridgeMessage.of("user:created", "{}", "svc-a", "inst-a");
         transport.send("user:created", message);
 
@@ -49,9 +43,9 @@ class RedisEventTransportTest {
         RedissonClient client = mock(RedissonClient.class);
         RTopic topic = mock(RTopic.class);
         when(client.getTopic("me:event:user:created")).thenReturn(topic);
-        RedissonTopic.init(client);
+        RedissonTopic redissonTopic = new RedissonTopic(client);
 
-        RedisEventTransport transport = new RedisEventTransport("me:event:");
+        RedisEventTransport transport = new RedisEventTransport(redissonTopic, "me:event:");
         Consumer<EventBridgeMessage> dispatcher = mock(Consumer.class);
         transport.subscribe("user:created", dispatcher);
 
@@ -70,9 +64,9 @@ class RedisEventTransportTest {
         RTopic topicB = mock(RTopic.class);
         when(client.getTopic("me:event:type:a")).thenReturn(topicA);
         when(client.getTopic("me:event:type:b")).thenReturn(topicB);
-        RedissonTopic.init(client);
+        RedissonTopic redissonTopic = new RedissonTopic(client);
 
-        RedisEventTransport transport = new RedisEventTransport("me:event:");
+        RedisEventTransport transport = new RedisEventTransport(redissonTopic, "me:event:");
         Consumer<EventBridgeMessage> dispatcherA = mock(Consumer.class);
         Consumer<EventBridgeMessage> dispatcherB = mock(Consumer.class);
         transport.subscribe("type:a", dispatcherA);

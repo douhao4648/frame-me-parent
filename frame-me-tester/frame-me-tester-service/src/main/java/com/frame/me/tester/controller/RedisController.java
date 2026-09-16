@@ -2,9 +2,11 @@ package com.frame.me.tester.controller;
 
 import com.frame.me.api.result.IResult;
 import com.frame.me.base.result.Result;
+import com.frame.me.redis.util.RedisClient;
+import com.frame.me.redis.util.RedisClientRegistry;
 import com.frame.me.redis.util.RedissonLock;
-import com.frame.me.redis.util.RedisUtils;
 import com.frame.me.tester.api.IRedisApi;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -13,43 +15,48 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * RedisUtils 测试 Controller.
+ * Redis 客户端测试 Controller.
  */
 @RestController
+@RequiredArgsConstructor
 public class RedisController implements IRedisApi {
+
+    private final RedisClientRegistry redisClients;
+    private final RedissonLock redissonLock;
 
     @Override
     public IResult<Map<String, Object>> selfTest() {
         Map<String, Object> r = new LinkedHashMap<>();
         String prefix = "redis:selftest:";
+        RedisClient redis = redisClients.getDefaultClient();
 
         // String
-        RedisUtils.set(prefix + "str", "hello", Duration.ofMinutes(1));
-        r.put("string", RedisUtils.get(prefix + "str"));
+        redis.set(prefix + "str", "hello", Duration.ofMinutes(1));
+        r.put("string", redis.get(prefix + "str"));
 
         // Counter
-        RedisUtils.delete(prefix + "counter");
-        RedisUtils.increment(prefix + "counter", 5);
-        r.put("counter", RedisUtils.decrement(prefix + "counter", 2));
+        redis.delete(prefix + "counter");
+        redis.increment(prefix + "counter", 5);
+        r.put("counter", redis.decrement(prefix + "counter", 2));
 
         // Hash
-        RedisUtils.hSet(prefix + "hash", "field", "value");
-        r.put("hash", RedisUtils.hGet(prefix + "hash", "field"));
+        redis.hSet(prefix + "hash", "field", "value");
+        r.put("hash", redis.hGet(prefix + "hash", "field"));
 
         // List
-        RedisUtils.delete(prefix + "list");
-        RedisUtils.rPush(prefix + "list", "a");
-        RedisUtils.rPush(prefix + "list", "b");
-        r.put("list", RedisUtils.lRange(prefix + "list", 0, -1));
+        redis.delete(prefix + "list");
+        redis.rPush(prefix + "list", "a");
+        redis.rPush(prefix + "list", "b");
+        r.put("list", redis.lRange(prefix + "list", 0, -1));
 
         // Lock
         String token = UUID.randomUUID().toString();
-        boolean locked = RedisUtils.tryLock(prefix + "lock", token, 5000);
-        boolean unlocked = RedisUtils.unlock(prefix + "lock", token);
+        boolean locked = redis.tryLock(prefix + "lock", token, 5000);
+        boolean unlocked = redis.unlock(prefix + "lock", token);
         r.put("lock", "lock=" + locked + ",unlock=" + unlocked);
 
         // 清理
-        RedisUtils.delete(java.util.List.of(prefix + "str", prefix + "counter", prefix + "hash", prefix + "list"));
+        redis.delete(java.util.List.of(prefix + "str", prefix + "counter", prefix + "hash", prefix + "list"));
 
         return Result.success(r);
     }
@@ -63,8 +70,8 @@ public class RedisController implements IRedisApi {
             return Result.error(com.frame.me.base.result.ResultCode.BAD_REQUEST, "key/value 不能为空");
         }
         String safeKey = DEMO_KEY_PREFIX + key;
-        RedisUtils.set(safeKey, value);
-        RedisUtils.getClient("second").set(safeKey + ":second", value);
+        redisClients.getDefaultClient().set(safeKey, value);
+        redisClients.getClient("second").set(safeKey + ":second", value);
         return Result.success(true);
     }
 
@@ -73,7 +80,7 @@ public class RedisController implements IRedisApi {
         if (key == null || key.isBlank()) {
             return Result.error(com.frame.me.base.result.ResultCode.BAD_REQUEST, "key 不能为空");
         }
-        return Result.success(RedisUtils.get(DEMO_KEY_PREFIX + key));
+        return Result.success(redisClients.getDefaultClient().get(DEMO_KEY_PREFIX + key));
     }
 
     @Override
@@ -81,7 +88,7 @@ public class RedisController implements IRedisApi {
         if (key == null || key.isBlank()) {
             return Result.error(com.frame.me.base.result.ResultCode.BAD_REQUEST, "key 不能为空");
         }
-        return Result.success(RedisUtils.delete(DEMO_KEY_PREFIX + key));
+        return Result.success(redisClients.getDefaultClient().delete(DEMO_KEY_PREFIX + key));
     }
 
     /**
@@ -96,15 +103,15 @@ public class RedisController implements IRedisApi {
         String key = "redis:lock:test:" + UUID.randomUUID();
 
         // 可重入锁
-        boolean firstLock = RedissonLock.tryLock(key, 0, 5000);
-        boolean reentrantLock = RedissonLock.tryLock(key, 0, 5000);
+        boolean firstLock = redissonLock.tryLock(key, 0, 5000);
+        boolean reentrantLock = redissonLock.tryLock(key, 0, 5000);
         r.put("firstLock", firstLock);
         r.put("reentrantLock", reentrantLock);
 
         // 互斥性：在另一个线程尝试获取同一把锁，应失败（虚拟线程，JVM 托管，非手动平台线程）
         boolean[] otherThreadAcquired = {false};
         Thread t = Thread.startVirtualThread(
-                () -> otherThreadAcquired[0] = RedissonLock.tryLock(key, 100, 100));
+                () -> otherThreadAcquired[0] = redissonLock.tryLock(key, 100, 100));
         try {
             t.join();
         } catch (InterruptedException e) {
@@ -113,13 +120,13 @@ public class RedisController implements IRedisApi {
         r.put("otherThreadAcquired", otherThreadAcquired[0]);
 
         // 释放两次（对应两次可重入获取）
-        RedissonLock.unlock(key);
-        RedissonLock.unlock(key);
+        redissonLock.unlock(key);
+        redissonLock.unlock(key);
 
         // 释放后应能重新获取
-        boolean reacquired = RedissonLock.tryLock(key, 0, 1000);
+        boolean reacquired = redissonLock.tryLock(key, 0, 1000);
         r.put("reacquiredAfterUnlock", reacquired);
-        RedissonLock.unlock(key);
+        redissonLock.unlock(key);
 
         return Result.success(r);
     }

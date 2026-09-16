@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>multi-redis 是本模块的 optional 依赖，消费方未引入时
  * {@link SaTokenRedisDaoAutoConfiguration} 必须在 ASM 元数据评估阶段整体退避
- * （不加载 {@code RedisUtils}、不抛 NCDFE），sa-token 运行时回退内存 DAO。
+ * （不加载 {@code RedisClientRegistry}、不抛 NCDFE），sa-token 运行时回退内存 DAO。
  * 本模块 test classpath 恒有 multi-redis，故用 {@link FilteredClassLoader}
  * 屏蔽 {@code com.frame.me.redis} 包模拟缺席。</p>
  *
@@ -29,10 +29,10 @@ class SaTokenRedisDaoAbsentClasspathTest {
             .withClassLoader(new FilteredClassLoader("com.frame.me.redis"));
 
     /**
-     * RedisUtils 缺席：Redis DAO 配置退避，核心认证 bean 不受影响，零 {@link SaTokenDao} bean.
+     * RedisClientRegistry 缺席：Redis DAO 配置退避，核心认证 bean 不受影响，零 {@link SaTokenDao} bean.
      */
     @Test
-    void redisUtilsAbsent_redisDaoBacksOff_coreBeansActive() {
+    void redisClientRegistryAbsent_redisDaoBacksOff_coreBeansActive() {
         runner.run(context -> {
             assertThat(context).doesNotHaveBean(SaTokenDao.class);
             assertThat(context).hasSingleBean(IAuthService.class);

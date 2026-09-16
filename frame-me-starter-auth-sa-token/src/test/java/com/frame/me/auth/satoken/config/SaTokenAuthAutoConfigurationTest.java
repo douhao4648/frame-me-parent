@@ -5,6 +5,7 @@ import cn.dev33.satoken.dao.SaTokenDao;
 import cn.dev33.satoken.jwt.StpLogicJwtForSimple;
 import cn.dev33.satoken.stp.StpInterface;
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice;
 import com.frame.me.auth.satoken.core.RedisSaTokenDao;
 import com.frame.me.auth.satoken.core.SaTokenAuthService;
@@ -15,11 +16,16 @@ import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.base.user.User;
+import com.frame.me.redis.util.RedisClient;
+import com.frame.me.redis.util.RedisClientRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,7 +45,9 @@ class SaTokenAuthAutoConfigurationTest {
                     SaTokenAuthAutoConfiguration.class,
                     SaTokenRedisDaoAutoConfiguration.class,
                     SaTokenJwtAutoConfiguration.class))
-            .withUserConfiguration(StubUserDetailsConfig.class);
+            .withUserConfiguration(StubUserDetailsConfig.class)
+            .withBean(RedisClientRegistry.class, () -> new RedisClientRegistry(
+                    "default", Map.of("default", org.mockito.Mockito.mock(RedisClient.class))));
 
     /**
      * 默认装配：接管 IAuthService / IAuthUserResolver，注册 Controller / Advice /
@@ -203,17 +211,17 @@ class SaTokenAuthAutoConfigurationTest {
                 public User loadUserById(Long id) {
                     return null;
                 }
-
-                @Override
-                public boolean matches(String rawPassword, String encodedPassword) {
-                    return false;
-                }
             };
         }
 
         @Bean
         AuthProperties authProperties() {
             return new AuthProperties();
+        }
+
+        @Bean
+        AuthUserAuthenticator authUserAuthenticator() {
+            return new AuthUserAuthenticator(new BCryptPasswordEncoder(4));
         }
     }
 

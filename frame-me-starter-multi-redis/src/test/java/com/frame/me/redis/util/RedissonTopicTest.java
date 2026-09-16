@@ -1,6 +1,5 @@
 package com.frame.me.redis.util;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RPatternTopic;
 import org.redisson.api.RReliableTopic;
@@ -9,7 +8,6 @@ import org.redisson.api.RTopic;
 import org.redisson.api.RedissonClient;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -17,19 +15,6 @@ import static org.mockito.Mockito.when;
  * RedissonTopic 单元测试.
  */
 class RedissonTopicTest {
-
-    @AfterEach
-    void tearDown() {
-        RedissonTopic.init(null);
-    }
-
-    @Test
-    void shouldThrowWhenNotInitialized() {
-        assertThrows(IllegalStateException.class, () -> RedissonTopic.getTopic("test"));
-        assertThrows(IllegalStateException.class, () -> RedissonTopic.getPatternTopic("test"));
-        assertThrows(IllegalStateException.class, () -> RedissonTopic.getReliableTopic("test"));
-        assertThrows(IllegalStateException.class, () -> RedissonTopic.getStream("test"));
-    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -45,11 +30,11 @@ class RedissonTopicTest {
         when(client.getReliableTopic("reliable")).thenReturn(reliableTopic);
         when(client.getStream("stream")).thenReturn(stream);
 
-        RedissonTopic.init(client);
+        RedissonTopic redissonTopic = new RedissonTopic(client);
 
-        assertNotNull(RedissonTopic.getTopic("topic"));
-        assertNotNull(RedissonTopic.getPatternTopic("pattern"));
-        assertNotNull(RedissonTopic.getReliableTopic("reliable"));
-        assertNotNull(RedissonTopic.getStream("stream"));
+        assertNotNull(redissonTopic.getTopic("topic"));
+        assertNotNull(redissonTopic.getPatternTopic("pattern"));
+        assertNotNull(redissonTopic.getReliableTopic("reliable"));
+        assertNotNull(redissonTopic.getStream("stream"));
     }
 }

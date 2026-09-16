@@ -4,6 +4,8 @@ import org.redisson.api.*;
 import org.redisson.api.listener.MessageListener;
 import org.redisson.api.listener.PatternMessageListener;
 
+import java.util.Objects;
+
 /**
  * Redisson 消息与发布订阅工具类.
  *
@@ -12,28 +14,10 @@ import org.redisson.api.listener.PatternMessageListener;
  */
 public final class RedissonTopic {
 
-    private static volatile RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
 
-    private RedissonTopic() {
-    }
-
-    /**
-     * 初始化 Redisson 客户端.
-     *
-     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
-     *
-     * @param client 默认实例的 Redisson 客户端
-     */
-    public static synchronized void init(RedissonClient client) {
-        RedissonTopic.redissonClient = client;
-    }
-
-    private static RedissonClient getClient() {
-        RedissonClient client = redissonClient;
-        if (client == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
-        }
-        return client;
+    public RedissonTopic(RedissonClient redissonClient) {
+        this.redissonClient = Objects.requireNonNull(redissonClient, "redissonClient");
     }
 
     // ============================ Topic ============================
@@ -44,8 +28,8 @@ public final class RedissonTopic {
      * @param key 键
      * @return RTopic
      */
-    public static RTopic getTopic(String key) {
-        return getClient().getTopic(key);
+    public RTopic getTopic(String key) {
+        return redissonClient.getTopic(key);
     }
 
     /**
@@ -55,7 +39,7 @@ public final class RedissonTopic {
      * @param message 消息
      * @return 接收到的客户端数量
      */
-    public static long topicPublish(String key, Object message) {
+    public long topicPublish(String key, Object message) {
         return getTopic(key).publish(message);
     }
 
@@ -68,7 +52,7 @@ public final class RedissonTopic {
      * @param <T>      消息类型
      * @return 监听器 ID
      */
-    public static <T> int topicSubscribe(String key, Class<T> type, MessageListener<T> listener) {
+    public <T> int topicSubscribe(String key, Class<T> type, MessageListener<T> listener) {
         return getTopic(key).addListener(type, listener);
     }
 
@@ -78,7 +62,7 @@ public final class RedissonTopic {
      * @param key        键
      * @param listenerId 监听器 ID
      */
-    public static void topicUnsubscribe(String key, int listenerId) {
+    public void topicUnsubscribe(String key, int listenerId) {
         getTopic(key).removeListener(listenerId);
     }
 
@@ -88,7 +72,7 @@ public final class RedissonTopic {
      * @param key        键
      * @param listenerId 监听器 ID（来自 {@code reliableTopicSubscribe} 的返回值）
      */
-    public static void topicUnsubscribe(String key, String listenerId) {
+    public void topicUnsubscribe(String key, String listenerId) {
         getReliableTopic(key).removeListener(listenerId);
     }
 
@@ -100,8 +84,8 @@ public final class RedissonTopic {
      * @param pattern 模式
      * @return RPatternTopic
      */
-    public static RPatternTopic getPatternTopic(String pattern) {
-        return getClient().getPatternTopic(pattern);
+    public RPatternTopic getPatternTopic(String pattern) {
+        return redissonClient.getPatternTopic(pattern);
     }
 
     /**
@@ -113,7 +97,7 @@ public final class RedissonTopic {
      * @param <T>      消息类型
      * @return 监听器 ID
      */
-    public static <T> int patternTopicSubscribe(String pattern, Class<T> type,
+    public <T> int patternTopicSubscribe(String pattern, Class<T> type,
                                                 PatternMessageListener<T> listener) {
         return getPatternTopic(pattern).addListener(type, listener);
     }
@@ -126,8 +110,8 @@ public final class RedissonTopic {
      * @param key 键
      * @return RReliableTopic
      */
-    public static RReliableTopic getReliableTopic(String key) {
-        return getClient().getReliableTopic(key);
+    public RReliableTopic getReliableTopic(String key) {
+        return redissonClient.getReliableTopic(key);
     }
 
     /**
@@ -137,7 +121,7 @@ public final class RedissonTopic {
      * @param message 消息
      * @return 接收到的客户端数量
      */
-    public static long reliableTopicPublish(String key, Object message) {
+    public long reliableTopicPublish(String key, Object message) {
         return getReliableTopic(key).publish(message);
     }
 
@@ -150,7 +134,7 @@ public final class RedissonTopic {
      * @param <T>      消息类型
      * @return 监听器 ID
      */
-    public static <T> String reliableTopicSubscribe(String key, Class<T> type, MessageListener<T> listener) {
+    public <T> String reliableTopicSubscribe(String key, Class<T> type, MessageListener<T> listener) {
         return getReliableTopic(key).addListener(type, listener);
     }
 
@@ -166,7 +150,7 @@ public final class RedissonTopic {
      * @param key 键
      * @return RStream
      */
-    public static RStream<Object, Object> getStream(String key) {
-        return getClient().getStream(key);
+    public RStream<Object, Object> getStream(String key) {
+        return redissonClient.getStream(key);
     }
 }

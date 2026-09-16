@@ -542,7 +542,7 @@ public class DemoController {
 | `/api/auth/refresh` | POST | 使用 Refresh Token 换取新的 Token 对 |
 | `/api/auth/user` | GET | 获取当前登录用户信息 |
 
-业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`（密码工具 `com.frame.me.auth.util.PasswordUtils` 同在抽象层 `frame-me-starter-auth`）：
+业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`；密码校验由容器中的 `PasswordEncoder` 统一完成：
 
 ```java
 import com.frame.me.auth.spi.IAuthUserDetailsService;
@@ -559,16 +559,14 @@ public class UserDetailsServiceImpl implements IAuthUserDetailsService {
     public User loadUserById(Long id) {
         // 按用户 ID 查询用户
     }
-
-    // matches 为 default 方法（PasswordUtils BCrypt 校验），换算法时才需覆盖
 }
 ```
 
 「查用户 → 空则 4001 → 校验密码 → 失败 4001」的认证步骤由抽象层
-`com.frame.me.auth.core.AuthUserAuthenticator.authenticate(...)` 承载，
+可注入 Bean `com.frame.me.auth.core.AuthUserAuthenticator` 承载，
 各认证实现的 `login` 直接调用，不再各自复制。用户不存在时也会对哑 BCrypt hash
 执行一次同等耗时的 `matches`，消除响应时间差导致的账号枚举（对齐 Spring Security
-`userNotFoundPassword` 机制），实现 `matches` 时不应自行对空 hash 短路。
+`userNotFoundPassword` 机制）。业务需要更换密码算法时，声明自定义 `PasswordEncoder` Bean 即可覆盖默认 BCrypt 实现。
 
 ### 配置示例
 
@@ -928,7 +926,7 @@ public IResult<Void> update(@PathVariable Long id, @RequestBody OrderUpdateDTO d
 
 #### 可选 Redis 权限后端
 
-`frame-me-starter-auth-rbac` 内置可选的 Redis 权限后端：**显式引入 `frame-me-starter-multi-redis` 即激活**(`RbacRedisAutoConfiguration` 以 `@ConditionalOnClass(RedisUtils.class)` 门控，multi-redis 在 auth-rbac 中为 optional 依赖，不引入则 classpath 零 Redisson)。激活后 `RedisAuthPermissionProvider` 以 `@Primary` 生效，做 read-through 缓存：**L1 本地缓存（Caffeine，短 TTL）→ L2 Redis → 委托数据源**。所有服务共享同一 Redis 时 RBAC 判定天然一致，支持权限新鲜与吊销。
+`frame-me-starter-auth-rbac` 内置可选的 Redis 权限后端：**显式引入 `frame-me-starter-multi-redis` 即激活**（`RbacRedisAutoConfiguration` 以 `RedisClientRegistry` Bean 门控，multi-redis 在 auth-rbac 中为 optional 依赖）。激活后 `RedisAuthPermissionProvider` 以 `@Primary` 生效，做 read-through 缓存：**L1 本地缓存（Caffeine，短 TTL）→ L2 Redis → 委托数据源**。所有服务共享同一 Redis 时 RBAC 判定天然一致，支持权限新鲜与吊销。
 
 - 委托数据源插槽 `authPermissionSource` 由 `RbacAutoConfiguration` 注册，默认 `ConfigAuthPermissionProvider`；声明同名 `IAuthPermissionProvider` bean 可接入数据库等真实数据源。启用 Redis 后端时业务 provider **必须**命名为 `authPermissionSource`（且不标 `@Primary`)，未命名会导致启动 fail-fast 而非静默忽略。
 - 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）。

@@ -4,7 +4,6 @@ import cn.dev33.satoken.dao.SaTokenDao;
 import cn.dev33.satoken.dao.auto.SaTokenDaoByObjectFollowString;
 import cn.dev33.satoken.util.SaFoxUtil;
 import com.frame.me.redis.util.RedisClient;
-import com.frame.me.redis.util.RedisUtils;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.Cursor;
@@ -20,12 +19,12 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 基于 {@link RedisUtils} 的 Sa-Token 会话存储.
+ * 基于 {@link RedisClient} 的 Sa-Token 会话存储.
  *
  * <p>实现 {@link SaTokenDaoByObjectFollowString}：Object / SaSession 读写复用 String 通道，
  * 序列化由 {@code SaManager.getSaSerializerTemplate()} 承担（boot4 starter 引入的
  * sa-token-jackson3 提供），与官方 {@code SaTokenDaoForRedisTemplate} 行为完全一致，
- * 因此 <b>不</b>使用 {@link RedisUtils#setObject} 的 fastjson2 序列化路径。</p>
+ * 因此 <b>不</b>使用 {@link RedisClient#setObject} 的 fastjson2 序列化路径。</p>
  *
  * <p>timeout 分支语义逐条对齐官方 {@code SaTokenDaoForRedisTemplate}：
  * {@code >0} 限时（秒）、{@code -1(NEVER_EXPIRE)} 永久、{@code 0} 或
@@ -33,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>所有 key 按 sa-token 传入值原样读写——sa-token 生成的 key 自带 tokenName
  * 前缀（如 {@code satoken:login:token:xxx}），本 DAO 不再叠加命名空间，避免双前缀。
- * {@code clientName} 经 {@link RedisUtils#getClient(String)} 路由到多实例配置。</p>
+ * 具体客户端由自动配置按 {@code clientName} 从注册表解析后注入。</p>
  *
  * @author frame-me
  */
@@ -56,19 +55,14 @@ public class RedisSaTokenDao implements SaTokenDaoByObjectFollowString {
      * SCAN 游标迭代上限，防止 keyspace 过大时无限扫描拖垮管理端调用.
      */
     private static final int SCAN_LIMIT = 10_000;
-    private final String redisClientName;
+    private final RedisClient redisClient;
 
-    public RedisSaTokenDao(String redisClientName) {
-        this.redisClientName = redisClientName;
+    public RedisSaTokenDao(RedisClient redisClient) {
+        this.redisClient = redisClient;
     }
 
-    /**
-     * 按配置解析 Redis 客户端（懒解析，规避与 multi-redis 装配顺序的耦合）.
-     *
-     * <p>clientName 来自配置，启动后不变，缓存避免每次 HashMap 查找。</p>
-     */
     private RedisClient client() {
-        return RedisUtils.getClient(redisClientName);
+        return redisClient;
     }
 
     /**

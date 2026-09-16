@@ -60,6 +60,7 @@ public class JwtTokenServiceImpl implements IAuthService {
     private final JwtAuthProperties properties;
     private final IAuthUserDetailsService userDetailsService;
     private final IRefreshTokenStore refreshTokenStore;
+    private final AuthUserAuthenticator authUserAuthenticator;
 
     /**
      * 启动期校验 {@code me.auth.jwt.secret}：未配置直接 fail-fast，
@@ -104,7 +105,7 @@ public class JwtTokenServiceImpl implements IAuthService {
 
     @Override
     public String login(String account, String password) {
-        User user = AuthUserAuthenticator.authenticate(userDetailsService, account, password);
+        User user = authUserAuthenticator.authenticate(userDetailsService, account, password);
         return buildTokenPair(user, System.currentTimeMillis());
     }
 

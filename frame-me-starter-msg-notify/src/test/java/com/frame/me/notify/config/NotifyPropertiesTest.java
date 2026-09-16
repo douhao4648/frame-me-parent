@@ -1,7 +1,6 @@
 package com.frame.me.notify.config;
 
-import com.frame.me.notify.util.NotifyClientFactory;
-import com.frame.me.notify.util.NotifyUtils;
+import com.frame.me.notify.util.NotifyClientRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
@@ -44,22 +43,25 @@ class NotifyPropertiesTest {
     @Autowired
     private NotifyProperties notifyProperties;
 
+    @Autowired
+    private NotifyClientRegistry notifyClients;
+
     @Test
     void shouldBindDefaultClientAndRegisterClients() {
-        assertThat(NotifyClientFactory.hasClient("email")).isTrue();
-        assertThat(NotifyClientFactory.hasClient("email:alert")).isTrue();
-        assertThat(NotifyClientFactory.hasClient("webhook")).isTrue();
-        assertThat(NotifyClientFactory.hasClient("webhook:ops")).isTrue();
-        assertThat(NotifyClientFactory.hasClient("sms")).isTrue();
-        assertThat(NotifyClientFactory.hasClient("sms:marketing")).isTrue();
-        assertThat(NotifyClientFactory.clientNames())
+        assertThat(notifyClients.hasClient("email")).isTrue();
+        assertThat(notifyClients.hasClient("email:alert")).isTrue();
+        assertThat(notifyClients.hasClient("webhook")).isTrue();
+        assertThat(notifyClients.hasClient("webhook:ops")).isTrue();
+        assertThat(notifyClients.hasClient("sms")).isTrue();
+        assertThat(notifyClients.hasClient("sms:marketing")).isTrue();
+        assertThat(notifyClients.clientNames())
                 .containsExactlyInAnyOrder("email", "email:alert", "webhook", "webhook:ops", "sms", "sms:marketing");
     }
 
     @Test
     void shouldRegisterGlobalDefaultClient() {
-        assertThat(NotifyClientFactory.hasGlobalDefault()).isTrue();
-        assertThat(NotifyUtils.defaultClient())
+        assertThat(notifyClients.hasGlobalDefault()).isTrue();
+        assertThat(notifyClients.getGlobalDefaultClient())
                 .isPresent()
                 .hasValueSatisfying(client -> assertThat(client.getChannelType()).isEqualTo("email"));
     }

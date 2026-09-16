@@ -12,9 +12,9 @@ import org.springframework.web.service.annotation.PostExchange;
 import java.util.Map;
 
 /**
- * RedisUtils 测试 API 契约.
+ * Redis 客户端测试 API 契约.
  */
-@Tag(name = "Redis 测试", description = "用于验证 RedisUtils 各项操作")
+@Tag(name = "Redis 测试", description = "用于验证 RedisClient 各项操作")
 @HttpExchange("/api/redis")
 public interface IRedisApi {
 
@@ -23,7 +23,7 @@ public interface IRedisApi {
      *
      * @return 各操作的执行结果
      */
-    @Operation(summary = "自检", description = "依次执行 RedisUtils 核心操作，返回每步结果用于验证连通性与正确性")
+    @Operation(summary = "自检", description = "依次执行 RedisClient 核心操作，返回每步结果用于验证连通性与正确性")
     @GetExchange("/self-test")
     IResult<Map<String, Object>> selfTest();
 

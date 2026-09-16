@@ -3,43 +3,23 @@ package com.frame.me.redis.util;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 分布式锁工具类入口.
+ * Redisson 分布式锁客户端.
  *
  * <p>基于 Redisson {@link RLock} 实现，提供可重入锁与看门狗自动续期，仅作用于默认 Redis 实例。
  * 仅当 classpath 引入 Redisson 时由 {@link com.frame.me.redis.config.RedissonAutoConfiguration}
- * 在启动时通过 {@link #init(RedissonClient)} 注入客户端；未引入时请改用
+ * 注册为 Bean；未引入时请改用
  * {@link com.frame.me.redis.util.RedisClient#tryLock} 的简单锁。</p>
  */
 public final class RedissonLock {
 
-    private static volatile RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
 
-    private RedissonLock() {
-    }
-
-    /**
-     * 初始化 Redisson 客户端.
-     *
-     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
-     *
-     * @param client 默认实例的 Redisson 客户端
-     */
-    public static synchronized void init(RedissonClient client) {
-        RedissonLock.redissonClient = client;
-    }
-
-    /**
-     * 获取已初始化的 Redisson 客户端（供 {@link RedissonSync} 等内部使用）.
-     */
-    static RedissonClient getClient() {
-        RedissonClient client = redissonClient;
-        if (client == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
-        }
-        return client;
+    public RedissonLock(RedissonClient redissonClient) {
+        this.redissonClient = Objects.requireNonNull(redissonClient, "redissonClient");
     }
 
     /**
@@ -48,8 +28,8 @@ public final class RedissonLock {
      * @param key 锁键
      * @return RLock
      */
-    public static RLock getLock(String key) {
-        return getClient().getLock(key);
+    public RLock getLock(String key) {
+        return redissonClient.getLock(key);
     }
 
     /**
@@ -63,7 +43,7 @@ public final class RedissonLock {
      * @param leaseMs 锁持有时间（毫秒），{@code <=0} 表示启用看门狗续期
      * @return 是否获取成功
      */
-    public static boolean tryLock(String key, long waitMs, long leaseMs) {
+    public boolean tryLock(String key, long waitMs, long leaseMs) {
         try {
             return getLock(key).tryLock(waitMs, leaseMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -79,7 +59,7 @@ public final class RedissonLock {
      *
      * @param key 锁键
      */
-    public static void unlock(String key) {
+    public void unlock(String key) {
         RLock lock = getLock(key);
         if (lock.isHeldByCurrentThread()) {
             lock.unlock();

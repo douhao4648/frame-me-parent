@@ -1,12 +1,11 @@
 package com.frame.me.auth.spi;
 
-import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.user.User;
 
 /**
  * 用户详情服务接口.
  *
- * <p>业务工程实现此接口提供用户查询与密码校验，供 JWT / Sa-Token 等认证实现共用。</p>
+ * <p>业务工程实现此接口提供用户查询，密码校验由容器中的 PasswordEncoder 统一完成。</p>
  *
  * @author frame-me
  */
@@ -28,16 +27,4 @@ public interface IAuthUserDetailsService {
      */
     User loadUserById(Long id);
 
-    /**
-     * 校验原始密码与加密密码是否匹配.
-     *
-     * <p>默认走 {@link PasswordUtils}（BCrypt）；业务换算法时覆盖本方法。</p>
-     *
-     * @param rawPassword     原始密码
-     * @param encodedPassword 加密后的密码
-     * @return 匹配返回 {@code true}
-     */
-    default boolean matches(String rawPassword, String encodedPassword) {
-        return PasswordUtils.matches(rawPassword, encodedPassword);
-    }
 }

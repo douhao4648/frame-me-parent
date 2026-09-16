@@ -1,15 +1,17 @@
 package com.frame.me.auth.jwt.core;
 
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
-import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.user.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -32,6 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class JwtTokenServiceImplTest {
 
     private static final String SECRET = "frame-me-jwt-secret-key-at-least-32-characters-long";
+    private static final PasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder(4);
+    private static final AuthUserAuthenticator AUTHENTICATOR = new AuthUserAuthenticator(PASSWORD_ENCODER);
 
     private JwtTokenServiceImpl tokenService;
 
@@ -51,7 +55,7 @@ class JwtTokenServiceImplTest {
                 User user = new User();
                 user.setId(1L);
                 user.setAccount(account);
-                user.setPassword(PasswordUtils.encode("123456"));
+                user.setPassword(PASSWORD_ENCODER.encode("123456"));
                 return user;
             }
 
@@ -63,17 +67,13 @@ class JwtTokenServiceImplTest {
                 User user = new User();
                 user.setId(id);
                 user.setAccount("admin");
-                user.setPassword(PasswordUtils.encode("123456"));
+                user.setPassword(PASSWORD_ENCODER.encode("123456"));
                 return user;
-            }
-
-            @Override
-            public boolean matches(String rawPassword, String encodedPassword) {
-                return PasswordUtils.matches(rawPassword, encodedPassword);
             }
         };
 
-        tokenService = new JwtTokenServiceImpl(properties, userDetailsService, new InMemoryRefreshTokenStore());
+        tokenService = new JwtTokenServiceImpl(
+                properties, userDetailsService, new InMemoryRefreshTokenStore(), AUTHENTICATOR);
     }
 
     @Test
@@ -95,7 +95,7 @@ class JwtTokenServiceImplTest {
     @Test
     void testBlankSecretFailsFast() {
         JwtAuthProperties properties = new JwtAuthProperties();
-        JwtTokenServiceImpl noSecret = new JwtTokenServiceImpl(properties, null, null);
+        JwtTokenServiceImpl noSecret = new JwtTokenServiceImpl(properties, null, null, AUTHENTICATOR);
         IllegalStateException ex = assertThrows(IllegalStateException.class, noSecret::validateSecret);
         assertTrue(ex.getMessage().contains("me.auth.jwt.secret"), ex.getMessage());
 
@@ -114,7 +114,7 @@ class JwtTokenServiceImplTest {
     void testWeakSecretFailsFast() {
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret("too-short");
-        JwtTokenServiceImpl weakSecret = new JwtTokenServiceImpl(properties, null, null);
+        JwtTokenServiceImpl weakSecret = new JwtTokenServiceImpl(properties, null, null, AUTHENTICATOR);
         IllegalStateException ex = assertThrows(IllegalStateException.class, weakSecret::validateSecret);
         assertTrue(ex.getMessage().contains("强度不足"), ex.getMessage());
     }
@@ -159,12 +159,7 @@ class JwtTokenServiceImplTest {
                 user.setAccount("admin");
                 return user;
             }
-
-            @Override
-            public boolean matches(String rawPassword, String encodedPassword) {
-                return false;
-            }
-        }, store);
+        }, store, AUTHENTICATOR);
 
         // 手动构造 auth_time 为 40 天前、自身未过期的 Refresh Token（默认上限 30 天）
         Date now = new Date();
@@ -250,6 +245,7 @@ class JwtTokenServiceImplTest {
                         User u = new User();
                         u.setId(1L);
                         u.setAccount(account);
+                        u.setPassword(PASSWORD_ENCODER.encode("123456"));
                         return u;
                     }
 
@@ -260,12 +256,7 @@ class JwtTokenServiceImplTest {
                         u.setAccount("admin");
                         return u;
                     }
-
-                    @Override
-                    public boolean matches(String rawPassword, String encodedPassword) {
-                        return true;
-                    }
-                } : null, new InMemoryRefreshTokenStore());
+                } : null, new InMemoryRefreshTokenStore(), AUTHENTICATOR);
 
         String otherToken = otherService.login("admin", "123456").split(";")[0];
 
@@ -288,7 +279,8 @@ class JwtTokenServiceImplTest {
         };
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret(SECRET);
-        JwtTokenServiceImpl serviceWithFailingStore = new JwtTokenServiceImpl(properties, null, failingStore);
+        JwtTokenServiceImpl serviceWithFailingStore = new JwtTokenServiceImpl(
+                properties, null, failingStore, AUTHENTICATOR);
 
         // 用同密钥的正常服务签发合法 Refresh Token，故障服务解析通过后 get 抛基础设施异常
         String tokenPair = tokenService.login("admin", "123456");
@@ -363,7 +355,7 @@ class JwtTokenServiceImplTest {
             public User loadUserById(Long id) {
                 return null;
             }
-        }, new InMemoryRefreshTokenStore());
+        }, new InMemoryRefreshTokenStore(), AUTHENTICATOR);
 
         // RP 登录（loadUserById 恒 null，refresh 走 rp 快照重建链路）
         User rpUser = new User();
@@ -414,7 +406,7 @@ class JwtTokenServiceImplTest {
                         User user = new User();
                         user.setId(1L);
                         user.setAccount(account);
-                        user.setPassword(PasswordUtils.encode("123456"));
+                        user.setPassword(PASSWORD_ENCODER.encode("123456"));
                         return user;
                     }
 
@@ -422,12 +414,7 @@ class JwtTokenServiceImplTest {
                     public User loadUserById(Long id) {
                         return null;
                     }
-
-                    @Override
-                    public boolean matches(String rawPassword, String encodedPassword) {
-                        return PasswordUtils.matches(rawPassword, encodedPassword);
-                    }
-                }, store);
+                }, store, AUTHENTICATOR);
 
         String tokenPair = expiredService.login("admin", "123456");
         String expiredAccessToken = tokenPair.split(";")[0];
@@ -457,7 +444,7 @@ class JwtTokenServiceImplTest {
                         User user = new User();
                         user.setId(1L);
                         user.setAccount(account);
-                        user.setPassword(PasswordUtils.encode("123456"));
+                        user.setPassword(PASSWORD_ENCODER.encode("123456"));
                         return user;
                     }
 
@@ -465,12 +452,7 @@ class JwtTokenServiceImplTest {
                     public User loadUserById(Long id) {
                         return null;
                     }
-
-                    @Override
-                    public boolean matches(String rawPassword, String encodedPassword) {
-                        return PasswordUtils.matches(rawPassword, encodedPassword);
-                    }
-                }, store);
+                }, store, AUTHENTICATOR);
 
         String tokenPair = expiredService.login("admin", "123456");
         String expiredRefreshToken = tokenPair.split(";")[1];
@@ -567,7 +549,7 @@ class JwtTokenServiceImplTest {
             public User loadUserById(Long id) {
                 return null;
             }
-        }, new InMemoryRefreshTokenStore());
+        }, new InMemoryRefreshTokenStore(), AUTHENTICATOR);
     }
 
     /**

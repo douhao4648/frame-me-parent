@@ -8,9 +8,8 @@ import com.frame.me.notify.model.NotifyChannelType;
 import com.frame.me.notify.notify.MsgNotifySender;
 import com.frame.me.notify.sms.SmsNotifyClient;
 import com.frame.me.notify.template.PlaceholderTemplateEngine;
-import com.frame.me.notify.util.NotifyClientFactory;
+import com.frame.me.notify.util.NotifyClientRegistry;
 import com.frame.me.notify.webhook.WebhookNotifyClient;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -34,8 +33,7 @@ import java.util.Set;
  * 通知模块自动配置.
  *
  * <p>根据 {@code me.notify.email} 及 {@code me.notify.webhook} 下的通道配置与
- * {@code clients} 命名配置注册各通道客户端，并初始化
- * {@link com.frame.me.notify.util.NotifyClientFactory}。</p>
+ * {@code clients} 命名配置注册各通道客户端。</p>
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
@@ -83,8 +81,9 @@ public class NotifyAutoConfiguration {
         }
     }
 
-    @PostConstruct
-    public void init() {
+    @Bean
+    @ConditionalOnMissingBean(NotifyClientRegistry.class)
+    public NotifyClientRegistry notifyClientRegistry() {
         Map<String, INotifyClient> clients = new HashMap<>();
         Map<String, String> channelDefaults = new HashMap<>();
 
@@ -146,8 +145,10 @@ public class NotifyAutoConfiguration {
                     }
                 });
 
-        NotifyClientFactory.init(clients, channelDefaults, resolveGlobalDefault(channelDefaults));
+        NotifyClientRegistry registry = new NotifyClientRegistry(
+                clients, channelDefaults, resolveGlobalDefault(channelDefaults));
         log.info("Notify initialize : {}", clients.keySet());
+        return registry;
     }
 
     /**
@@ -183,8 +184,8 @@ public class NotifyAutoConfiguration {
     @ConditionalOnClass(INotifySender.class)
     @ConditionalOnMissingBean(INotifySender.class)
     @ConditionalOnProperty(prefix = "me.notify.sender", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public INotifySender notifySender() {
-        return new MsgNotifySender(notifyProperties);
+    public INotifySender notifySender(NotifyClientRegistry notifyClients) {
+        return new MsgNotifySender(notifyProperties, notifyClients);
     }
 
     private boolean isEmailConfigured(EmailChannelProperties email) {

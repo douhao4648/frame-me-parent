@@ -44,6 +44,7 @@ public class LogEventListener {
     private static final String LOCK_KEY_PREFIX = "audit:log:dedup:";
 
     private final LogMapper auditLogMapper;
+    private final RedissonLock redissonLock;
 
     @EventListener
     public void onAuditLog(AuditLogEvent event) {
@@ -57,7 +58,7 @@ public class LogEventListener {
         boolean locked;
         try {
             // waitMs=0 不阻塞 listener 线程；leaseMs=30s 兜底防持锁实例宕机后锁不释放
-            locked = RedissonLock.tryLock(lockKey, 0, 30_000);
+            locked = redissonLock.tryLock(lockKey, 0, 30_000);
         } catch (Exception e) {
             // Redis 故障：降级放行（旁路原则，宁可重复不可丢失）
             log.warn("审计去重锁失败，降级直接入库: eventId={}", eventId, e);

@@ -136,7 +136,6 @@
 | `LoginDTO`（共用） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/web/dto/LoginDTO.java` |
 | `TokenVO`（共用） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/web/vo/TokenVO.java` |
 | `AuthUserAuthenticator` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/core/AuthUserAuthenticator.java` |
-| `PasswordUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth/src/main/java/com/frame/me/auth/util/PasswordUtils.java` |
 | `SaTokenAuthAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenAuthAutoConfiguration.java` |
 | `SaTokenRedisDaoAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenRedisDaoAutoConfiguration.java` |
 | `SaTokenNoRedisWarnAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/config/SaTokenNoRedisWarnAutoConfiguration.java` |
@@ -184,7 +183,7 @@
 | `WsMvcConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-ws-mvc/src/main/java/com/frame/me/ws/mvc/WsMvcConstant.java` |
 | `RedisAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/config/RedisAutoConfiguration.java` |
 | `RedisProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/config/RedisProperties.java` |
-| `RedisUtils` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/util/RedisUtils.java` |
+| `RedisClientRegistry` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/util/RedisClientRegistry.java` |
 | `RedisConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-multi-redis/src/main/java/com/frame/me/redis/RedisConstant.java` |
 | `CacheAutoConfiguration` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/config/CacheAutoConfiguration.java` |
 | `CacheProperties` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-l1l2-cache/src/main/java/com/frame/me/cache/config/CacheProperties.java` |
@@ -310,7 +309,8 @@
 | `SpringDataSourceBridgeEnvironmentPostProcessor` | flex 的 `spring.datasource` → `mybatis-flex.datasource.master.*` 桥接（EnvironmentPostProcessor，经 `spring.factories` 注册） |
 | `RedisAutoConfiguration` | Redis 基础能力自动装配入口 |
 | `RedisProperties` | `me.redis` 配置属性绑定 |
-| `RedisUtils` | 统一 Redis 操作工具类 |
+| `RedisClientRegistry` | 可注入的多 Redis 客户端注册表 |
+| `RedisClient` | 单个 Redis 实例的操作客户端 |
 | `CacheAutoConfiguration` | JetCache 两级缓存自动装配入口 |
 | `CacheProperties` | `me.cache` 配置属性绑定 |
 | `JetCacheInfrastructureRoleFixer` | 修复 JetCache 内部配置类的 BeanPostProcessor 警告 |
@@ -329,7 +329,7 @@
 | `AuthUserAuthenticator` | 账号密码认证器（查用户 → 4001 → 校验密码 → 4001，凭证错误与会话缺失 401 区分），供 JWT/Sa-Token 共用 |
 | `LoginDTO` | 登录请求 DTO（抽象层，JWT 与 Sa-Token 实现共用） |
 | `TokenVO` | Token 响应 VO（抽象层，JWT 与 Sa-Token 实现共用） |
-| `PasswordUtils` | BCrypt 密码加解密工具（抽象层） |
+| `PasswordEncoder` | 默认 BCrypt 的可覆盖密码编码 Bean（抽象层） |
 | `AuthFilter` | 认证过滤器，解析并写入当前用户 |
 | `AuthPropagationInterceptor` | HTTP Interface 出站请求拦截器，传播认证头到下游服务 |
 | `AuthPropagationHolder` | 传播上下文 ThreadLocal 持有器，供 `@Async` 跨线程恢复 |
@@ -351,7 +351,7 @@
 |  `TrustedHeaderAuthUserResolver` | 信任身份头兜底用户解析器（`me.auth.trusted-header.enabled=true` 开启，仅内网服务间调用；显式 `false` 为空操作解析器；`fetch-details=true` 时经 `IAuthUserDetailsService` 回源补全并校验禁用状态） |
 | `JwtTokenServiceImpl` | JWT 认证服务实现：登录/登出/按用户 ID 强制登出/刷新/解析 |
 | `JwtAuthUserResolver` | 从 `Authorization: Bearer ...` 解析当前用户 |
-| `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户、校验密码（抽象层 `com.frame.me.auth.spi`，JWT 与 Sa-Token 实现共用） |
+| `IAuthUserDetailsService` | 业务需实现：按账号/ID 查询用户（抽象层 `com.frame.me.auth.spi`，JWT 与 Sa-Token 实现共用） |
 | `RedisRefreshTokenStore` | 基于 Redis 的 Refresh Token 存储 |
 | `JwtAuthController` | 默认 JWT 认证接口：登录/登出/刷新/当前用户/管理员强制登出 |
 | `SaTokenAuthAutoConfiguration` | sa-token 认证自动装配入口，接管 `IAuthService` / `IAuthUserResolver` |
@@ -360,15 +360,14 @@
 | `SaTokenAuthService` | sa-token 认证服务实现：登录建会话、快照缓存、按用户 ID 强制登出、续期 |
 | `SaTokenAuthUserResolver` | 从原生 `sa-token.token-name` 请求头（同名 Cookie 兜底）解析当前用户 |
 | `SaTokenRuleEvaluator` | 路径规则简化表达式求值器（`login`/`role:`/`perm:`） |
-| `RedisSaTokenDao` | 基于 `RedisUtils` 的 sa-token 会话存储 |
+| `RedisSaTokenDao` | 基于注入 `RedisClient` 的 sa-token 会话存储 |
 | `ConfigStpInterface` | 配置版 sa-token 权限数据源（`users`/`roles`） |
 | `SaTokenAuthController` | 默认 sa-token 认证接口：登录/登出/续期/当前用户/管理员强制登出 |
 | `SaTokenExceptionAdvice` | sa-token 异常到 401/403 语义的映射 |
 | `MsgNotifySender` | `INotifySender` 实现，支持全局默认 / 指定通道 / 指定命名客户端发送 |
 | `NotifyAutoConfiguration` | 消息通知自动装配入口 |
 | `NotifyProperties` | `me.notify` 配置属性绑定 |
-| `NotifyClientFactory` | 通知客户端工厂 |
-| `NotifyUtils` | 通知发送工具 |
+| `NotifyClientRegistry` | 可注入的通知客户端注册表与发送入口 |
 | `EmailNotifyClient` | 邮件通知客户端 |
 | `WebhookNotifyClient` | Webhook 通知客户端 |
 | `SmsNotifyClient` | 短信通知客户端 |

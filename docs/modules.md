@@ -315,7 +315,7 @@ me:
 ## `frame-me-starter-auth`
 
 - **定位**：认证抽象层，不绑定具体认证框架。提供统一的用户上下文、注解、SPI 和扩展点；具体认证实现由独立 starter 接管，当前已有 `frame-me-starter-auth-jwt` 与 `frame-me-starter-auth-sa-token` 两种可选实现（`frame-me-starter-auth-security` 等仍可后续扩展）。另带一个基于请求头的极简兜底实现（默认关闭，仅内网服务间调用显式开启）。RBAC 授权能力已独立到 `frame-me-starter-auth-rbac`。
-- **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现；`spring-security-crypto` 为 optional 依赖（`PasswordUtils` 的 BCrypt 实现），由真正做账号密码认证的实现 starter 显式声明；`spring-cloud-commons` 为 optional 依赖，存在 Spring Cloud 注册中心时用于甄别服务名调用以决定认证头传播。
+- **依赖**：`frame-me-starter-base`、`lombok`；`frame-me-starter-op-audit` 为 optional 依赖，用于提供审计操作人 SPI 实现；`spring-security-crypto` 提供可覆盖的 `PasswordEncoder` Bean；`spring-cloud-commons` 为 optional 依赖，存在 Spring Cloud 注册中心时用于甄别服务名调用以决定认证头传播。
 - **关键类**：
   - `com.frame.me.auth.config.AuthAutoConfiguration` — 自动装配入口。
   - `com.frame.me.auth.config.AuthProperties` — `me.auth.*` 配置属性绑定。
@@ -325,9 +325,9 @@ me:
   - `com.frame.me.auth.core.NoOpAuthUserResolver` — 空操作解析器（不解析任何身份），显式 `me.auth.trusted-header.enabled=false` 时装配，用于确认不需要解析行为的场景。
   - `com.frame.me.auth.spi.IAuthService` — 登录/登出/按用户 ID 强制登出/刷新/校验认证服务接口。含 RP 上游 token 留存 SPI：`storeUpstreamToken`/`getUpstreamToken`（default no-op/null），供 SSO 下游留存 IdP token 回源调上游接口；安全约定为只存服务端、不得写入下发客户端的凭证（如 JWT claims）。
   - `com.frame.me.auth.spi.IAuthUserResolver` — 请求解析当前用户接口。
-  - `com.frame.me.auth.spi.IAuthUserDetailsService` — 用户详情服务 SPI（按账号/ID 查询用户、校验密码），供 JWT / Sa-Token 等认证实现共用；`matches` 为 default 方法（BCrypt），业务换算法时覆盖。
+  - `com.frame.me.auth.spi.IAuthUserDetailsService` — 用户详情服务 SPI（按账号/ID 查询用户），供 JWT / Sa-Token 等认证实现共用；密码校验由 `PasswordEncoder` Bean 统一完成。
   - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — 登录请求与 Token 响应，JWT / Sa-Token 实现共用。
-  - `com.frame.me.auth.util.PasswordUtils` — BCrypt 密码加解密工具。
+  - `org.springframework.security.crypto.password.PasswordEncoder` — 默认 BCrypt 实现，业务声明自定义 Bean 可切换算法。
   - `com.frame.me.auth.annotation.LoginUser` — 注入当前用户参数注解。
   - `com.frame.me.auth.annotation.Anonymous` — 匿名访问白名单注解。
   - `com.frame.me.auth.filter.AuthFilter` — 认证过滤器，解析并写入当前用户；ERROR dispatch（容器 `/error` 转发）直接放行，不掩盖 404/servlet 级异常的真实状态码；OPTIONS 预检请求带 `Origin` 头时直接放行，不参与认证（预检由 `CorsFilter` 在更早优先级处理，此处为兜底；无 `Origin` 的 OPTIONS 非真预检，走正常鉴权链防绕过）。
@@ -343,6 +343,7 @@ me:
   - `me.auth.propagate.allowed-hosts` — 认证头传播的目标主机白名单（精确主机名 / `*.example.com` 后缀通配 / `*`），默认空。未命中白名单时按服务名调用甄别放行：注册中心服务名（Spring Cloud LoadBalancer 可解析，经专用 SPI `IServiceInstanceProbe` 判定，业务可自定义覆盖）与单标签内网主机名默认放行，外部多标签域名/IP 一律不传播；`me.auth.propagate.service-discovery.enabled=false` 可关闭豁免回到严格白名单模式。
   - `me.auth.login-rate-limit.enabled` — 是否启用登录限流（按客户端 IP，固定窗口），默认 `true`。
   - `me.auth.login-rate-limit.max-attempts` — 窗口内最大登录尝试次数，默认 `5`。
+  - `me.auth.bcrypt-strength` — 默认 BCrypt `PasswordEncoder` 的 log rounds，默认 `12`；自定义 `PasswordEncoder` Bean 时该配置不再生效。
   - `me.auth.login-rate-limit.window` — 限流窗口时长，默认 `60s`。
   - `me.auth.access-log.enabled` — 是否启用 `AuthFilter` 访问日志（method / URI 含 query / 用户 / 响应状态码，INFO 级），默认 `false`。关闭时 `logAccess` 首行短路，零日志开销；启用后输出在认证主分支各出口（匿名放行 / 非强制登录放行 / 认证拒绝 401 / 已登录放行）。
   - `me.auth.access-log.max-length` — URI（含 query string）最大记录长度，超出截断（尾部补 `...`），默认 `2000`；`0` 表示不限制。
@@ -373,7 +374,7 @@ me:
   - `com.frame.me.auth.rbac.filter.PermissionFilter` — 路径规则权限过滤器；OPTIONS 预检请求带 `Origin` 头时直接放行，不参与权限校验（与 `AuthFilter` 同口径，无 `Origin` 非真预检走正常权限链防绕过）。
   - `com.frame.me.auth.rbac.interceptor.PermissionInterceptor` — `@RequireAuth` 注解权限拦截器；OPTIONS 预检请求带 `Origin` 头时直接放行，不参与权限校验（同上口径）。
   - `com.frame.me.auth.rbac.propagation.AuthPermissionTaskDecorator` — `@Async` 权限上下文传播装饰器。
-  - `com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration` — 可选 Redis 后端装配入口（`@ConditionalOnClass(RedisUtils.class)` + `@AutoConfigureAfter(RbacAutoConfiguration.class)`，必须在插槽注册后处理）。
+  - `com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration` — 可选 Redis 后端装配入口（要求 `RedisClientRegistry` Bean + `@AutoConfigureAfter(RbacAutoConfiguration.class)`，必须在插槽注册后处理）。
   - `com.frame.me.auth.rbac.redis.config.RbacRedisProperties` — `me.auth.permission.redis.*` 配置绑定。
   - `com.frame.me.auth.rbac.redis.RedisAuthPermissionProvider` — `@Primary` 权限提供者，L1 Caffeine → L2 Redis → 委托数据源 read-through，提供 `evict(userId)` 失效（L2 删除失败时异常抛给调用方，吊销可感知、可重试）。
   - `com.frame.me.auth.rbac.redis.UserPermissionSnapshot` — Redis 缓存的用户权限快照。
@@ -394,7 +395,7 @@ me:
   - RBAC 模块是可选依赖；Sa-Token / Spring Security 等自带 RBAC 的方案不需要引入此模块。
   - 未登录访问受保护接口返回 401，已登录无权限返回 403（统一 `Result`，HTTP 200、业务码在 body）。
   - `PermissionFilter` 在 `AuthFilter` 之后执行（`Ordered.HIGHEST_PRECEDENCE + 200`）。
-  - **可选 Redis 后端**：显式引入 `frame-me-starter-multi-redis` 即激活（`@ConditionalOnClass(RedisUtils.class)`），`RedisAuthPermissionProvider` 以 `@Primary` 生效、配置版 provider 退避；不引入则仅配置版 provider，classpath 零 Redisson。激活后如需 caffeine 之外的调整见 `me.auth.permission.redis.*`。
+  - **可选 Redis 后端**：显式引入 `frame-me-starter-multi-redis` 并存在 `RedisClientRegistry` Bean 时激活，`RedisAuthPermissionProvider` 以 `@Primary` 生效、配置版 provider 退避；不引入则仅配置版 provider。激活后如需 caffeine 之外的调整见 `me.auth.permission.redis.*`。
   - 委托数据源默认 `ConfigAuthPermissionProvider`；声明名为 `authPermissionSource` 的 `IAuthPermissionProvider` bean 可接入数据库等真实数据源。
   - **bean 命名约束**：`RedisAuthPermissionProvider` 无条件 `@Primary`。业务自定义 provider 若作为数据源，必须命名为 `authPermissionSource` 且**不要**标 `@Primary`——否则会出现两个 `@Primary` 导致按类型注入处 `NoUniqueBeanDefinitionException`；启用 Redis 后端时业务 provider 若未命名为 `authPermissionSource`，默认插槽按类型退避后包装器按名注入失败，**启动 fail-fast**（不会静默忽略）。
   - 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）；读/写路径 Redis 异常自动降级回源，**`evict` 的 L2 删除失败会抛异常给调用方**（吊销可感知，重试即可收敛，见 `IPermissionCacheStore` 契约）。
@@ -413,11 +414,11 @@ me:
   - `com.frame.me.auth.jwt.config.JwtAuthProperties` — `me.auth.jwt.*` 配置属性绑定。
   - `com.frame.me.auth.jwt.core.JwtTokenServiceImpl` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。**RP 快照**：`loginByUser`（SSO 下游等无本地用户表场景）签发的 token 额外写入 `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` 返回 null 且 token 带 `rp` 标记时从 claims 重建 User（否则 JWT 无状态下 RP 每请求 401）；密码登录签发的 token 无 `rp` 标记，"删用户即时失效"语义不受影响。RP 续期链路原样透传快照。
   - `com.frame.me.auth.jwt.core.JwtAuthUserResolver` — `IAuthUserResolver` 实现，从 `Authorization: Bearer ...` 解析当前用户。
-  - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户、校验密码（与 Sa-Token 实现共用）。
+  - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户（与 Sa-Token 实现共用）。
   - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。兼作 RP 上游 token 存储：`saveUpstreamToken(userId, appId, token, expires)`/`getUpstreamToken(userId, appId)`/`deleteUpstreamTokens(userId)`/`renewUpstreamTokens(userId, expires)`（default no-op；Redis 实现为用户级 hash——key `me.auth.jwt.upstream-token-prefix` + userId（默认 `auth:upstream:`），field=appId，应用维度隔离、多下游共用 Redis 结构性免疫互撞，TTL 用户级共享；InMemory 实现同语义独立 map 惰性过期），JWT 无 session，上游 token 借此落地服务端、随本地会话同生共死（`refresh` 续期条目 TTL，logout/logoutByUserId 同步清除）。
   - `com.frame.me.auth.jwt.web.JwtAuthController` — 默认认证接口：登录/登出/刷新/当前用户/管理员强制登出；基础路径默认 `/api/auth`，可通过 `me.auth.jwt.path` 修改。登录/登出/刷新/强制登出均标 `@AuditLog`（op-audit optional 集成）：login/refresh 刻意 `recordParams=false, recordResult=false` 防明文密码与 Token 对进审计，登录失败经 `recordError` 留失败审计。
   - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — **位于抽象层**：登录请求与 Token 响应（与 Sa-Token 实现共用）。
-  - `com.frame.me.auth.util.PasswordUtils` — **位于抽象层**：BCrypt 密码加解密工具。
+  - `org.springframework.security.crypto.password.PasswordEncoder` — **由抽象层装配**：默认 BCrypt，业务可提供自定义 Bean 覆盖。
 - **自动装配**：通过 `frame-me-starter-auth-jwt/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册 `JwtAutoConfiguration`。
 - **可配置项**：
   - `me.auth.jwt.enabled` — 是否启用，默认 `true`。另受父开关 `me.auth.enabled` 总闸级联控制。
@@ -445,12 +446,12 @@ me:
 - **关键类**：
   - `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration` — 自动装配入口（`@AutoConfigureBefore(AuthAutoConfiguration.class)`）：接管 `IAuthService` / `IAuthUserResolver`，注册配置版 `StpInterface`、默认 Controller、异常 Advice 与 `SaInterceptor`（路径规则 + `@SaCheck*` 注解鉴权）。`SaInterceptor` 的 auth 回调对带 `Origin` 头的 OPTIONS 预检请求直接跳过规则校验，避免预检被鉴权拦截；无 `Origin` 的 OPTIONS 非真预检，走正常鉴权链防绕过（与 `AuthFilter` 同口径）。sa-token 原生 `SaTokenConfig` 由官方 starter 的 `SaBeanRegister` 绑定 `sa-token.*` 配置路径提供，本模块不声明。
   - `com.frame.me.auth.satoken.config.SaTokenAuthProperties` — `me.auth.sa-token.*` 配置属性绑定；启动时校验 rules key 是否以 `/` 开头，防 relaxed binding 导致的规则静默失效。
-  - `com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration` — Redis 会话后端装配入口（类级 `@ConditionalOnClass(RedisUtils.class)`，与总开关 `me.auth.sa-token.enabled` 及 `me.auth.sa-token.redis.enabled` 联动）。
+  - `com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration` — Redis 会话后端装配入口（要求 `RedisClientRegistry` Bean，与总开关 `me.auth.sa-token.enabled` 及 `me.auth.sa-token.redis.enabled` 联动）。
   - `com.frame.me.auth.satoken.config.SaTokenNoRedisWarnAutoConfiguration` — multi-redis 缺席告警（`@ConditionalOnMissingClass`，提示会话退回内存存储）。
   - `com.frame.me.auth.satoken.core.SaTokenAuthService` — `IAuthService` 实现：`login` / `logout` 走 sa-token 标准上下文 API（`StpLogic.login/logout`，原生写 / 清 Cookie），面向请求线程调用；`refresh` 续期目标为传入 credential（`renewTimeout(token, timeout)` 带参重载），不依赖上下文 token，token 值不变故 Cookie 无需重写；`validate` / `getUser` 用 `getLoginIdByToken` 纯 DAO 查询，上下文无关。**账号体系**：所有动作走 `SaManager.getStpLogic(me.auth.sa-token.logic-type)`，默认 `login` 即 `StpUtil.stpLogic`，配置非默认值（如 SSO 的 `sso`）即切换 sa-token 多账号体系。用户快照以 JSON 写入 Account-Session，读取缓存优先、回源 `IAuthUserDetailsService#loadUserById`；Session 读取用 no-create 重载，读路径不产生写副作用（session 缺失时不重建、跳过缓存回写，直接回源）。**非数字 loginId**（如 SSO client_credentials 的 `"app:"+appId` 应用主体）按"无此用户"返回 null，不抛 NumberFormatException（否则在 AuthFilter 层逸出成 500）。**RP 上游 token**：`storeUpstreamToken(userId, appId, token)` 写入 Account-Session（key `upstreamToken:{appId}`，按应用隔离），随会话同生共死，登出/被踢注销 session 即自动清除，无需显式删除。
   - `com.frame.me.auth.satoken.core.SaTokenAuthUserResolver` — `IAuthUserResolver` 实现：显式从原生 `sa-token.token-name` 指定的请求头读 token（头名取 `SaManager.getConfig().getTokenName()`），header 缺失时按同名 Cookie 兜底读取（遵循原生 `sa-token.is-read-cookie` 开关，显式关闭后本框架同样不读 Cookie）。静态入口 `extractToken` 是 Controller（logout/refresh）与 Resolver 共用的唯一提取方法，Cookie-only 客户端两个端点均可正常工作。刻意不用 `StpUtil.getTokenValue()`——框架 `AuthFilter`（order = HIGHEST_PRECEDENCE + 100）先于官方 `SaTokenContextFilter`（order = -104）执行，此时 sa-token 上下文尚未初始化。配置 `sa-token.token-prefix` 后与原生 `StpLogic.getTokenValue` 语义对齐：header 通道未按前缀提交的视为未提供 token、提交则剥前缀（原生匹配大小写敏感）；Cookie 通道存裸 token 不适用前缀（原生 `cookie-auto-fill-prefix` 读写闭环）。
   - `com.frame.me.auth.satoken.core.SaTokenRuleEvaluator` — 路径规则简化表达式求值器（非 SpEL）：`login` / `role:xxx` / `perm:resource` / `perm:resource:action`；非法表达式在装配期预解析直接启动失败。
-  - `com.frame.me.auth.satoken.core.RedisSaTokenDao` — 基于 `RedisUtils` 的 `SaTokenDao` 实现（`SaTokenDaoByObjectFollowString`），timeout 分支语义逐条对齐官方 `SaTokenDaoForRedisTemplate`；所有 key 按 sa-token 传入值原样读写（sa-token 生成的 key 自带 `{tokenName}:{loginType}` 前缀，不再叠加命名空间），`clientName` 路由多实例。
+  - `com.frame.me.auth.satoken.core.RedisSaTokenDao` — 基于注入 `RedisClient` 的 `SaTokenDao` 实现（`SaTokenDaoByObjectFollowString`），timeout 分支语义逐条对齐官方 `SaTokenDaoForRedisTemplate`；所有 key 按 sa-token 传入值原样读写（sa-token 生成的 key 自带 `{tokenName}:{loginType}` 前缀，不再叠加命名空间），`clientName` 路由多实例。
   - `com.frame.me.auth.satoken.permission.ConfigStpInterface` — 配置版权限数据源（sa-token 原生 RBAC）：从 `me.auth.sa-token.users` / `roles` 读取角色与权限码（原样透传），构造期一次性预解析 CSV，运行期仅 map 查找；业务声明任意 `StpInterface` Bean 即接管（本实现退避）。
   - `com.frame.me.auth.satoken.web.SaTokenAuthController` — 默认认证接口：登录 / 登出 / 续期 / 当前用户 / 管理员强制登出，基础路径默认 `/api/auth`（`me.auth.sa-token.path` 可改）；登录请求与 Token 响应复用抽象层 `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO`（sa-token 会话模型无 Refresh Token 概念，`refreshToken` 恒为 `null`）。登录/登出/续期/强制登出均标 `@AuditLog`（op-audit optional 集成）：login/refresh 刻意 `recordParams=false, recordResult=false` 防明文密码与 Token 进审计，登录失败经 `recordError` 留失败审计。
   - `com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice` — sa-token 异常到 401/403 语义的映射（`@Order(HIGHEST_PRECEDENCE)`，先于 `GlobalExceptionHandler` 的通用处理器）。
@@ -567,17 +568,17 @@ spring:
 
 ## `frame-me-starter-multi-redis`
 
-- **定位**：Redis 基础能力 starter，封装 `spring-boot-starter-data-redis` 与统一操作工具 `RedisUtils`；在引入 Redisson 时自动启用 Redisson 高阶能力。
+- **定位**：Redis 基础能力 starter，封装 `spring-boot-starter-data-redis` 并提供容器隔离的 `RedisClientRegistry`；在引入 Redisson 时自动启用 Redisson 高阶能力。
 - **依赖**：`frame-me-starter-base`、`spring-boot-starter-data-redis`、`fastjson2`、`lombok`；`redisson` 为 optional 依赖。
 - **关键类**：
-  - `com.frame.me.redis.config.RedisAutoConfiguration` — Spring Data Redis 自动装配入口，创建 `StringRedisTemplate` / `RedisTemplate` 并初始化 `RedisUtils`；额外实例（`me.redis.clients.*`）的 `LettuceConnectionFactory` 由本类管理生命周期（实现 `DisposableBean`，容器关闭时销毁，避免连接泄漏）。
+  - `com.frame.me.redis.config.RedisAutoConfiguration` — Spring Data Redis 自动装配入口，基于 `StringRedisTemplate` / `RedisTemplate` 注册 `RedisClientRegistry`；额外实例（`me.redis.clients.*`）的 `LettuceConnectionFactory` 由本类管理生命周期（实现 `DisposableBean`，容器关闭时销毁，避免连接泄漏）。
   - `com.frame.me.redis.config.RedisProperties` — `me.redis` 配置属性绑定（多实例、开关等）。
-  - `com.frame.me.redis.config.RedissonAutoConfiguration` — Redisson 自动装配入口，创建 `RedissonClient` 并初始化所有 Redisson 工具类；`meRedissonClient` 标 `@ConditionalOnMissingBean(RedissonClient.class)`，业务自定义 RedissonClient 时自动退避；另以 `@Primary` 注册 `RedissonLoginRateLimiter` 覆盖 auth 的内存版登录限流。
+  - `com.frame.me.redis.config.RedissonAutoConfiguration` — Redisson 自动装配入口，创建或复用 `RedissonClient` 并注册所有 Redisson 客户端 Bean；`meRedissonClient` 标 `@ConditionalOnMissingBean(RedissonClient.class)`，业务自定义客户端时仅内部客户端创建退避，其余封装 Bean 仍正常装配；另以 `@Primary` 注册 `RedissonLoginRateLimiter` 覆盖 auth 的内存版登录限流。
   - `com.frame.me.redis.config.RedissonProperties` — `spring.data.redis.redisson` 配置属性绑定。
   - `com.frame.me.redis.config.LoginRateLimitProperties` — `me.auth.login-rate-limit` 配置属性绑定（供 Redisson 登录限流器；默认值与 auth 侧 `AuthProperties.LoginRateLimit` 保持一致，改动需同步）。
-  - `com.frame.me.redis.util.RedisUtils` — 统一 Redis 操作工具，支持 String、Hash、List、Set、ZSet、计数、简单分布式锁等。
-  - `com.frame.me.redis.util.RedisClient` — 单实例 Redis 操作封装，供 `RedisUtils` 委托。
-  - `com.frame.me.redis.util.RedissonLock` — Redisson 可重入锁静态入口（需引入 Redisson），支持看门狗续期。
+  - `com.frame.me.redis.util.RedisClientRegistry` — 不可变的多实例客户端注册表，每个 ApplicationContext 独立持有。
+  - `com.frame.me.redis.util.RedisClient` — 单实例 Redis 操作封装，支持 String、Hash、List、Set、ZSet、计数、简单分布式锁等。
+  - `com.frame.me.redis.util.RedissonLock` — 可注入的 Redisson 可重入锁客户端（需引入 Redisson），支持看门狗续期。
   - `com.frame.me.redis.util.RedissonSync` — Redisson 同步原语：读写锁、公平锁、联锁、信号量、倒计时门闩、可过期信号量（红锁已随 Redisson 4.x 弃用）。
   - `com.frame.me.redis.util.RedissonTopic` — Redisson 消息能力：Topic、PatternTopic、ReliableTopic、Stream。
   - `com.frame.me.redis.util.RedissonLimiter` — Redisson 限流：基于 `RRateLimiter` 的令牌桶限流。
@@ -599,15 +600,15 @@ spring:
   - `me.redis.clients.*.database` — 数据库索引（`cluster` 模式不支持，将被忽略），默认 `0`。
   - `spring.data.redis.redisson.config` — Redisson 原生配置文件位置（支持 `classpath:` / `file:` 前缀），可选。
 - **使用方式**：
-  - 直接调用 `RedisUtils.xxx()` 使用 Spring Data Redis 能力。
-  - 分布式锁默认为简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；引入 Redisson 后自动启用 `RedissonLock`，提供可重入与看门狗续期。
+  - 注入 `RedisClientRegistry`，通过 `getDefaultClient()` 或 `getClient(name)` 获取 `RedisClient`。
+  - 分布式锁默认为 `RedisClient` 的简单实现（`SET NX PX` + Lua 释放），不含看门狗续期；引入 Redisson 后可注入 `RedissonLock`，获得可重入与看门狗续期。
   - Redisson 连接配置优先级：配 `spring.data.redis.redisson.config=classpath:redisson.yaml`（与 `redisson-spring-boot-starter` 标准配置项对齐）时用 Redisson 原生 YAML（支持全部 5 种模式，含 masterSlave/replicated）；否则自动复用 `spring.data.redis.*`——配 `cluster.nodes` 走集群、配 `sentinel.master/nodes` 走哨兵，否则单机，无需额外配置。哨兵模式仅配 `master` 未配 `nodes` 时启动 fail-fast，提示"哨兵模式必须提供至少一个节点"。
   - 用户名/密码在 Redisson 4.x 中需在顶层 `Config` 对象上设置，本 starter 已通过 `Config.setUsername` / `Config.setPassword` 实现。
 - **设计约定**：
   - 已纳入 `frame-me-boot`，业务 `xx-service` 引入 `frame-me-boot` 即可获得 Redis 能力。
   - Hash 写入口（`hSet` / `hSetAll`）统一把值 JSON 序列化后存储，与 `hGet(key, hashKey, clazz)` 的反序列化对称；不要混用原生 `putAll` 绕过该约定。
-  - Redisson 为 optional 依赖，未引入时不影响 `RedisUtils` 使用。
-  - 各 Redisson 工具类采用 `final` + 静态 `init(RedissonClient)` 模式，未初始化时调用会抛出 `IllegalStateException`。
+  - Redisson 为 optional 依赖，未引入时不影响 `RedisClientRegistry` 使用。
+  - Redis 与 Redisson 封装均由 Spring 管理，无 JVM 级静态客户端状态；多 ApplicationContext 与并行测试互不覆盖。
 
 **示例配置**：
 
@@ -615,7 +616,7 @@ spring:
 me:
   redis:
     enabled: true
-    # 额外实例（RedisUtils.getClient("name")），支持 standalone / cluster / sentinel
+    # 额外实例（redisClients.getClient("name")），支持 standalone / cluster / sentinel
     clients:
       order:                    # 单机（默认）
         host: 10.0.0.1
@@ -647,28 +648,40 @@ spring:
 **示例代码**：
 
 ```java
-RedisUtils.set("key", "value", Duration.ofMinutes(10));
-String value = RedisUtils.get("key");
-// 简单锁（默认，SET NX PX）
-Boolean locked = RedisUtils.tryLock("lock:order:123", UUID.randomUUID().toString(), 30000);
-RedisUtils.unlock("lock:order:123", UUID.randomUUID().toString());
-// 可重入锁（引入 Redisson 后可用；leaseMs<=0 启用看门狗续期）
-if (RedissonLock.tryLock("lock:order:123", 0, 30000)) {
-    RedissonLock.unlock("lock:order:123");
+@RequiredArgsConstructor
+class OrderService {
+    private final RedisClientRegistry redisClients;
+    private final RedissonLock redissonLock;
+    private final RedissonSync redissonSync;
+    private final RedissonLimiter redissonLimiter;
+    private final RedissonTopic redissonTopic;
+
+    void example() {
+        RedisClient redis = redisClients.getDefaultClient();
+        redis.set("key", "value", Duration.ofMinutes(10));
+        String value = redis.get("key");
+        // 简单锁（默认，SET NX PX）
+        String token = UUID.randomUUID().toString();
+        Boolean locked = redis.tryLock("lock:order:123", token, 30000);
+        redis.unlock("lock:order:123", token);
+        // 可重入锁（引入 Redisson 后可用；leaseMs<=0 启用看门狗续期）
+        if (redissonLock.tryLock("lock:order:123", 0, 30000)) {
+            redissonLock.unlock("lock:order:123");
+        }
+        // Redisson 读写锁
+        if (redissonSync.tryWriteLock("lock:order", 0, 30000)) {
+            redissonSync.unlockWrite("lock:order");
+        }
+        // Redisson 限流（100 次/秒）
+        redissonLimiter.trySetRate("api:order", RateType.OVERALL, 100, 1, TimeUnit.SECONDS);
+        boolean allowed = redissonLimiter.tryAcquire("api:order", 1);
+        // Redisson Topic
+        redissonTopic.topicPublish("order:event", new OrderEvent());
+        int listenerId = redissonTopic.topicSubscribe(
+                "order:event", OrderEvent.class, (channel, event) -> handle(event));
+        redissonTopic.topicUnsubscribe("order:event", listenerId);
+    }
 }
-// Redisson 读写锁
-if (RedissonSync.tryWriteLock("lock:order", 0, 30000)) {
-    RedissonSync.unlockWrite("lock:order");
-}
-// Redisson 限流（100 次/秒）
-RedissonLimiter.trySetRate("api:order", RateType.OVERALL, 100, 1, TimeUnit.SECONDS);
-boolean allowed = RedissonLimiter.tryAcquire("api:order", 1);
-// Redisson Topic
-RedissonTopic.topicPublish("order:event", new OrderEvent());
-int listenerId = RedissonTopic.topicSubscribe("order:event", OrderEvent.class, (channel, msg) -> {
-    // 处理消息
-});
-RedissonTopic.topicUnsubscribe("order:event", listenerId);
 ```
 
 ## `frame-me-starter-sse-mvc`
@@ -921,7 +934,7 @@ public Boolean delete(Long id) { ... }
   - `com.frame.me.notify.api.INotifyClient` — 单个通知客户端抽象。
   - `com.frame.me.notify.api.INotifyTemplateEngine` — 模板引擎抽象（支持 FreeMarker / 占位符）。
   - `com.frame.me.notify.notify.MsgNotifySender` — `INotifySender` 实现，支持全局默认、指定通道、指定命名客户端三种发送方式。
-  - `com.frame.me.notify.util.NotifyClientFactory` / `com.frame.me.notify.util.NotifyUtils` — 客户端工厂与发送工具。
+  - `com.frame.me.notify.util.NotifyClientRegistry` — 可注入的客户端注册表与发送入口。
   - `com.frame.me.notify.email.EmailNotifyClient` — 邮件客户端实现。
   - `com.frame.me.notify.webhook.WebhookNotifyClient` — Webhook 客户端实现。
   - `com.frame.me.notify.sms.SmsNotifyClient` — 短信客户端实现。
@@ -1094,7 +1107,7 @@ public class AlertService {
   - `com.frame.me.tester.controller.FlexDemoController` — 实现 `IFlexDemoApi`，演示 MyBatis-Flex CRUD、分页、校验分组。
   - `com.frame.me.tester.controller.DataSourceController` — 实现 `IDataSourceApi`，演示多数据源切换与连接池信息查询；**当前整体注释保留**（未装配），如需启用须先加字段白名单脱敏（jdbc-url/密码不可外泄）。
   - `com.frame.me.tester.controller.RedisController` — 实现 `IRedisApi`，演示 Redis 操作与 Redisson 分布式锁。
-  - `com.frame.me.tester.auth.DemoAuthUserDetailsServiceImpl` — `IAuthUserDetailsService` 演示实现，接入 JWT 登录（`PasswordUtils` BCrypt 校验）；硬编码 `admin/123456` 示例账号与 `application.yml` 中硬编码 JWT secret 仅供演示，真实业务必须改为数据库查询与独立密钥（starter 层 `JwtTokenServiceImpl` 启动校验保证密钥非空）。
+  - `com.frame.me.tester.auth.DemoAuthUserDetailsServiceImpl` — `IAuthUserDetailsService` 演示实现，接入 JWT 登录（注入 `PasswordEncoder`）；硬编码 `admin/123456` 示例账号与 `application.yml` 中硬编码 JWT secret 仅供演示，真实业务必须改为数据库查询与独立密钥（starter 层 `JwtTokenServiceImpl` 启动校验保证密钥非空）。
   - `com.frame.me.tester.service.IFlexDemoService` / `com.frame.me.tester.service.impl.FlexDemoServiceImpl` — 演示 Service 层（Flex 版）；`update` 校验 version 非空，避免 MyBatis-Flex 在 version 为 null 时静默跳过乐观锁。
   - `com.frame.me.tester.service.convert.FlexDemoConvert` — MapStruct 转换器（`@Mapper(componentModel = "spring")`）。
   - `com.frame.me.tester.entity.FlexDemoEntity` — 演示实体，继承 MyBatis-Flex `BaseVersionEntity`。

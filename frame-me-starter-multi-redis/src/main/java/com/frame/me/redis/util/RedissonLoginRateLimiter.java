@@ -21,17 +21,19 @@ import java.time.Duration;
 public class RedissonLoginRateLimiter implements LoginRateLimiter {
 
     private static final String KEY_PREFIX = "login:rate:";
+    private final RedissonLimiter redissonLimiter;
     private final int maxAttempts;
     private final Duration window;
 
-    public RedissonLoginRateLimiter(int maxAttempts, Duration window) {
+    public RedissonLoginRateLimiter(RedissonLimiter redissonLimiter, int maxAttempts, Duration window) {
+        this.redissonLimiter = redissonLimiter;
         this.maxAttempts = maxAttempts;
         this.window = window;
     }
 
     @Override
     public void acquire(String clientIp) {
-        RRateLimiter limiter = RedissonLimiter.getRateLimiter(KEY_PREFIX + clientIp);
+        RRateLimiter limiter = redissonLimiter.getRateLimiter(KEY_PREFIX + clientIp);
         // 首次或速率变更时尝试设置速率
         limiter.trySetRate(RateType.OVERALL, maxAttempts, window);
         if (!limiter.tryAcquire()) {

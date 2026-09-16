@@ -1,8 +1,8 @@
 package com.frame.me.tester.auth;
 
 import com.frame.me.auth.spi.IAuthUserDetailsService;
-import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.user.User;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
@@ -20,8 +20,12 @@ public class DemoAuthUserDetailsServiceImpl implements IAuthUserDetailsService {
     /**
      * 示例加密密码：明文从 {@code DEMO_PASSWORD} 环境变量读取，默认 {@code 123456} 仅供演示.
      */
-    private static final String DEMO_ENCODED_PASSWORD = PasswordUtils.encode(
-            System.getProperty("DEMO_PASSWORD", System.getenv().getOrDefault("DEMO_PASSWORD", "123456")));
+    private final String demoEncodedPassword;
+
+    public DemoAuthUserDetailsServiceImpl(PasswordEncoder passwordEncoder) {
+        this.demoEncodedPassword = passwordEncoder.encode(
+                System.getProperty("DEMO_PASSWORD", System.getenv().getOrDefault("DEMO_PASSWORD", "123456")));
+    }
 
     @Override
     public User loadUserByAccount(String account) {
@@ -31,7 +35,7 @@ public class DemoAuthUserDetailsServiceImpl implements IAuthUserDetailsService {
         User user = new User();
         user.setId(1L);
         user.setAccount(account);
-        user.setPassword(DEMO_ENCODED_PASSWORD);
+        user.setPassword(demoEncodedPassword);
         user.setNickname("管理员");
         return user;
     }
@@ -44,7 +48,7 @@ public class DemoAuthUserDetailsServiceImpl implements IAuthUserDetailsService {
         User user = new User();
         user.setId(id);
         user.setAccount("admin");
-        user.setPassword(DEMO_ENCODED_PASSWORD);
+        user.setPassword(demoEncodedPassword);
         user.setNickname("管理员");
         return user;
     }

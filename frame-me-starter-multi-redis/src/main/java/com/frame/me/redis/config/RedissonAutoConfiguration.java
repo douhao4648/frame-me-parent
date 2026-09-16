@@ -2,7 +2,6 @@ package com.frame.me.redis.config;
 
 import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.redis.util.*;
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
@@ -27,7 +26,7 @@ import java.util.List;
  * Redisson 自动配置.
  *
  * <p>仅当 classpath 存在 Redisson（{@code org.redisson.api.RedissonClient}）时才装配，
- * 创建 {@link RedissonClient} 并注入本项目封装的 Redisson 工具类。</p>
+ * 创建 {@link RedissonClient} 并注册本项目封装的 Redisson 客户端 Bean。</p>
  *
  * <p>当前已集成的 Redisson 能力：</p>
  * <ul>
@@ -61,9 +60,7 @@ import java.util.List;
 @EnableConfigurationProperties({RedissonProperties.class, LoginRateLimitProperties.class})
 public class RedissonAutoConfiguration {
 
-    private volatile RedissonClient redissonClient;
-
-    @Bean(destroyMethod = "")
+    @Bean(destroyMethod = "shutdown")
     @ConditionalOnMissingBean(RedissonClient.class)
     public RedissonClient meRedissonClient(DataRedisProperties dataRedisProperties,
                                            RedissonProperties redissonProperties,
@@ -80,21 +77,7 @@ public class RedissonAutoConfiguration {
             config = buildConfig(dataRedisProperties);
         }
 
-        redissonClient = Redisson.create(config);
-        try {
-            RedissonLock.init(redissonClient);
-            RedissonSync.init(redissonClient);
-            RedissonTopic.init(redissonClient);
-            RedissonLimiter.init(redissonClient);
-        } catch (Exception e) {
-            RedissonClient client = redissonClient;
-            redissonClient = null;
-            if (client != null && !client.isShutdown()) {
-                client.shutdown();
-            }
-            throw e;
-        }
-        return redissonClient;
+        return Redisson.create(config);
     }
 
     /**
@@ -158,11 +141,28 @@ public class RedissonAutoConfiguration {
         }
     }
 
-    @PreDestroy
-    public void destroy() {
-        if (redissonClient != null && !redissonClient.isShutdown()) {
-            redissonClient.shutdown();
-        }
+    @Bean
+    @ConditionalOnMissingBean
+    public RedissonLock redissonLock(RedissonClient redissonClient) {
+        return new RedissonLock(redissonClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RedissonSync redissonSync(RedissonClient redissonClient) {
+        return new RedissonSync(redissonClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RedissonTopic redissonTopic(RedissonClient redissonClient) {
+        return new RedissonTopic(redissonClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RedissonLimiter redissonLimiter(RedissonClient redissonClient) {
+        return new RedissonLimiter(redissonClient);
     }
 
     /**
@@ -174,7 +174,8 @@ public class RedissonAutoConfiguration {
     @Bean
     @Primary
     @ConditionalOnProperty(prefix = "me.auth.login-rate-limit", name = "enabled", havingValue = "true", matchIfMissing = true)
-    public LoginRateLimiter redissonLoginRateLimiter(LoginRateLimitProperties properties) {
-        return new RedissonLoginRateLimiter(properties.getMaxAttempts(), properties.getWindow());
+    public LoginRateLimiter redissonLoginRateLimiter(LoginRateLimitProperties properties,
+                                                     RedissonLimiter redissonLimiter) {
+        return new RedissonLoginRateLimiter(redissonLimiter, properties.getMaxAttempts(), properties.getWindow());
     }
 }

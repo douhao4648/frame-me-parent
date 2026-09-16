@@ -2,7 +2,7 @@ package com.frame.me.auth.rbac.redis.store;
 
 import com.frame.me.auth.rbac.redis.UserPermissionSnapshot;
 import com.frame.me.auth.rbac.redis.config.RbacRedisProperties;
-import com.frame.me.redis.util.RedisUtils;
+import com.frame.me.redis.util.RedisClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,11 +24,12 @@ import java.time.Duration;
 public class RedisPermissionCacheStore implements IPermissionCacheStore {
 
     private final RbacRedisProperties properties;
+    private final RedisClient redisClient;
 
     @Override
     public UserPermissionSnapshot get(String key) {
         try {
-            return RedisUtils.getClient(properties.getClientName()).getObject(key, UserPermissionSnapshot.class);
+            return redisClient.getObject(key, UserPermissionSnapshot.class);
         } catch (Exception e) {
             log.warn("读取 Redis 权限缓存失败: key={}", key, e);
             return null;
@@ -38,7 +39,7 @@ public class RedisPermissionCacheStore implements IPermissionCacheStore {
     @Override
     public void set(String key, UserPermissionSnapshot snapshot, Duration ttl) {
         try {
-            RedisUtils.getClient(properties.getClientName()).setObject(key, snapshot, ttl);
+            redisClient.setObject(key, snapshot, ttl);
         } catch (Exception e) {
             log.warn("写入 Redis 权限缓存失败: key={}", key, e);
         }
@@ -47,6 +48,6 @@ public class RedisPermissionCacheStore implements IPermissionCacheStore {
     @Override
     public void delete(String key) {
         // 吊销语义：失败必须抛给调用方感知，不做可用性降级
-        RedisUtils.getClient(properties.getClientName()).delete(key);
+        redisClient.delete(key);
     }
 }

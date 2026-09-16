@@ -1,15 +1,24 @@
 package com.frame.me.auth.jwt.config;
 
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.jwt.core.IRefreshTokenStore;
 import com.frame.me.auth.jwt.core.InMemoryRefreshTokenStore;
 import com.frame.me.auth.jwt.core.RedisRefreshTokenStore;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.user.User;
+import com.frame.me.redis.util.RedisClient;
+import com.frame.me.redis.util.RedisClientRegistry;
+import com.frame.me.redis.config.RedisAutoConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,11 +33,41 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JwtRefreshTokenStoreAutoConfigurationTest {
 
+    @Test
+    void redisAutoConfigurationRunsBeforeJwtStoreSelection() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(JwtAutoConfiguration.class, RedisAutoConfiguration.class))
+                .withPropertyValues("me.auth.jwt.secret=frame-me-jwt-secret-key-at-least-32-characters-long")
+                .withBean(AuthProperties.class)
+                .withBean(AuthUserAuthenticator.class,
+                        () -> new AuthUserAuthenticator(new BCryptPasswordEncoder(4)))
+                .withBean(IAuthUserDetailsService.class, () -> new IAuthUserDetailsService() {
+                    @Override
+                    public User loadUserByAccount(String account) {
+                        return null;
+                    }
+
+                    @Override
+                    public User loadUserById(Long id) {
+                        return null;
+                    }
+                })
+                .withBean(StringRedisTemplate.class, () -> org.mockito.Mockito.mock(StringRedisTemplate.class))
+                .withBean(RedisTemplate.class, () -> org.mockito.Mockito.mock(RedisTemplate.class))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(RedisClientRegistry.class);
+                    assertThat(context.getBean(IRefreshTokenStore.class)).isInstanceOf(RedisRefreshTokenStore.class);
+                });
+    }
+
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(JwtAutoConfiguration.class))
             // jwtAuthService 启动期校验 secret（fail-fast），装配测试需显式提供
             .withPropertyValues("me.auth.jwt.secret=frame-me-jwt-secret-key-at-least-32-characters-long")
             .withBean(AuthProperties.class)
+            .withBean(AuthUserAuthenticator.class,
+                    () -> new AuthUserAuthenticator(new BCryptPasswordEncoder(4)))
             .withBean(IAuthUserDetailsService.class, () -> new IAuthUserDetailsService() {
                 @Override
                 public User loadUserByAccount(String account) {
@@ -39,11 +78,6 @@ class JwtRefreshTokenStoreAutoConfigurationTest {
                 public User loadUserById(Long id) {
                     return null;
                 }
-
-                @Override
-                public boolean matches(String rawPassword, String encodedPassword) {
-                    return false;
-                }
             });
 
     /**
@@ -51,7 +85,10 @@ class JwtRefreshTokenStoreAutoConfigurationTest {
      */
     @Test
     void redisPresent_redisStoreActive() {
-        runner.run(context -> {
+        RedisClient redisClient = org.mockito.Mockito.mock(RedisClient.class);
+        runner.withBean(RedisClientRegistry.class,
+                        () -> new RedisClientRegistry("default", Map.of("default", redisClient)))
+                .run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context).hasSingleBean(IRefreshTokenStore.class);
             assertThat(context.getBean(IRefreshTokenStore.class))

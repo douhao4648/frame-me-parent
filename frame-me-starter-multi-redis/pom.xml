@@ -12,7 +12,7 @@
 
     <artifactId>frame-me-starter-multi-redis</artifactId>
     <name>frame-me-starter-multi-redis</name>
-    <description>Redis 基础能力 Starter，提供 RedisTemplate 与 RedisUtils 工具类</description>
+    <description>Redis 基础能力 Starter，提供 RedisTemplate 与可注入的 RedisClientRegistry</description>
 
     <dependencies>
         <dependency>

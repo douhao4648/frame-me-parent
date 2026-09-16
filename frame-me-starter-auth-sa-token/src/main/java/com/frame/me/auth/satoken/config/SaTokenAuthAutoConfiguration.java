@@ -7,6 +7,7 @@ import cn.dev33.satoken.router.SaRouter;
 import cn.dev33.satoken.stp.StpInterface;
 import cn.dev33.satoken.stp.StpLogic;
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.satoken.advice.SaTokenExceptionAdvice;
 import com.frame.me.auth.satoken.core.SaTokenAuthService;
 import com.frame.me.auth.satoken.core.SaTokenAuthUserResolver;
@@ -60,9 +61,10 @@ public class SaTokenAuthAutoConfiguration {
     @ConditionalOnMissingBean(IAuthService.class)
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public IAuthService saTokenAuthService(IAuthUserDetailsService userDetailsService,
-                                           SaTokenAuthProperties properties) {
+                                           SaTokenAuthProperties properties,
+                                           AuthUserAuthenticator authUserAuthenticator) {
         log.info("SaTokenAuthService initialized");
-        return new SaTokenAuthService(userDetailsService, properties);
+        return new SaTokenAuthService(userDetailsService, properties, authUserAuthenticator);
     }
 
     /**

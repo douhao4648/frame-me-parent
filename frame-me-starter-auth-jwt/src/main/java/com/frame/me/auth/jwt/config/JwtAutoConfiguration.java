@@ -1,16 +1,20 @@
 package com.frame.me.auth.jwt.config;
 
 import com.frame.me.auth.config.AuthProperties;
+import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.jwt.core.*;
 import com.frame.me.auth.jwt.web.JwtAuthController;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
 import com.frame.me.base.limit.LoginRateLimiter;
+import com.frame.me.redis.util.RedisClientRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -27,6 +31,7 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @ConditionalOnProperty(prefix = "me.auth.jwt", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(JwtAuthProperties.class)
+@AutoConfigureAfter(name = "com.frame.me.redis.config.RedisAutoConfiguration")
 @AutoConfigureBefore(name = "com.frame.me.auth.config.AuthAutoConfiguration")
 public class JwtAutoConfiguration {
 
@@ -55,9 +60,10 @@ public class JwtAutoConfiguration {
     @SuppressWarnings("SpringJavaInjectionPointsAutowiringInspection")
     public IAuthService jwtAuthService(JwtAuthProperties properties,
                                        IAuthUserDetailsService userDetailsService,
-                                       IRefreshTokenStore refreshTokenStore) {
+                                       IRefreshTokenStore refreshTokenStore,
+                                       AuthUserAuthenticator authUserAuthenticator) {
         log.info("JwtTokenServiceImpl initialized");
-        return new JwtTokenServiceImpl(properties, userDetailsService, refreshTokenStore);
+        return new JwtTokenServiceImpl(properties, userDetailsService, refreshTokenStore, authUserAuthenticator);
     }
 
     @Bean
@@ -88,13 +94,15 @@ public class JwtAutoConfiguration {
      * {@link IRefreshTokenStore} 优先.
      */
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "com.frame.me.redis.util.RedisUtils")
+    @ConditionalOnClass(name = "com.frame.me.redis.util.RedisClientRegistry")
+    @ConditionalOnBean(RedisClientRegistry.class)
     static class RedisRefreshTokenStoreConfiguration {
 
         @Bean
         @ConditionalOnMissingBean(IRefreshTokenStore.class)
-        public IRefreshTokenStore redisRefreshTokenStore(JwtAuthProperties properties) {
-            return new RedisRefreshTokenStore(properties);
+        public IRefreshTokenStore redisRefreshTokenStore(JwtAuthProperties properties,
+                                                          RedisClientRegistry redisClients) {
+            return new RedisRefreshTokenStore(properties, redisClients.getDefaultClient());
         }
     }
 }

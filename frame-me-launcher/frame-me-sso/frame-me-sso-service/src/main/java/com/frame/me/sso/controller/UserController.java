@@ -3,7 +3,6 @@ package com.frame.me.sso.controller;
 import cn.dev33.satoken.annotation.SaCheckRole;
 import com.frame.me.api.result.IResult;
 import com.frame.me.auth.annotation.Anonymous;
-import com.frame.me.auth.util.PasswordUtils;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.sso.api.IUserApi;
@@ -17,6 +16,7 @@ import com.frame.me.sso.infrastructure.satoken.SsoTokenUtils;
 import com.frame.me.sso.service.ILogoutService;
 import com.frame.me.sso.service.IUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,6 +38,7 @@ public class UserController implements IUserApi {
 
     private final IUserService userService;
     private final ILogoutService logoutService;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 用户信息端点.
@@ -67,7 +68,7 @@ public class UserController implements IUserApi {
     }
 
     /**
-     * 创建用户：账号唯一；密码 BCrypt 加密入库（强度见 {@code me.auth.password.bcrypt-strength}）.
+     * 创建用户：账号唯一；密码 BCrypt 加密入库（强度见 {@code me.auth.bcrypt-strength}）.
      */
     @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
@@ -77,7 +78,7 @@ public class UserController implements IUserApi {
         }
         UserEntity user = new UserEntity();
         user.setAccount(dto.getAccount());
-        user.setPassword(PasswordUtils.encode(dto.getPassword()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setName(dto.getName());
         user.setStatus("ACTIVE");
         user.setRoles(dto.getRoles() != null ? dto.getRoles() : "");
@@ -132,7 +133,7 @@ public class UserController implements IUserApi {
             user.setRoles(dto.getRoles());
         }
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
-            user.setPassword(PasswordUtils.encode(dto.getPassword()));
+            user.setPassword(passwordEncoder.encode(dto.getPassword()));
             kick = true;
         }
         if (dto.getStatus() != null) {

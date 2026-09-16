@@ -62,6 +62,8 @@ public class SaTokenAuthService implements IAuthService {
 
     private final SaTokenAuthProperties properties;
 
+    private final AuthUserAuthenticator authUserAuthenticator;
+
     /**
      * 解析本服务使用的 {@link StpLogic}：默认 {@code login} 体系即 {@code StpUtil.stpLogic}；
      * 配置 {@code me.auth.sa-token.logic-type} 为非默认值时走 sa-token 多账号体系
@@ -89,7 +91,7 @@ public class SaTokenAuthService implements IAuthService {
 
     @Override
     public String login(String account, String password) {
-        User user = AuthUserAuthenticator.authenticate(userDetailsService, account, password);
+        User user = authUserAuthenticator.authenticate(userDetailsService, account, password);
         // 标准登录：原生写 Cookie（sa-token.is-read-cookie=true 时）；login 后当前上下文即该会话
         stpLogic().login(user.getId());
         markLoginTime(stpLogic(), user.getId());

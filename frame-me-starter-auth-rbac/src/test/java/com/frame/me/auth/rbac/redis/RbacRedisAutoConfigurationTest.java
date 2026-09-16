@@ -7,11 +7,15 @@ import com.frame.me.auth.rbac.permission.IAuthPermissionProvider;
 import com.frame.me.auth.rbac.redis.config.RbacRedisAutoConfiguration;
 import com.frame.me.auth.rbac.redis.store.IPermissionCacheStore;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
+import com.frame.me.redis.util.RedisClient;
+import com.frame.me.redis.util.RedisClientRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,7 +32,9 @@ class RbacRedisAutoConfigurationTest {
 
     private final WebApplicationContextRunner runner = new WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(RbacAutoConfiguration.class, RbacRedisAutoConfiguration.class))
-            .withUserConfiguration(StubWriterConfig.class);
+            .withUserConfiguration(StubWriterConfig.class)
+            .withBean(RedisClientRegistry.class, () -> new RedisClientRegistry(
+                    "default", Map.of("default", org.mockito.Mockito.mock(RedisClient.class))));
 
     /**
      * 默认装配：{@code authPermissionSource} 为配置版，按类型注入生效的是 {@code @Primary} 的 Redis 包装器.

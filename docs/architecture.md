@@ -112,7 +112,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
   - 文件路径：`frame-me-starter-doc-openapi/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
   - 注册 Bean：`OpenAPI`、`GroupedOpenApi`（分组）。
 - `frame-me-starter-multi-redis` 注册 `com.frame.me.redis.config.RedisAutoConfiguration`、`RedissonAutoConfiguration`
-  - 注册 Bean：`StringRedisTemplate`/`RedisTemplate` 并初始化 `RedisUtils`；引入 Redisson 后创建 `RedissonClient` 并初始化各 Redisson 工具类。
+  - 注册 Bean：`RedisClientRegistry`；引入 Redisson 后创建或复用 `RedissonClient`，并注册 `RedissonLock`、`RedissonSync`、`RedissonTopic`、`RedissonLimiter`。
 - `frame-me-starter-l1l2-cache` 注册 `com.frame.me.cache.config.CacheAutoConfiguration`
   - 启用 JetCache 方法级缓存注解（`me.cache.enabled=true` 开启）。
 - `frame-me-starter-sensi-encrypt`
@@ -121,7 +121,7 @@ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoCo
 - `frame-me-starter-op-audit` 注册 `com.frame.me.op.audit.config.AuditAutoConfiguration`
   - 注册 Bean：`AuditLogAspect`、`AuditLogLogger`（`me.audit.enabled=true`，默认开启）。
 - `frame-me-starter-auth` 注册 `com.frame.me.auth.config.AuthAutoConfiguration`
-  - 注册 Bean：`AuthFilter`（注册为 FilterRegistrationBean，缺少 `IAuthUserResolver` 实现时启动直接失败并给出指引）、`TrustedHeaderAuthUserResolver`（兜底，`me.auth.trusted-header.enabled=true` 才装配；显式 `false` 时装配 `NoOpAuthUserResolver` 空操作解析器）、`LoginUserArgumentResolver` 配置、`AuditAuthOperatorSupplier`（可选）。
+  - 注册 Bean：`PasswordEncoder`、`AuthUserAuthenticator`、`AuthFilter`（注册为 FilterRegistrationBean，缺少 `IAuthUserResolver` 实现时启动直接失败并给出指引）、`TrustedHeaderAuthUserResolver`（兜底，`me.auth.trusted-header.enabled=true` 才装配；显式 `false` 时装配 `NoOpAuthUserResolver` 空操作解析器）、`LoginUserArgumentResolver` 配置、`AuditAuthOperatorSupplier`（可选）。
 - `frame-me-starter-auth-jwt` 注册 `com.frame.me.auth.jwt.config.JwtAutoConfiguration`
   - 注册 Bean：`JwtTokenServiceImpl`（实现 `IAuthService`）、`JwtAuthUserResolver`（实现 `IAuthUserResolver`）、`JwtAuthController`、默认 `RedisRefreshTokenStore`。通过 `@AutoConfigureBefore(AuthAutoConfiguration.class)` 优先于 auth 抽象层加载，从而完全接管认证实现。
 - `frame-me-starter-auth-sa-token` 注册 `com.frame.me.auth.satoken.config.SaTokenAuthAutoConfiguration`、`com.frame.me.auth.satoken.config.SaTokenRedisDaoAutoConfiguration`

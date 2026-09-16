@@ -2,6 +2,7 @@ package com.frame.me.redis.config;
 
 import com.frame.me.base.event.EventBridgeProperties;
 import com.frame.me.redis.event.RedisEventTransport;
+import com.frame.me.redis.util.RedissonTopic;
 import org.junit.jupiter.api.Test;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -23,24 +24,24 @@ class RedisEventTransportAutoConfigurationTest {
             .withBean(EventBridgeProperties.class);
 
     @Test
-    void shouldConfigureTransportWhenRedissonClientBeanPresent() {
-        runner.withBean(RedissonClient.class, () -> mock(RedissonClient.class))
+    void shouldConfigureTransportWhenRedissonTopicBeanPresent() {
+        runner.withBean(RedissonTopic.class, () -> new RedissonTopic(mock(RedissonClient.class)))
                 .run(context -> assertThat(context).hasSingleBean(RedisEventTransport.class));
     }
 
     /**
-     * Redisson jar 在 classpath 但 RedissonClient bean 未创建（如 me.redis.enabled=false
+     * Redisson jar 在 classpath 但 RedissonTopic bean 未创建（如 me.redis.enabled=false
      * 关闭了 RedissonAutoConfiguration）时不装配 transport，
-     * 避免运行时 RedissonTopic 未初始化才炸.
+     * 避免创建缺少依赖的 transport.
      */
     @Test
-    void shouldNotConfigureTransportWhenRedissonClientBeanMissing() {
+    void shouldNotConfigureTransportWhenRedissonTopicBeanMissing() {
         runner.run(context -> assertThat(context).doesNotHaveBean(RedisEventTransport.class));
     }
 
     @Test
     void shouldNotConfigureTransportWhenEventBridgeDisabled() {
-        runner.withBean(RedissonClient.class, () -> mock(RedissonClient.class))
+        runner.withBean(RedissonTopic.class, () -> new RedissonTopic(mock(RedissonClient.class)))
                 .withPropertyValues("me.event-bridge.enabled=false")
                 .run(context -> assertThat(context).doesNotHaveBean(RedisEventTransport.class));
     }
@@ -49,7 +50,7 @@ class RedisEventTransportAutoConfigurationTest {
     void shouldNotConfigureTransportWhenEventBridgePropertiesMissing() {
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(RedisEventTransportAutoConfiguration.class))
-                .withBean(RedissonClient.class, () -> mock(RedissonClient.class))
+                .withBean(RedissonTopic.class, () -> new RedissonTopic(mock(RedissonClient.class)))
                 .run(context -> assertThat(context).doesNotHaveBean(RedisEventTransport.class));
     }
 

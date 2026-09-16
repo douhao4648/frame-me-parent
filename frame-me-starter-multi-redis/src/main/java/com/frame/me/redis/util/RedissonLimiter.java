@@ -5,6 +5,7 @@ import org.redisson.api.RateType;
 import org.redisson.api.RedissonClient;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -14,28 +15,10 @@ import java.util.concurrent.TimeUnit;
  */
 public final class RedissonLimiter {
 
-    private static volatile RedissonClient redissonClient;
+    private final RedissonClient redissonClient;
 
-    private RedissonLimiter() {
-    }
-
-    /**
-     * 初始化 Redisson 客户端.
-     *
-     * <p>由 {@link com.frame.me.redis.config.RedissonAutoConfiguration} 调用。</p>
-     *
-     * @param client 默认实例的 Redisson 客户端
-     */
-    public static synchronized void init(RedissonClient client) {
-        RedissonLimiter.redissonClient = client;
-    }
-
-    private static RedissonClient getClient() {
-        RedissonClient client = redissonClient;
-        if (client == null) {
-            throw new IllegalStateException("Redisson client is not initialized. Please check the me.redis configuration and redisson dependencies");
-        }
-        return client;
+    public RedissonLimiter(RedissonClient redissonClient) {
+        this.redissonClient = Objects.requireNonNull(redissonClient, "redissonClient");
     }
 
     /**
@@ -44,8 +27,8 @@ public final class RedissonLimiter {
      * @param key 键
      * @return RRateLimiter
      */
-    public static RRateLimiter getRateLimiter(String key) {
-        return getClient().getRateLimiter(key);
+    public RRateLimiter getRateLimiter(String key) {
+        return redissonClient.getRateLimiter(key);
     }
 
     /**
@@ -58,7 +41,7 @@ public final class RedissonLimiter {
      * @param rateIntervalUnit 速率间隔单位
      * @return 是否初始化成功
      */
-    public static boolean trySetRate(String key, RateType type, long rate,
+    public boolean trySetRate(String key, RateType type, long rate,
                                      long rateInterval, TimeUnit rateIntervalUnit) {
         return getRateLimiter(key).trySetRate(type, rate, Duration.ofMillis(rateIntervalUnit.toMillis(rateInterval)));
     }
@@ -69,7 +52,7 @@ public final class RedissonLimiter {
      * @param key 键
      * @return 是否获取成功
      */
-    public static boolean tryAcquire(String key) {
+    public boolean tryAcquire(String key) {
         return getRateLimiter(key).tryAcquire();
     }
 
@@ -80,7 +63,7 @@ public final class RedissonLimiter {
      * @param permits 许可数量
      * @return 是否获取成功
      */
-    public static boolean tryAcquire(String key, long permits) {
+    public boolean tryAcquire(String key, long permits) {
         return getRateLimiter(key).tryAcquire(permits);
     }
 
@@ -92,7 +75,7 @@ public final class RedissonLimiter {
      * @param waitMs  最长等待时间（毫秒）
      * @return 是否获取成功
      */
-    public static boolean tryAcquire(String key, long permits, long waitMs) {
+    public boolean tryAcquire(String key, long permits, long waitMs) {
         return getRateLimiter(key).tryAcquire(permits, Duration.ofMillis(waitMs));
     }
 
@@ -102,7 +85,7 @@ public final class RedissonLimiter {
      * @param key 键
      * @return 可用许可数
      */
-    public static long availablePermits(String key) {
+    public long availablePermits(String key) {
         return getRateLimiter(key).availablePermits();
     }
 }

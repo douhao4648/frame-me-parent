@@ -3,9 +3,7 @@ package com.frame.me.notify.notify;
 import com.frame.me.base.notify.INotifySender;
 import com.frame.me.notify.api.INotifyClient;
 import com.frame.me.notify.config.NotifyProperties;
-import com.frame.me.notify.model.NotifyResult;
-import com.frame.me.notify.util.NotifyClientFactory;
-import com.frame.me.notify.util.NotifyUtils;
+import com.frame.me.notify.util.NotifyClientRegistry;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -21,14 +19,16 @@ import java.util.List;
 public class MsgNotifySender implements INotifySender {
 
     private final NotifyProperties notifyProperties;
+    private final NotifyClientRegistry notifyClients;
 
-    public MsgNotifySender(NotifyProperties notifyProperties) {
+    public MsgNotifySender(NotifyProperties notifyProperties, NotifyClientRegistry notifyClients) {
         this.notifyProperties = notifyProperties;
+        this.notifyClients = notifyClients;
     }
 
     @Override
     public boolean send(String title, String content, List<String> receivers) {
-        if (!NotifyClientFactory.hasGlobalDefault()) {
+        if (!notifyClients.hasGlobalDefault()) {
             log.debug("Skip notify: global default client is not available");
             return false;
         }
@@ -37,8 +37,7 @@ public class MsgNotifySender implements INotifySender {
             log.debug("Skip notify: no receivers configured");
             return false;
         }
-        NotifyResult result = NotifyUtils.send(title, content, targetReceivers);
-        return result.isSuccess();
+        return notifyClients.send(title, content, targetReceivers).isSuccess();
     }
 
     @Override
@@ -50,13 +49,13 @@ public class MsgNotifySender implements INotifySender {
         INotifyClient client;
         try {
             client = switch (channel) {
-                case "email" -> NotifyUtils.email();
-                case "webhook" -> NotifyUtils.webhook();
-                case "sms" -> NotifyUtils.sms();
+                case "email" -> notifyClients.email();
+                case "webhook" -> notifyClients.webhook();
+                case "sms" -> notifyClients.sms();
                 default -> throw new IllegalArgumentException("Unsupported notify channel: " + channel);
             };
         } catch (IllegalStateException | IllegalArgumentException e) {
-            // IllegalStateException：该通道未配置默认客户端（如 NotifyClientFactory.getClient 抛）
+            // IllegalStateException：该通道未配置默认客户端（如 NotifyClientRegistry.getClient 抛）
             // IllegalArgumentException：channel 不在 email/webhook/sms 支持范围内
             // 两者都按「未配置」语义返回 false，不抛异常（符合类 Javadoc 契约）
             log.debug("Skip channel notify: {}", e.getMessage());
@@ -74,7 +73,7 @@ public class MsgNotifySender implements INotifySender {
     public boolean sendClient(String clientName, String title, String content, List<String> receivers) {
         INotifyClient client;
         try {
-            client = NotifyClientFactory.getClient(clientName);
+            client = notifyClients.getClient(clientName);
         } catch (IllegalStateException e) {
             log.debug("Skip client notify: {}", e.getMessage());
             return false;

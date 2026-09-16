@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Redis 客户端操作类.
  *
- * <p>封装单个 Redis 实例的常用操作，可通过 {@link RedisUtils#getClient(String)} 获取指定实例。
+ * <p>封装单个 Redis 实例的常用操作，可通过 {@link RedisClientRegistry#getClient(String)} 获取指定实例。
  * 这里的 {@link #tryLock} 是基于 {@code SET NX PX} 的简单锁；若引入 Redisson，可改用 {@link RedissonLock}
  * 获得可重入与看门狗续期。</p>
  */
@@ -49,7 +49,7 @@ public class RedisClient {
     private final StringRedisTemplate stringRedisTemplate;
     private final RedisTemplate<Object, Object> redisTemplate;
 
-    RedisClient(StringRedisTemplate stringRedisTemplate, RedisTemplate<Object, Object> redisTemplate) {
+    public RedisClient(StringRedisTemplate stringRedisTemplate, RedisTemplate<Object, Object> redisTemplate) {
         this.stringRedisTemplate = stringRedisTemplate;
         this.redisTemplate = redisTemplate;
     }
