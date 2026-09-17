@@ -519,7 +519,7 @@ me:
     1. preStop 调 `POST /actuator/offline`（主路径，SIGTERM 前完成编排）或 SIGTERM 触发 `ContextClosedEvent`（兜底路径）
     2. `ShutdownReadyFlag` 置 false → actuator health 立即返回 `OUT_OF_SERVICE`（503）+ 业务 HealthController 返回 DOWN，LB 探针失败停止发新流量
     3. 反注册（`ServiceRegistry.deregister`，`ObjectProvider` 守卫，无注册中心时跳过）→ 注册中心不再把实例返回给消费者
-    4. 等待 `deregister-wait`（默认 15s）让消费者刷新本地缓存
+    4. 等待 `deregister-wait`（默认 15s）让消费者刷新本地缓存；**仅在真实完成反注册后等待**——无注册中心（测试/本地/纯任务服务）时直接跳过，不睡
     5. 返回，Spring 继续 → Tomcat graceful shutdown（`server.shutdown=graceful`）处理在途请求
     6. 处理完在途请求，关闭
   - **两条路径幂等**：preStop 调过端点后 flag 已 false、已反注册，SIGTERM 来 listener 再跑一遍无副作用。

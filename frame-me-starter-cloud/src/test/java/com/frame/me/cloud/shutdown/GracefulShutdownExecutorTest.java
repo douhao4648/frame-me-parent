@@ -98,6 +98,42 @@ class GracefulShutdownExecutorTest {
         assertThat(flag.isReady()).isFalse();
     }
 
+    @Test
+    void shutdown_skipsWaitWhenNoRegistry() {
+        ShutdownReadyFlag flag = new ShutdownReadyFlag();
+        GracefulShutdownProperties props = new GracefulShutdownProperties();
+        props.setDeregisterWait(Duration.ofSeconds(60)); // 无注册中心时不得等待
+
+        GracefulShutdownExecutor executor = new GracefulShutdownExecutor(
+                flag, props, mockEmptyProvider(), mockEmptyProvider());
+
+        long start = System.nanoTime();
+        executor.shutdown();
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+
+        assertThat(elapsedMillis).isLessThan(1_000);
+    }
+
+    @Test
+    void shutdown_waitsAfterSuccessfulDeregister() {
+        ShutdownReadyFlag flag = new ShutdownReadyFlag();
+        GracefulShutdownProperties props = new GracefulShutdownProperties();
+        props.setDeregisterWait(Duration.ofMillis(150));
+
+        ServiceRegistry<Registration> registry = mock(ServiceRegistry.class);
+        Registration registration = mock(Registration.class);
+
+        GracefulShutdownExecutor executor = new GracefulShutdownExecutor(
+                flag, props, mockProvider(registry), mockProvider(registration));
+
+        long start = System.nanoTime();
+        executor.shutdown();
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+
+        verify(registry).deregister(registration);
+        assertThat(elapsedMillis).isGreaterThanOrEqualTo(150);
+    }
+
     @SuppressWarnings("unchecked")
     private static <T> ObjectProvider<T> mockEmptyProvider() {
         ObjectProvider<T> provider = mock(ObjectProvider.class);

@@ -42,6 +42,7 @@ public class GracefulShutdownProperties {
      *
      * <p>Nacos 客户端有缓存刷新窗口，反注册后消费者可能仍持有旧实例；
      * 等待一段时间让缓存更新，避免滚动发布期间请求打到正在关闭的实例.
+     * 仅在真实完成反注册后等待；无注册中心（测试/本地/纯任务服务）直接跳过.
      * 注意 K8s {@code terminationGracePeriodSeconds} 须覆盖本值 + Spring 关闭耗时（见类注释）.</p>
      */
     private Duration deregisterWait = Duration.ofSeconds(15);

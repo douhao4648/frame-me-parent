@@ -40,6 +40,9 @@ public class GracefulShutdownExecutor {
     /**
      * 执行下线编排：标记 DOWN → 反注册 → 等待.
      * 幂等，可安全重复调用.
+     *
+     * <p>等待以「实际完成反注册」为前提：消费者的实例缓存来自注册中心，
+     * 无注册中心（测试、本地开发、纯任务服务）时没有消费者缓存可刷新，跳过等待.</p>
      */
     public void shutdown() {
         // ① health 立即 DOWN
@@ -47,28 +50,33 @@ public class GracefulShutdownExecutor {
         log.info("优雅下线：health 已标记为 DOWN");
 
         // ② 反注册（无注册中心时跳过，纯定时任务服务等场景）
-        deregisterIfPresent();
+        boolean deregistered = deregisterIfPresent();
 
-        // ③ 等待消费者刷新本地缓存
-        waitConsumersRefresh();
+        // ③ 等待消费者刷新本地缓存（仅在真实反注册后才有意义）
+        if (deregistered) {
+            waitConsumersRefresh();
+        }
 
         // ④ 返回，Spring 继续 → Tomcat graceful shutdown 处理在途请求
     }
 
-    private void deregisterIfPresent() {
+    private boolean deregisterIfPresent() {
         ServiceRegistry<Registration> registry = serviceRegistryProvider.getIfAvailable();
         Registration registration = registrationProvider.getIfAvailable();
         if (registry == null || registration == null) {
-            log.info("优雅下线：无 ServiceRegistry/Registration bean（无注册中心或纯任务服务），跳过反注册");
-            return;
+            log.info("优雅下线：无 ServiceRegistry/Registration bean（无注册中心或纯任务服务），跳过反注册与等待");
+            return false;
         }
         try {
             registry.deregister(registration);
             log.info("优雅下线：已从注册中心反注册 {}", registration);
+            return true;
         } catch (Exception e) {
             // 反注册失败不阻断下线流程——Tomcat graceful shutdown 仍会处理在途请求
             // 消费者侧会因 health DOWN + 自然过期停止调用
+            // 反注册未成功，注册表仍有本实例，等待无意义，跳过
             log.warn("优雅下线：反注册异常，不阻断后续流程: {}", e.getMessage());
+            return false;
         }
     }
 
