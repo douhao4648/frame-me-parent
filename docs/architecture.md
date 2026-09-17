@@ -1,44 +1,24 @@
 # 架构设计
 
+模块类别、可计数依赖范围、允许的边与异常记录格式以 [architecture-rules.md](./architecture-rules.md) 为准。这里保留运行时分层与自动装配说明；边界规则由评审按该文档核对。
+
 ## 模块依赖图
 
 ```
-frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api → frame-me-adapter-starter
-   │  (无 Spring)        (Web 基础设施)              (老接口规范，可被外部项目重写)
-   │
-   │  纳入 frame-me-boot 的通用 starter：
-   ├─ frame-me-starter-auth          (认证授权抽象：上下文、注解、SPI)
-   ├─ frame-me-starter-multi-redis   (Redis + 可选 Redisson，依赖 base)
-   ├─ frame-me-starter-l1l2-cache    (JetCache 两级缓存，默认关闭)
-   ├─ frame-me-starter-sensi-encrypt (Jasypt 配置解密，不依赖 base)
-   ├─ frame-me-starter-op-audit      (审计日志，依赖 api + base)
-   └─ frame-me-starter-msg-notify    (消息通知：邮件/Webhook/短信)
-                         ↓
-                  frame-me-boot   （聚合启动模块，供外部 xx-service 引用）
-                         ↓
-              frame-me-tester-api  ←  契约接口（@HttpExchange）
-                         ↓
-              frame-me-tester-service  ←  可运行入口
+以下箭头均为“source → target”的依赖方向：
 
-独立可选（不纳入 boot，按需引入）：
-   frame-me-starter-mybatis-plus   (MyBatis-Plus 数据访问，与 flex 二选一)
-   frame-me-starter-mybatis-flex   (MyBatis-Flex 数据访问，依赖 api + base)
-   frame-me-starter-dynamic-ds     (多数据源，依赖 base)
-   frame-me-starter-cloud          (云基础底座：优雅下线 + 配置刷新解密，web 栈无关)
-   frame-me-starter-cloud-nacos    (Nacos 配置中心 + 注册中心，极薄封装 SCA)
-   frame-me-starter-sse-mvc        (SSE 服务端推送)
-   frame-me-starter-auth-rbac      (RBAC 授权 + 数据权限，依赖 auth)
-   frame-me-starter-auth-jwt       (JWT 认证实现，接管 auth 抽象层)
-   frame-me-starter-auth-sa-token  (Sa-Token 会话治理认证，接管 auth 抽象层)
-   frame-me-starter-ws-mvc         (WebSocket 全双工推送)
-   frame-me-starter-doc-openapi    (SpringDoc 接口文档)
-   frame-me-sso-starter            (SSO 下游接入：换 token + /userinfo + 踢人事件订阅，与认证底座解耦)
-   frame-me-reducer                (阿里云系列聚合：aliyun-common 底座 + aliyun-starter-oss 等能力 starter，占位)
+frame-me-adapter-starter ──→ frame-me-adapter-api ──→ frame-me-api
+         │
+         └───────────────→ frame-me-starter-base ──→ frame-me-api
 
-启动器聚合（frame-me-launcher，独立可运行服务）：
-   frame-me-sso       (SSO 认证服务：授权码 + client_credentials 颁发 sa-token)
-   frame-me-audit     (审计中心：订阅 audit:log 持久化到 MySQL，兼作 SSO 下游 RP)
-   frame-me-gateway   (业务网关：SC Gateway WebFlux，凭证驱动鉴权 + 身份头契约，双 profile 内外网部署)
+frame-me-boot ──→ frame-me-starter-auth / frame-me-starter-multi-redis /
+                  frame-me-starter-l1l2-cache / frame-me-starter-sensi-encrypt /
+                  frame-me-starter-op-audit / frame-me-starter-msg-notify
+
+frame-me-tester-service ──→ frame-me-tester-api ──→ frame-me-api
+         │
+         └───────────────→ frame-me-boot
+
 ```
 
 更准确的依赖关系：
@@ -53,7 +33,7 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
 - `frame-me-starter-auth-sa-token`：依赖 `frame-me-starter-auth` + `sa-token-spring-boot4-starter`（cn.dev33，1.45.0），sa-token 会话治理型认证实现，同样接管 `IAuthService` / `IAuthUserResolver`，提供踢人/封禁/在线会话/多端互斥能力；`frame-me-starter-multi-redis` 为 optional 依赖，显式引入即激活 Redis 会话后端（缺席退回内存 DAO，仅单实例可用）。
 - `frame-me-starter-auth-rbac`：依赖 `frame-me-starter-auth`，轻量 RBAC 授权模块，提供 `@RequireAuth`(SpEL) 注解、方法拦截器、路径 Filter、权限数据源 SPI 与数据权限能力；可选 Redis 权限后端（引入 `frame-me-starter-multi-redis` 即激活）。
 - `frame-me-starter-cloud`：**无工程内模块依赖**（依赖 `spring-boot-starter-actuator` + `spring-cloud-context` + `spring-cloud-commons`，web 栈无关——Servlet 与 WebFlux 消费方都可用），云基础底座模块（优雅下线编排 + 配置刷新解密），不纳入 boot，按需引入。
-- `frame-me-boot`：聚合启动模块，依赖 `frame-me-starter-auth`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力。`frame-me-adapter`（含 `frame-me-adapter-starter`）、`frame-me-starter-doc-openapi`、`frame-me-starter-cloud`、`frame-me-starter-sse-mvc`、`frame-me-starter-ws-mvc`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-cloud-nacos`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex`、`frame-me-reducer`（阿里云系列）不纳入聚合。
+- `frame-me-boot`：可扩展的 starter 聚合模块，当前依赖 `frame-me-starter-auth`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力；该清单不是冻结边界，治理只要求 boot 的出边指向 starter。`frame-me-adapter`（含 `frame-me-adapter-starter`）、`frame-me-starter-doc-openapi`、`frame-me-starter-cloud`、`frame-me-starter-sse-mvc`、`frame-me-starter-ws-mvc`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-cloud-nacos`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex`、`frame-me-reducer`（阿里云系列）不纳入当前聚合。
 - `frame-me-tester`：`pom` 聚合模块，包含 `frame-me-tester-api`（契约接口）与 `frame-me-tester-service`（可运行入口）。`frame-me-tester-api` 依赖 `frame-me-api`；`frame-me-tester-service` 依赖 `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`，当前以 MyBatis-Flex 为数据访问演示（MyBatis-Plus 版 `DemoController`/`DemoEntity`/`DemoMapper` 等整体注释保留，`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` 依赖在 POM 中注释保留）。通过 `frame-me-starter-base` 的 Maven profile 可选引入 `frame-me-starter-doc-openapi` 与 `p6spy`。
 
 ### api / boot 使用约定
@@ -62,12 +42,12 @@ frame-me-api  ──→  frame-me-starter-base  ──→  frame-me-adapter-api 
 
 - **业务 `xx-api` 模块** → 引用 `frame-me-api`
   - 只引入接口契约（如 `IResult<T>`、`ApiConstant`），不引入 Spring starter。
-  - 业务 `xx-api` 之间可以相互引用，用于跨业务接口调用。
+  - API 契约由提供方拥有；跨域调用由消费者 service 依赖提供方 API 或提供方 client starter，业务 API 之间禁止相互依赖。
   - 推荐用 Spring HTTP Interface（`@HttpExchange`、`@GetExchange` 等）声明 API 契约，如 `frame-me-tester-api`。
 
 - **业务 `xx-service` 模块** → 引用 `frame-me-boot`
-  - 通过 `frame-me-boot` 一键拉起通用 starter 能力（auth、cloud、base 等）。
-  - 若需要默认适配层（老接口规范），再额外引入 `frame-me-adapter-starter`，或项目自行实现。
+  - 通过 `frame-me-boot` 一键拉起当前聚合的通用 starter 能力（auth、multi-redis、l1l2-cache、sensi-encrypt、op-audit、msg-notify）。
+  - `frame-me-starter-cloud` 不在 boot 聚合中；需要云基础能力时由 service 或网关按需显式引入。若需要默认适配层（老接口规范），再额外引入 `frame-me-adapter-starter`，或项目自行实现。
 
 `frame-me-tester` 是本脚手架的示例：`frame-me-tester-api` 承担契约层，`frame-me-tester-service` 作为实现层与可运行入口。
 

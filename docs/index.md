@@ -6,6 +6,8 @@
 
 `frame-me-parent` 是一个基于 **Spring Boot 4.0.7 + Java 21** 的多模块 Maven 脚手架工程，groupId 为 `com.frame.me`。项目采用分层模块设计，下层模块为上层提供基础能力；示例模块 `frame-me-tester` 拆分为 `frame-me-tester-api`（契约）与 `frame-me-tester-service`（实现），最终由 `frame-me-tester-service` 作为可运行的 Spring Boot 入口。
 
+模块边界、依赖方向与生产依赖计数以维护中的 [architecture-rules.md](./architecture-rules.md) 为准：提供方拥有 API 契约，消费者 service 依赖提供方 API 或 client starter，业务 API 之间不形成跨域依赖。根 POM 是版本的最终校验来源，边界规则由评审按该文档核对。
+
 ## 阅读前置
 
 - 项目要求 **JDK 21**，当前机器路径为：`/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home`。
@@ -18,6 +20,7 @@
 |---|---|
 | [build.md](./build.md) | 如何编译、测试、打包、运行？如何新增子模块？ |
 | [architecture.md](./architecture.md) | 模块如何分层？自动装配如何工作？请求响应如何流转？ |
+| [architecture-rules.md](./architecture-rules.md) | 哪些模块类别和依赖边界是可接受的？异常如何记录？ |
 | [conventions.md](./conventions.md) | Result / Response / 异常 / 状态码怎么用？编码风格是什么？ |
 | [modules.md](./modules.md) | 每个子模块的职责、依赖、关键类是什么？ |
 | [testing.md](./testing.md) | 如何运行测试？如何启动应用？ |

@@ -23,7 +23,7 @@
 - **使用方**：业务工程的 `xx-api` 模块。
 - **设计约定**：
   - 业务 `xx-api` 通过引入 `frame-me-api` 获得统一的接口契约与校验分组。
-  - 业务 `xx-api` 之间可以相互引用，用于跨业务接口调用。
+  - API 契约由提供方拥有；跨域调用由消费者 service 依赖提供方 API 或提供方 client starter，业务 API 之间禁止相互依赖。
   - `frame-me-api` 不实现任何具体能力，只定义最基础的跨模块接口、常量、分页模型与校验契约。
 
 ## `frame-me-starter-base`

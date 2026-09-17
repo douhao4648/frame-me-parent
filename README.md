@@ -6,10 +6,10 @@
 
 项目采用 **接口 / Service 分离** 的设计：
 
-- **`frame-me-api`**：纯接口/Interfacer 契约模块，供业务工程的 `xx-api` 模块引用；业务 `xx-api` 之间也可以相互引用。
+- **`frame-me-api`**：纯接口/Interfacer 契约模块，供业务工程的 `xx-api` 模块引用；业务 API 不互相形成跨域依赖，消费者应使用提供方 API 或提供方 client starter。
 - **`frame-me-boot`**：聚合启动模块，供业务工程的 `xx-service` 模块引用，一键引入并启动一组通用 starter 能力。
 
-这样，业务工程的 `xx-api` 只依赖接口契约，而 `xx-service` 通过 `frame-me-boot` 统一拉起所有需要的基础设施。
+这样，业务工程的 `xx-api` 只依赖接口契约，而 `xx-service` 通过 `frame-me-boot` 拉起当前聚合的通用 starter；未纳入 boot 的 provider API、client starter 与 cloud 能力按需显式引入。
 
 ## 快速开始
 
@@ -79,7 +79,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
 | `frame-me-boot` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/multi-redis/l1l2-cache/sensi-encrypt/op-audit/msg-notify；不含 adapter、doc-openapi、cloud、sse-mvc、ws-mvc、auth-jwt、auth-sa-token、auth-rbac、cloud-nacos、mybatis-plus/flex、dynamic-ds、reducer）。 |
 | `frame-me-launcher/frame-me-sso` | SSO 认证服务聚合工程：`frame-me-sso-api`（`@HttpExchange` 契约 + 踢人事件）+ `frame-me-sso-service`（授权码/client_credentials 颁发 sa-token、/userinfo 代验、用户 CRUD）+ `frame-me-sso-starter`（下游 RP 一键接入：`/api/auth/sso-login` 端点 + 回调落地双模式（`/index` hash 落地页 / `/callback` 服务端 Cookie 会话回调）+ 踢人监听）。 |
 | `frame-me-launcher/frame-me-audit` | 审计中心聚合工程：`frame-me-audit-api`（`ILogApi` 查询契约）+ `frame-me-audit-service`（订阅 `audit:log` 事件持久化到 MySQL + 审计日志查询，兼作 SSO 下游 RP）。 |
-| `frame-me-launcher/frame-me-gateway` | 网关工程（占位）：挂 `frame-me-launcher` 下，后续按需补充网关实现（如 Spring Cloud Gateway）。 |
+| `frame-me-launcher/frame-me-gateway` | 已实现的业务网关：基于 Spring Cloud Gateway WebFlux，提供路由转发、路由级鉴权与身份头契约；挂在 `frame-me-launcher` 下独立运行。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |
 
 ## 核心约定
@@ -95,11 +95,11 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
 
 - **业务 `xx-api` 模块** → 引用 `frame-me-api`
   - 只引入接口契约（如 `IResult<T>`、`ApiConstant`），不引入 Spring starter。
-  - 业务 `xx-api` 之间可以相互引用，用于跨业务接口调用。
+  - API 契约由提供方拥有；跨域调用由消费者 service 依赖提供方 API 或提供方 client starter，业务 API 之间禁止相互依赖。
 
 - **业务 `xx-service` 模块** → 引用 `frame-me-boot`
-  - 通过 `frame-me-boot` 一键拉起通用 starter 能力（如 auth、cloud、base 等）。
-  - `frame-me-boot` 本身不包含业务代码，只通过传递依赖聚合通用能力。
+  - 通过 `frame-me-boot` 一键拉起当前聚合的通用 starter 能力（auth、multi-redis、l1l2-cache、sensi-encrypt、op-audit、msg-notify）。
+  - `frame-me-boot` 本身不包含业务代码，只通过传递依赖聚合 starter；cloud 等未纳入 boot 的能力必须按需显式引入。
 
 - **数据访问、JWT、适配层、文档按需引入**
   - `frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex` 二选一，显式引入。

@@ -2,8 +2,8 @@
 
 ## Java 版本要求
 
-- 项目使用 **Java 21**（`pom.xml` 中 `java.version`、`maven.compiler.source`、`maven.compiler.target` 均设置为 `25`）。
-- 如果当前 JDK 低于 25，`mvn` 会报错：`错误: 不支持发行版本 25`。
+- 项目使用 **Java 21**（根 `pom.xml` 中 `java.version`、`maven.compiler.source`、`maven.compiler.target` 均设置为 `21`）。
+- 构建 JDK 需要为 21 或更高版本；编译器以 release/source/target 21 生成兼容 Java 21 的字节码。
 - 当前机器已安装 JDK 21 的路径：
 
 ```bash
@@ -33,7 +33,7 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
   - Spring Cloud：`2025.1.2`
   - Spring Cloud Alibaba：`2025.1.0.0`
   - Lombok：`1.18.46`
-  - Hutool：`5.8.46`
+  - Hutool：`5.8.47`
   - JetCache：`2.8.0.RC`
   - Kryo5：`5.6.2`（由 `frame-me-starter-l1l2-cache` 使用，版本在根 `pom.xml` 集中管理）
 - 编译插件：`maven-compiler-plugin:3.15.0`，启用 `-parameters` 参数。
@@ -185,4 +185,4 @@ me:
 
 ## Lint
 
-项目未配置独立的 lint 插件或检查命令，依赖 Maven 编译器与 Spring Boot 测试套件保证基础正确性。
+代码风格 lint 是独立的后续工作，本次架构治理不引入格式化或新的风格规则，也不批量改写现有源码。完整验证使用 Maven Wrapper，模块类别、依赖方向与生产依赖范围按 [architecture-rules.md](./architecture-rules.md) 评审。
