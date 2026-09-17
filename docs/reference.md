@@ -148,6 +148,7 @@
 | `SaTokenAuthController` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/web/SaTokenAuthController.java` |
 | `SaTokenExceptionAdvice` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-auth-sa-token/src/main/java/com/frame/me/auth/satoken/advice/SaTokenExceptionAdvice.java` |
 | `CloudConstant` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/CloudConstant.java` |
+| `CloudCommonsInfrastructureRoleFixer` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/config/CloudCommonsInfrastructureRoleFixer.java` |
 | `GracefulShutdownEndpoint` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-starter-cloud/src/main/java/com/frame/me/cloud/shutdown/GracefulShutdownEndpoint.java` |
 | `Application`（gateway 启动类） | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-gateway/src/main/java/com/frame/me/gateway/Application.java` |
 | `GatewayAuthFilter` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-launcher/frame-me-gateway/src/main/java/com/frame/me/gateway/auth/GatewayAuthFilter.java` |
@@ -314,6 +315,7 @@
 | `CacheAutoConfiguration` | JetCache 两级缓存自动装配入口 |
 | `CacheProperties` | `me.cache` 配置属性绑定 |
 | `JetCacheInfrastructureRoleFixer` | 修复 JetCache 内部配置类的 BeanPostProcessor 警告 |
+| `CloudCommonsInfrastructureRoleFixer` | 修复 spring-cloud-commons 内部配置类的 BeanPostProcessor 警告 |
 | `DocOpenApiAutoConfiguration` | OpenAPI 文档自动装配入口 |
 | `DocOpenApiProperties` | `me.swagger` 配置属性绑定 |
 | `GroupedOpenApiRegistrar` | 动态注册 API 分组 |

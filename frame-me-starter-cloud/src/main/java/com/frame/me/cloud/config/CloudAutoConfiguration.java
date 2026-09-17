@@ -16,6 +16,7 @@ import org.springframework.cloud.client.serviceregistry.ServiceRegistry;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 
@@ -32,10 +33,14 @@ import org.springframework.core.env.EnumerablePropertySource;
  * 由 {@link GracefulShutdownExecutor} 用 {@link ObjectProvider} 守卫注入——无注册中心时
  * 跳过反注册，只做 health 联动 + 等待（遵循 {@code docs/conventions.md} 模式 C）.</p>
  *
+ * <p>同时注册 {@link CloudCommonsInfrastructureRoleFixer} 以消除 spring-cloud-commons
+ * 内部配置类的 BeanPostProcessor 警告。</p>
+ *
  * @author frame-me
  */
 @AutoConfiguration
 @EnableConfigurationProperties(GracefulShutdownProperties.class)
+@Import(CloudCommonsInfrastructureRoleFixer.class)
 public class CloudAutoConfiguration {
 
     /**
