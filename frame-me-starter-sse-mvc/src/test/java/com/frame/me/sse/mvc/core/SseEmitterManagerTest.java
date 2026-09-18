@@ -27,7 +27,8 @@ class SseEmitterManagerTest {
     void setUp() {
         properties = new SseProperties();
         properties.setTimeout(60000L);
-        manager = new SseEmitterManager(properties, java.util.Optional.empty());
+        manager = new SseEmitterManager(properties,
+                java.util.Optional.of(com.frame.me.base.event.IReceiverIdAuthorizer.permitAll()));
     }
 
     @Test
@@ -88,7 +89,8 @@ class SseEmitterManagerTest {
     void shouldEnforceMaxEmitters() {
         SseProperties props = new SseProperties();
         props.setMaxEmitters(2);
-        SseEmitterManager limited = new SseEmitterManager(props, java.util.Optional.empty());
+        SseEmitterManager limited = new SseEmitterManager(props,
+                java.util.Optional.of(com.frame.me.base.event.IReceiverIdAuthorizer.permitAll()));
 
         limited.registerBroadcast("a");
         limited.registerBroadcast("b");
@@ -163,14 +165,17 @@ class SseEmitterManagerTest {
     }
 
     /**
-     * 未注册 authorizer（Optional.empty）：不校验，保持兼容，正常订阅.
+     * 未注册 authorizer（Optional.empty）：fail-closed 拒绝——对象级越权防护不能默认放行.
      */
     @Test
-    void shouldSkipAuthorizationWhenNoAuthorizer() {
-        // manager（Optional.empty()）已能正常订阅——覆盖一次确认
-        SseEmitter emitter = manager.registerTargeted("user:456");
-        assertThat(emitter).isNotNull();
-        assertThat(manager.targetedReceiverCount()).isEqualTo(1);
+    void shouldRejectTargetedWhenNoAuthorizer() {
+        SseEmitterManager unguarded = new SseEmitterManager(properties, java.util.Optional.empty());
+
+        assertThatThrownBy(() -> unguarded.registerTargeted("user:456"))
+                .isInstanceOf(com.frame.me.base.exception.BusinessException.class)
+                .satisfies(ex -> assertThat(((com.frame.me.base.exception.BusinessException) ex)
+                        .getCode()).isEqualTo(403));
+        assertThat(unguarded.activeEmitterCount()).isEqualTo(0);
     }
 
     /**

@@ -1,11 +1,13 @@
 package com.frame.me.ws.mvc.config;
 
+import com.frame.me.base.event.IReceiverIdAuthorizer;
 import com.frame.me.ws.mvc.core.WsMvcEventDispatcher;
 import com.frame.me.ws.mvc.core.WsMvcSessionManager;
 import com.frame.me.ws.mvc.handler.MeWsMvcHandler;
 import com.frame.me.ws.mvc.service.WsMvcPushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.*;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -51,7 +53,7 @@ public class WsMvcAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public WsMvcSessionManager wsMvcSessionManager(WsMvcProperties properties,
-                                                    org.springframework.beans.factory.ObjectProvider<com.frame.me.base.event.IReceiverIdAuthorizer> authorizerProvider) {
+                                                   ObjectProvider<IReceiverIdAuthorizer> authorizerProvider) {
         log.info("WsMvcSessionManager initialized, maxSessions={}, heartbeat={}, receiverIdAuthorizer={}",
                 properties.getMaxSessions(), properties.getHeartbeatInterval(),
                 authorizerProvider.getIfAvailable() != null);

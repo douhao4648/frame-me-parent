@@ -80,22 +80,30 @@ class GracefulShutdownExecutorTest {
         verify(registry).deregister(registration);
     }
 
+    /**
+     * once-guard：preStop 端点调过后 SIGTERM 兜底再调，编排只执行一次
+     * （反注册一次、等待一次——否则停机被二次 sleep 拖长，K8s grace period 紧张时被 SIGKILL）.
+     */
     @Test
     void shutdown_idempotent_multipleCallsNoSideEffect() {
         ShutdownReadyFlag flag = new ShutdownReadyFlag();
         GracefulShutdownProperties props = new GracefulShutdownProperties();
-        props.setDeregisterWait(Duration.ZERO);
+        props.setDeregisterWait(Duration.ofMillis(150));
 
-        ObjectProvider<ServiceRegistry<Registration>> emptyRegistry = mockEmptyProvider();
-        ObjectProvider<Registration> emptyRegistration = mockEmptyProvider();
+        ServiceRegistry<Registration> registry = mock(ServiceRegistry.class);
+        Registration registration = mock(Registration.class);
 
         GracefulShutdownExecutor executor = new GracefulShutdownExecutor(
-                flag, props, emptyRegistry, emptyRegistration);
+                flag, props, mockProvider(registry), mockProvider(registration));
 
         executor.shutdown();
-        executor.shutdown(); // 幂等：重复调用无副作用
+        long start = System.nanoTime();
+        executor.shutdown(); // 第二次调用直接返回：不重复反注册、不重复等待
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
 
         assertThat(flag.isReady()).isFalse();
+        verify(registry, times(1)).deregister(registration);
+        assertThat(elapsedMillis).isLessThan(150);
     }
 
     @Test

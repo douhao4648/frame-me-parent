@@ -18,6 +18,16 @@ public interface IAuthCodeService {
     String issue(String appId, Long userId, String scopes, String redirectUri);
 
     /**
+     * 只读查看授权码（不消费）.
+     *
+     * <p>供 token 端点「peek → 校验应用/密钥/redirectUri → consume」顺序使用：
+     * 校验失败时不烧码，防止任何人拿合法 code + 错误密钥调一次就把码失效（登录 DoS）.</p>
+     *
+     * @return null 表示无效或已使用
+     */
+    CodePayload peek(String code);
+
+    /**
      * 校验并消费授权码（一次性，原子操作）.
      *
      * <p>{@code GETDEL}（Redis 6.2+）一次往返取值的同时删除，并发下只有一个请求能拿到

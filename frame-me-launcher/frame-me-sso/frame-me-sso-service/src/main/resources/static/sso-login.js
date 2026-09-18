@@ -19,9 +19,16 @@ form.addEventListener('submit', async (e) => {
         if (data.code === 200) {
             const params = new URLSearchParams(location.search);
             const redirect = params.get('redirect');
-            // 防 open redirect：只允许站内相对路径，拒绝 //evil.com 这类协议相对地址
-            if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
-                location.href = redirect;
+            // 防 open redirect：同源白名单——交给 URL 解析器判同源（/\evil.com、%5c 等
+            // 归一化绕法整体消灭），拒绝 //evil.com 协议相对地址与外站
+            let u = null;
+            try {
+                u = redirect ? new URL(redirect, location.origin) : null;
+            } catch (ignored) {
+                // 畸形地址按非法回跳处理
+            }
+            if (u && redirect.startsWith('/') && u.origin === location.origin) {
+                location.href = u.pathname + u.search + u.hash;
             } else if (redirect) {
                 msg.textContent = '非法的回跳地址';
             } else {

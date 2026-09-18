@@ -87,7 +87,7 @@ curl -X POST http://sso:10010/api/auth/token \
 ```
 
 - 无需 code / redirectUri；INTERNAL / EXTERNAL 均可用（两类型注册时都发 `appSecret`，强制验密钥）
-- **按 appId 限流**：复用 `LoginRateLimiter`（`me.auth.login-rate-limit.*`，默认 5 次/60s），防 appSecret 爆破；不用 IP 维度（M2M 调用方可能合法突发，爆破必然聚焦单个 appId）。authorization_code 模式先过一次性 code 消耗、不可用于爆破密钥，故不限流
+- **按 appId 限流**：复用 `LoginRateLimiter`（`me.auth.login-rate-limit.*`，默认 5 次/60s），防 appSecret 爆破；不用 IP 维度（M2M 调用方可能合法突发，爆破必然聚焦单个 appId）。authorization_code 模式密钥校验先于 code 消费（校验失败不烧码，防恶意失效合法 code），故密钥失败路径同样按 appId 限流——只限失败不限成功，合法登录高峰的正确兑换不受影响
 - token 的 loginId 是 `"app:"+appId`（**主体是应用自身，无用户维度**），deviceType=appId，时效同 `app-timeout`
 - 该 token 调 `/userinfo` 返 401（无对应用户），只用于机器接口调用
 - 续期同用户 token：`POST /base/auth/refresh` 带当前 token 即可

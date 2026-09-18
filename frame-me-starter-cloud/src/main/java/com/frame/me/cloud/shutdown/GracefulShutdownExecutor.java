@@ -6,15 +6,17 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.client.serviceregistry.Registration;
 import org.springframework.cloud.client.serviceregistry.ServiceRegistry;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * 优雅下线编排核心：标记 health DOWN → 反注册 → 等待消费者刷新缓存.
  *
  * <p>被 {@link GracefulShutdownEndpoint}（preStap 主动触发，主路径）与
  * {@link GracefulShutdownListener}（ContextClosedEvent 兜底）共用，编排逻辑单点维护.</p>
  *
- * <p>幂等：{@link ShutdownReadyFlag#markShuttingDown()} 多次调用无副作用；
- * 反注册对 Nacos 等注册中心重复调用 deregister 也幂等（实例已下线再调返回成功）.
- * 故 preStap 跑一遍、SIGTERM 来 listener 再跑一遍，无副作用.</p>
+ * <p>幂等：整个编排只执行一次（{@link #started} once-guard）——preStap 跑过后
+ * SIGTERM 的兜底调用直接返回，不会重复反注册、更不会重复 sleep 等待
+ * （否则停机被二次等待拖长，K8s grace period 紧张时会被 SIGKILL）.</p>
  *
  * @author frame-me
  */
@@ -26,6 +28,10 @@ public class GracefulShutdownExecutor {
     private final GracefulShutdownProperties properties;
     private final ObjectProvider<ServiceRegistry<Registration>> serviceRegistryProvider;
     private final ObjectProvider<Registration> registrationProvider;
+    /**
+     * 编排只执行一次的 once-guard.
+     */
+    private final AtomicBoolean started = new AtomicBoolean(false);
 
     public GracefulShutdownExecutor(ShutdownReadyFlag flag,
                                     GracefulShutdownProperties properties,
@@ -45,6 +51,10 @@ public class GracefulShutdownExecutor {
      * 无注册中心（测试、本地开发、纯任务服务）时没有消费者缓存可刷新，跳过等待.</p>
      */
     public void shutdown() {
+        if (!started.compareAndSet(false, true)) {
+            log.info("优雅下线：编排已执行过，跳过重复调用");
+            return;
+        }
         // ① health 立即 DOWN
         flag.markShuttingDown();
         log.info("优雅下线：health 已标记为 DOWN");

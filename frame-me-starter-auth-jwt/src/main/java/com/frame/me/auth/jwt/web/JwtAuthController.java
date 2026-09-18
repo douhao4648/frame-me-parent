@@ -68,7 +68,11 @@ public class JwtAuthController {
     @Anonymous
     @PostMapping("/login")
     public IResult<TokenVO> login(@Valid @RequestBody LoginDTO dto, HttpServletRequest request, HttpServletResponse response) {
-        loginRateLimiter.ifAvailable(limiter -> limiter.acquire(JakartaServletUtil.getClientIP(request)));
+        loginRateLimiter.ifAvailable(limiter -> {
+            limiter.acquire(JakartaServletUtil.getClientIP(request));
+            // 账号维度桶：伪造/轮换 X-Forwarded-For 可绕过 IP 桶，绕不过账号桶（防爆破主线）
+            limiter.acquire("acct:" + dto.getAccount());
+        });
         String tokenPair = authService.login(dto.getAccount(), dto.getPassword());
         return Result.success(buildTokenResponse(tokenPair, response));
     }

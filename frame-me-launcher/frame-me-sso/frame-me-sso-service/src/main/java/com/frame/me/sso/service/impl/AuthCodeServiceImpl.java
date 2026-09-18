@@ -49,6 +49,21 @@ public class AuthCodeServiceImpl implements IAuthCodeService {
     }
 
     /**
+     * 只读查看授权码（不消费）：token 端点先 peek 校验应用/密钥/redirectUri，全部通过才 consume，
+     * 校验失败不烧码（防恶意失效合法 code）.
+     *
+     * @return null 表示无效或已使用
+     */
+    @Override
+    public CodePayload peek(String code) {
+        String value = redisTemplate.opsForValue().get(SsoConstant.AUTH_CODE_KEY_PREFIX + code);
+        if (value == null) {
+            return null;
+        }
+        return JSON.parseObject(value, CodePayload.class);
+    }
+
+    /**
      * 校验并消费授权码（一次性，原子操作）.
      *
      * <p>{@code GETDEL}（Redis 6.2+）一次往返取值的同时删除，并发下只有一个请求能拿到

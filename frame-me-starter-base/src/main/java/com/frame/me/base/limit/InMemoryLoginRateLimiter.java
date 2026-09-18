@@ -8,14 +8,23 @@ import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 单机内存登录速率限制器（固定窗口计数，按 IP 隔离）.
+ * 单机内存登录速率限制器（固定窗口计数，按 key 隔离——调用方传 IP 或账号维度 key）.
  *
  * <p>Redisson 可用时由 {@code RedissonLoginRateLimiter} 自动替换为分布式限流.</p>
+ *
+ * <p>淘汰：map 条目随 key 无限增长（攻击者可轮换伪造 IP 头刷 key），故容量超
+ * {@link #EVICT_THRESHOLD} 时顺手清掉窗口已过期的条目；极端全活跃场景下 map 有界于
+ * 「阈值 + 窗口内活跃 key 数」，不会无限膨胀.</p>
  *
  * @author frame-me
  */
 @Slf4j
 public class InMemoryLoginRateLimiter implements LoginRateLimiter {
+
+    /**
+     * 触发过期窗口清理的容量阈值.
+     */
+    private static final int EVICT_THRESHOLD = 10_000;
 
     private final ConcurrentHashMap<String, long[]> store = new ConcurrentHashMap<>();
     private final int maxAttempts;
@@ -29,6 +38,9 @@ public class InMemoryLoginRateLimiter implements LoginRateLimiter {
     @Override
     public void acquire(String clientIp) {
         long now = System.currentTimeMillis();
+        if (store.size() > EVICT_THRESHOLD) {
+            store.entrySet().removeIf(e -> now - e.getValue()[0] > windowMs);
+        }
         long[] entry = store.compute(clientIp, (k, v) -> {
             if (v == null) {
                 return new long[]{now, 1};

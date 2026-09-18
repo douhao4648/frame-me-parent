@@ -144,13 +144,28 @@ public class AuthController implements IAuthApi {
 
     /**
      * 授权码模式：code → 用户 token.
+     *
+     * <p>顺序有讲究：先验应用/密钥（不触碰 code），再 peek code 校验 appId/redirectUri，
+     * 全部通过才 GETDEL 消费——任何一步失败都不烧码，防止拿合法 code + 错误密钥
+     * 调一次就把码失效（针对合法客户端的登录 DoS）。peek 与 consume 之间存在并发窗口：
+     * 两个合法请求同时兑换时只有一个 consume 成功，另一个按「已使用」报错，符合一次性语义.</p>
      */
     private IResult<TokenVO> authorizationCodeGrant(TokenRequestDTO req) {
         if (req.getCode() == null || req.getCode().isBlank()
                 || req.getRedirectUri() == null || req.getRedirectUri().isBlank()) {
             return Result.error(ResultCode.BAD_REQUEST, "authorization_code 模式需 code 与 redirectUri");
         }
-        IAuthCodeService.CodePayload payload = authCodeService.consume(req.getCode());
+        AppEntity app = appService.findByAppId(req.getAppId());
+        if (app == null || !"ACTIVE".equals(app.getStatus())) {
+            return Result.error(ResultCode.BAD_CREDENTIAL, "应用不存在或已禁用");
+        }
+        if (!appService.verifySecret(app, req.getAppSecret())) {
+            // 密钥校验先于消费 code（不烧码），故本模式也是密钥爆破面：失败路径按 appId 限流
+            // （只限失败不限成功——合法登录高峰的正确兑换不受影响，爆破被 5 次/60s 锁死）
+            loginRateLimiter.ifAvailable(limiter -> limiter.acquire("token:" + req.getAppId()));
+            return Result.error(ResultCode.BAD_CREDENTIAL, "密钥校验失败");
+        }
+        IAuthCodeService.CodePayload payload = authCodeService.peek(req.getCode());
         if (payload == null) {
             // 凭证错误（4001）：授权码本身有问题，前端留登录页显示错误，避免与"会话缺失"401 混淆导致循环重定向
             return Result.error(ResultCode.BAD_CREDENTIAL, "授权码无效或已使用");
@@ -158,17 +173,15 @@ public class AuthController implements IAuthApi {
         if (!payload.appId.equals(req.getAppId())) {
             return Result.error(ResultCode.BAD_CREDENTIAL, "app_id 与授权码不匹配");
         }
-        AppEntity app = appService.findByAppId(req.getAppId());
-        if (app == null || !"ACTIVE".equals(app.getStatus())) {
-            return Result.error(ResultCode.BAD_CREDENTIAL, "应用不存在或已禁用");
-        }
         if (!payload.redirectUri.equals(req.getRedirectUri())) {
             return Result.error(ResultCode.BAD_CREDENTIAL, "redirect_uri 不匹配");
         }
-        if (!appService.verifySecret(app, req.getAppSecret())) {
-            return Result.error(ResultCode.BAD_CREDENTIAL, "密钥校验失败");
+        IAuthCodeService.CodePayload consumed = authCodeService.consume(req.getCode());
+        if (consumed == null) {
+            // peek 后被并发请求抢先兑换
+            return Result.error(ResultCode.BAD_CREDENTIAL, "授权码无效或已使用");
         }
-        return Result.success(issueToken(payload.userId, payload.appId));
+        return Result.success(issueToken(consumed.userId, consumed.appId));
     }
 
     /**
@@ -181,7 +194,7 @@ public class AuthController implements IAuthApi {
      */
     private IResult<TokenVO> clientCredentialsGrant(TokenRequestDTO req) {
         // 按 appId 限流：本模式直面 appId+appSecret 校验，是 appSecret 爆破面
-        // （authorization_code 先过一次性 code 消耗，不可用于爆破密钥，故不限）；
+        // （authorization_code 的密钥失败路径同样限流，见 authorizationCodeGrant）；
         // 不用 IP 维度——M2M 调用方可能合法突发，密钥爆破必然聚焦单个 appId
         loginRateLimiter.ifAvailable(limiter -> limiter.acquire("token:" + req.getAppId()));
         AppEntity app = appService.findByAppId(req.getAppId());

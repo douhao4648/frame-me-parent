@@ -12,11 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
@@ -30,21 +26,23 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class SseEmitterManager {
 
+    private static final Pattern SAFE_ID = Pattern.compile(SseConstant.SAFE_ID_PATTERN);
     private final SseProperties properties;
     /**
      * 可选的 receiverId 授权器：业务方注册 {@link IReceiverIdAuthorizer} Bean 后，
-     * 定向订阅时会校验 receiverId 与当前登录身份的归属，未注册则不校验（保持兼容）.
+     * 定向订阅时会校验 receiverId 与当前登录身份的归属；未注册则定向订阅 fail-closed 拒绝
+     * （对象级越权防护不能默认放行），确无授权需求须显式声明
+     * {@code IReceiverIdAuthorizer.permitAll()} Bean.
      */
     private final Optional<IReceiverIdAuthorizer> receiverIdAuthorizer;
-
     private final Map<String, List<SseEmitter>> broadcastEmitters = new ConcurrentHashMap<>();
     private final Map<String, Set<SseEmitter>> targetedEmitters = new ConcurrentHashMap<>();
     private final Map<SseEmitter, String> emitterToReceiver = new ConcurrentHashMap<>();
     private final Set<SseEmitter> activeEmitters = ConcurrentHashMap.newKeySet();
-    /** 注册路径锁：消除 checkEmitterLimit → add 之间的 TOCTOU 窗口. */
+    /**
+     * 注册路径锁：消除 checkEmitterLimit → add 之间的 TOCTOU 窗口.
+     */
     private final Object registerLock = new Object();
-
-    private static final Pattern SAFE_ID = Pattern.compile(SseConstant.SAFE_ID_PATTERN);
 
     /**
      * 注册广播订阅 Emitter.
@@ -178,11 +176,16 @@ public class SseEmitterManager {
 
     /**
      * 业务方注册了 {@link IReceiverIdAuthorizer} 时，校验当前请求是否有权订阅该 receiverId，
-     * 失败返回 403（fail-closed，防越权订阅他人事件）；未注册则跳过（由业务方自行保护）.
+     * 失败返回 403（防越权订阅他人事件）；未注册则 fail-closed 拒绝——对象级越权防护
+     * 不能默认放行，确无授权需求须显式声明 {@code IReceiverIdAuthorizer.permitAll()} Bean.
      */
     private void authorizeReceiverId(String receiverId) {
-        if (receiverIdAuthorizer.isPresent()
-                && !receiverIdAuthorizer.get().authorize(receiverId)) {
+        if (receiverIdAuthorizer.isEmpty()) {
+            throw new BusinessException(ResultCode.FORBIDDEN,
+                    "定向订阅未配置 IReceiverIdAuthorizer，已 fail-closed 拒绝；"
+                            + "确无授权需求请显式声明 IReceiverIdAuthorizer.permitAll() Bean");
+        }
+        if (!receiverIdAuthorizer.get().authorize(receiverId)) {
             throw new BusinessException(ResultCode.FORBIDDEN,
                     "无权订阅 receiverId: " + receiverId);
         }

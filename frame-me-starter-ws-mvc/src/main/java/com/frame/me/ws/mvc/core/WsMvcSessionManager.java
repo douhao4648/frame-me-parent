@@ -13,11 +13,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
@@ -30,21 +26,23 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class WsMvcSessionManager {
 
+    private static final Pattern SAFE_ID = Pattern.compile(WsMvcConstant.SAFE_ID_PATTERN);
     private final WsMvcProperties properties;
     /**
      * 可选的 receiverId 授权器：业务方注册 {@link IReceiverIdAuthorizer} Bean 后，
-     * 定向订阅时会校验 receiverId 与当前登录身份的归属，未注册则不校验（保持兼容）.
+     * 定向订阅时会校验 receiverId 与当前登录身份的归属；未注册则定向订阅 fail-closed 拒绝
+     * （对象级越权防护不能默认放行），确无授权需求须显式声明
+     * {@code IReceiverIdAuthorizer.permitAll()} Bean.
      */
     private final Optional<IReceiverIdAuthorizer> receiverIdAuthorizer;
-
     private final Map<String, Set<WebSocketSession>> broadcastSessions = new ConcurrentHashMap<>();
     private final Map<String, Set<WebSocketSession>> targetedSessions = new ConcurrentHashMap<>();
     private final Map<String, SessionMetadata> sessionMetadata = new ConcurrentHashMap<>();
     private final Set<WebSocketSession> allSessions = ConcurrentHashMap.newKeySet();
-    /** 注册路径锁：消除 checkSessionLimit → add 之间的 TOCTOU 窗口. */
+    /**
+     * 注册路径锁：消除 checkSessionLimit → add 之间的 TOCTOU 窗口.
+     */
     private final Object registerLock = new Object();
-
-    private static final Pattern SAFE_ID = Pattern.compile(WsMvcConstant.SAFE_ID_PATTERN);
 
     /**
      * 注册广播订阅 Session.
@@ -219,11 +217,16 @@ public class WsMvcSessionManager {
     /**
      * 业务方注册了 {@link IReceiverIdAuthorizer} 时，校验当前请求是否有权订阅该 receiverId，
      * 失败抛 {@link IllegalArgumentException}（Handler 捕获后以 BAD_DATA 关闭连接），
-     * 防越权订阅他人事件；未注册则跳过（由业务方自行保护）.
+     * 防越权订阅他人事件；未注册则 fail-closed 拒绝——对象级越权防护不能默认放行，
+     * 确无授权需求须显式声明 {@code IReceiverIdAuthorizer.permitAll()} Bean.
      */
     private void authorizeReceiverId(String receiverId) {
-        if (receiverIdAuthorizer.isPresent()
-                && !receiverIdAuthorizer.get().authorize(receiverId)) {
+        if (receiverIdAuthorizer.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "定向订阅未配置 IReceiverIdAuthorizer，已 fail-closed 拒绝；"
+                            + "确无授权需求请显式声明 IReceiverIdAuthorizer.permitAll() Bean");
+        }
+        if (!receiverIdAuthorizer.get().authorize(receiverId)) {
             throw new IllegalArgumentException("无权订阅 receiverId: " + receiverId);
         }
     }

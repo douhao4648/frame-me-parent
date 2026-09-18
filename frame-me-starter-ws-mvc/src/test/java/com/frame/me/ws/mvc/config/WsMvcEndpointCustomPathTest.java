@@ -64,5 +64,13 @@ class WsMvcEndpointCustomPathTest {
 
     @SpringBootApplication
     static class TestApplication {
+
+        /**
+         * 定向订阅需显式 authorizer（fail-closed），测试无授权语义，显式放行.
+         */
+        @org.springframework.context.annotation.Bean
+        com.frame.me.base.event.IReceiverIdAuthorizer receiverIdAuthorizer() {
+            return com.frame.me.base.event.IReceiverIdAuthorizer.permitAll();
+        }
     }
 }

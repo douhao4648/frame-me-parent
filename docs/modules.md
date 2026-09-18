@@ -353,7 +353,7 @@ me:
   - **仅 Servlet Web 应用装配**（`@ConditionalOnWebApplication(SERVLET)`）：非 Web 应用下整个模块退避。
   - `TrustedHeaderAuthUserResolver` 无条件信任 `X-User-Id` 头，仅限内网服务间调用；对外应用必须引入 `frame-me-starter-auth-jwt` 或 `frame-me-starter-auth-sa-token`（两者均 `@AutoConfigureBefore(AuthAutoConfiguration)`，先于抽象层注册解析器使其退避）。
   - 通过 `@AutoConfigureBefore(AuditAutoConfiguration.class)` 保证审计模块能拿到当前登录用户 ID。
-  - **登录限流双实现**：默认注册 base 的 `InMemoryLoginRateLimiter`（单实例内存版）；引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，由 multi-redis 侧以 `@Primary` 注册 `RedissonLoginRateLimiter`（Redis 分布式版）覆盖，配置与内存版共用 `me.auth.login-rate-limit.*`（multi-redis 本地 `LoginRateLimitProperties` 绑定同前缀，默认值与 `AuthProperties.LoginRateLimit` 保持一致）。
+  - **登录限流双实现**：默认注册 base 的 `InMemoryLoginRateLimiter`（单实例内存版）；引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，由 multi-redis 侧以 `@Primary` 注册 `RedissonLoginRateLimiter`（Redis 分布式版）覆盖，配置与内存版共用 `me.auth.login-rate-limit.*`（multi-redis 本地 `LoginRateLimitProperties` 绑定同前缀，默认值与 `AuthProperties.LoginRateLimit` 保持一致）。登录端点按 IP + 账号双维度限流（账号桶防伪造/轮换 X-Forwarded-For 绕过）；内存版容量超 1 万清过期窗口条目，Redis 版新建限流器挂 2 倍窗口 TTL，防刷 key 撑爆存储。
 
 ## `frame-me-starter-auth-rbac`
 
@@ -490,7 +490,7 @@ me:
   - 优雅下线编排（`com.frame.me.cloud.shutdown` 包）：
     - `GracefulShutdownProperties` — `me.cloud.shutdown.*` 配置属性绑定。
     - `ShutdownReadyFlag` — 下线就绪标志 Bean（`AtomicBoolean`，默认 true）；actuator health indicator 与业务 HealthController 都注入它联动返回 DOWN。
-    - `GracefulShutdownExecutor` — 下线编排核心：标记 health DOWN → 反注册（`ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过）→ 等待消费者刷新缓存；被 endpoint 与 listener 共用，幂等。
+    - `GracefulShutdownExecutor` — 下线编排核心：标记 health DOWN → 反注册（`ObjectProvider` 守卫 `ServiceRegistry`/`Registration`，无注册中心时跳过）→ 等待消费者刷新缓存；被 endpoint 与 listener 共用；AtomicBoolean once-guard 保证编排只执行一次（重复调用不重复反注册/不重复等待）。
     - `ShutdownHealthIndicator` — actuator health 联动（Boot 4 新包 `org.springframework.boot.health.contributor`），flag false → `OUT_OF_SERVICE`（HTTP 503）。
     - `GracefulShutdownEndpoint` — `POST /actuator/offline/{token}`，preStop 主路径，同步阻塞到编排完成返回 202；token 走 `@Selector` 路径传参（双栈通用，不依赖 Servlet API），配了 `endpoint-token` 时强制校验路径段，不匹配置 403（未配置则放行但每次调用 WARN 提醒，生产必须配置）。
     - `GracefulShutdownListener` — `ApplicationListener<ContextClosedEvent>`，SIGTERM 兜底路径。
@@ -522,7 +522,7 @@ me:
     4. 等待 `deregister-wait`（默认 15s）让消费者刷新本地缓存；**仅在真实完成反注册后等待**——无注册中心（测试/本地/纯任务服务）时直接跳过，不睡
     5. 返回，Spring 继续 → Tomcat graceful shutdown（`server.shutdown=graceful`）处理在途请求
     6. 处理完在途请求，关闭
-  - **两条路径幂等**：preStop 调过端点后 flag 已 false、已反注册，SIGTERM 来 listener 再跑一遍无副作用。
+  - **编排只执行一次**：executor 的 once-guard 保证 preStop 跑过后 SIGTERM 兜底调用直接返回，不重复反注册、不重复等待。
   - **K8s 时间窗约束（必须满足）**：兜底路径总耗时 = `deregister-wait`（默认 15s）+ Spring 关闭流程（`spring.lifecycle.timeout-per-shutdown-phase` 默认 30s），`terminationGracePeriodSeconds` 必须 ≥ 两者之和（默认配置下 ≥ 45s，建议配 60s），否则 Tomcat 还在处理在途请求就被 SIGKILL，优雅下线落空。
 - **扩展提示**：未来接 Apollo / Consul 等其他配置中心时，刷新解密能力天然复用（监听器配置中心无关）；Gateway / Sentinel / 链路追踪等云组件各自新建 `frame-me-starter-cloud-xxx` 模块。
 
@@ -722,7 +722,7 @@ class OrderService {
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
   - `eventType` / `receiverId` 做长度（≤128）与字符白名单（字母数字、冒号、下划线、短横）校验，非法返回 400，防恶意 key 撑爆路由表。
-  - 定向订阅 `receiverId` 归属校验：注册 `IReceiverIdAuthorizer`（`com.frame.me.base.event`）Bean 后按登录身份校验，失败返回 403；未注册则不校验（starter 不绑定具体鉴权方案），应由业务用 auth 路径规则或前置 Filter/拦截器保护。
+  - 定向订阅 `receiverId` 归属校验：注册 `IReceiverIdAuthorizer`（`com.frame.me.base.event`）Bean 后按登录身份校验，失败返回 403；未注册则 fail-closed 拒绝（对象级越权防护不能默认放行）；确无授权语义须显式声明 `IReceiverIdAuthorizer.permitAll()` Bean 放行。
   - 默认 `timeout=0`（不超时）时，半关闭连接依赖 `me.sse.heartbeat-interval > 0` 的心跳探测清理；生产建议开启心跳或设置有限 timeout。
 
 **示例配置**：
@@ -780,7 +780,7 @@ me:
   - 定向推送仅在**当前服务实例**内生效，跨实例需要额外的分布式路由层。
   - 无离线补偿，客户端断线期间消息直接丢弃。
   - `eventType` / `receiverId` 做长度（≤128）与字符白名单（字母数字、冒号、下划线、短横）校验，非法以 `BAD_DATA` 关闭连接，防恶意 key 撑爆路由表。
-  - 定向订阅 `receiverId` 归属校验：注册 `IReceiverIdAuthorizer`（`com.frame.me.base.event`）Bean 后按登录身份校验，失败以 `BAD_DATA` 关闭连接；未注册则不校验，由业务通过 auth 路径规则或 `HandshakeInterceptor` 自行保护。
+  - 定向订阅 `receiverId` 归属校验：注册 `IReceiverIdAuthorizer`（`com.frame.me.base.event`）Bean 后按登录身份校验，失败以 `BAD_DATA` 关闭连接；未注册则 fail-closed 拒绝（对象级越权防护不能默认放行）；确无授权语义须显式声明 `IReceiverIdAuthorizer.permitAll()` Bean 放行。
   - `me.ws.mvc.scheduling-enabled=false` 会关闭本模块的 `@EnableScheduling`：若业务工程的 `@Scheduled` 任务依赖此处开启的调度支持，需自行保证 `@EnableScheduling` 存在（或引入 base 的 `SchedulingAutoConfiguration`）。
   - 后续可扩展 `frame-me-starter-ws-webflux`（WebFlux 原生 WebSocket）、`frame-me-starter-ws-stomp`（Servlet STOMP）、`frame-me-starter-rsocket`（RSocket），路径与 auto-config 条件均与本模块不冲突。
 
@@ -908,7 +908,7 @@ public Boolean delete(Long id) { ... }
 - **依赖**：`frame-me-api`、`frame-me-starter-base`、`spring-boot-starter`、`spring-aop`、`aspectjweaver`、`fastjson2`、`lombok`。
 - **关键类**：
   - `com.frame.me.op.audit.annotation.AuditLog` — 标记需要记录审计日志的方法。
-  - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`；操作人 SPI 异常降级为 `anonymous`，不阻断业务；`maxParamLength` 同时约束参数与返回值。
+  - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`；操作人 SPI 异常降级为 `anonymous`，不阻断业务；`maxParamLength` 同时约束参数与返回值；异步发布（`me.audit.async.*`）用有界线程池，队列满丢弃审计（刻意不阻塞业务线程）但累计计数 + 节流 WARN（每 1000 条报一次，丢弃可观测，据此调 `queue-capacity`）。
   - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `AbstractMeApplicationEvent`。
   - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
   - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志；仅打印本实例产生的事件（按 `sourceInstanceId` 与 `me.event-bridge.instance-id` 比对），不重复打印其他实例广播来的事件。
@@ -1194,7 +1194,7 @@ public class AlertService {
 | `IAppService` / `AppServiceImpl` | `sso/service`（impl 子包） | 应用注册/密钥/白名单校验 |
 | `IUserService` / `UserServiceImpl` | `sso/service`（impl 子包） | 用户查询/保存/更新/逻辑删除；`findByAccount`/`findById` 走 L1(Caffeine)+L2(Redis) 缓存（60s、缓存空值），写路径同步失效（`@Cached`/`@CacheInvalidate`，启动类 `@EnableMethodCache`） |
 | `UserCacheEvictor` | `sso/service/evictor/UserCacheEvictor` | 删除场景的双键失效器（独立 bean 承载 `@CacheInvalidate`，避免自调用绕过 AOP） |
-| `IAuthCodeService` / `AuthCodeServiceImpl` | `sso/service`（impl 子包） | 授权码签发/消费（Redis GETDEL 原子防重放） |
+| `IAuthCodeService` / `AuthCodeServiceImpl` | `sso/service`（impl 子包） | 授权码签发/peek/consume（Redis 存储，GETDEL 原子防重放）；token 端点先验应用/密钥（失败不烧码 + 失败路径按 appId 限流）再 peek 校验 appId/redirectUri，全过才 consume |
 | `ILogoutService` / `LogoutServiceImpl` | `sso/service`（impl 子包） | 踢人（按用户/按应用）+ 发 `UserLogoutEvent` |
 | `UserLogoutEvent`/`UserLogoutEventType`/`UserLogoutEventConfiguration` | `sso/event/`（`frame-me-sso-api`） | 踢人事件契约 + 类型注册项 + 显式注册配置（SSO 侧组件扫描自动注册；下游 `@Import` 即订阅） |
 | `SsoTokenUtils` | `sso/infrastructure/satoken/SsoTokenUtils` | app token 身份收口（`app:` loginId 前缀、Bearer 解析） |

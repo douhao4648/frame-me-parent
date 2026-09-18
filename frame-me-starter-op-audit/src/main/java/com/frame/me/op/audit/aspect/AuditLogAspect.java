@@ -31,6 +31,8 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,7 +54,11 @@ public class AuditLogAspect {
     /**
      * 标记已 warn 过参数名缺失，避免刷屏.
      */
-    private static final java.util.concurrent.atomic.AtomicBoolean WARNED_MISSING_PARAMETERS = new java.util.concurrent.atomic.AtomicBoolean(false);
+    private static final AtomicBoolean WARNED_MISSING_PARAMETERS = new AtomicBoolean(false);
+    /**
+     * 队列满丢弃审计的累计计数（丢弃策略刻意保持不阻塞业务线程，但丢弃必须可观测）.
+     */
+    private static final AtomicLong DISCARDED_AUDITS = new AtomicLong();
 
     private final ApplicationEventPublisher localPublisher;
     private final ObjectProvider<EventBridgePublisher> bridgePublisherProvider;
@@ -76,8 +82,14 @@ public class AuditLogAspect {
         executor.setMaxPoolSize(cfg.getMaxPoolSize());
         executor.setQueueCapacity(cfg.getQueueCapacity());
         executor.setThreadNamePrefix("audit-publish-");
-        // 队列满时丢弃审计（Discard），不阻塞业务线程
-        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy());
+        // 队列满时丢弃审计（不阻塞业务线程是刻意取舍），但丢弃必须可观测：计数 + 节流 WARN
+        executor.setRejectedExecutionHandler((r, pool) -> {
+            long discarded = DISCARDED_AUDITS.incrementAndGet();
+            if (discarded == 1 || discarded % 1000 == 0) {
+                log.warn("审计日志被丢弃：发布队列已满（queueCapacity={}），累计丢弃 {} 条"
+                        + "——调大 me.audit.async.queue-capacity 或排查消费端速度", cfg.getQueueCapacity(), discarded);
+            }
+        });
         executor.initialize();
         this.publishExecutor = executor;
         log.info("AuditLogAspect async publishing enabled: core={}, max={}, queue={}",

@@ -34,7 +34,8 @@ class WsMvcSessionManagerTest {
     @BeforeEach
     void setUp() {
         properties = new WsMvcProperties();
-        manager = new WsMvcSessionManager(properties, java.util.Optional.empty());
+        manager = new WsMvcSessionManager(properties,
+                java.util.Optional.of(com.frame.me.base.event.IReceiverIdAuthorizer.permitAll()));
     }
 
     @Test
@@ -102,7 +103,8 @@ class WsMvcSessionManagerTest {
     @Test
     void shouldEnforceMaxSessions() {
         properties.setMaxSessions(2);
-        WsMvcSessionManager limited = new WsMvcSessionManager(properties, java.util.Optional.empty());
+        WsMvcSessionManager limited = new WsMvcSessionManager(properties,
+                java.util.Optional.of(com.frame.me.base.event.IReceiverIdAuthorizer.permitAll()));
 
         limited.registerBroadcast(mockSession("s1"), "a");
         limited.registerBroadcast(mockSession("s2"), "b");
@@ -171,12 +173,16 @@ class WsMvcSessionManagerTest {
     }
 
     /**
-     * 未注册 authorizer（Optional.empty）：不校验，保持兼容，正常订阅.
+     * 未注册 authorizer（Optional.empty）：fail-closed 拒绝——对象级越权防护不能默认放行.
      */
     @Test
-    void shouldSkipAuthorizationWhenNoAuthorizer() {
-        manager.registerTargeted(mockSession("s1"), "user:456");
-        assertThat(manager.targetedReceiverCount()).isEqualTo(1);
+    void shouldRejectTargetedWhenNoAuthorizer() {
+        WsMvcSessionManager unguarded = new WsMvcSessionManager(properties, java.util.Optional.empty());
+
+        assertThatThrownBy(() -> unguarded.registerTargeted(mockSession("s1"), "user:456"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("IReceiverIdAuthorizer");
+        assertThat(unguarded.activeSessionCount()).isEqualTo(0);
     }
 
     /**
