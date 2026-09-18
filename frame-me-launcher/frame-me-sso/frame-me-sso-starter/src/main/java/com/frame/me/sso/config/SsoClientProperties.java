@@ -50,7 +50,7 @@ public class SsoClientProperties {
     /**
      * 授权码回调地址.
      *
-     * <p>两种落地方式对应两种取值（见 {@code SsoCallbackController} 类注释）：SPA/hash
+     * <p>两种落地方式对应两种取值（见 {@code SsoLoginFlowController} 类注释）：SPA/hash
      * 模式配 {@code http://your-app/index}（即 {@link #indexPath} 端点）；服务端 Cookie
      * 会话模式配 {@code http://your-app/callback}（即 {@link #callbackPath} 端点）。</p>
      */
@@ -69,6 +69,17 @@ public class SsoClientProperties {
      * <p>改路径时同步改 {@link #redirectUri} 与 SSO 应用注册的 redirectUri 白名单。</p>
      */
     private String callbackPath = "/callback";
+
+    /**
+     * RP 发起 SSO 登录的端点路径。该端点生成一次性 state 写入 Redis 并种 nonce Cookie，
+     * 然后重定向到 SSO authorize 端点。
+     */
+    private String authorizePath = "/sso-authorize";
+
+    /**
+     * 一次性 state 的有效期，默认 10 分钟。
+     */
+    private Duration stateTtl = Duration.ofMinutes(10);
 
     /**
      * client_credentials 应用 token 的本地缓存时长，默认 1 小时.

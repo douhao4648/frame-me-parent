@@ -15,6 +15,7 @@ spring:
   http:
     serviceclient:
       sso:
+        # 内部访问地址
         base-url: http://localhost:10010
         read-timeout: 10s
   sql:
@@ -31,3 +32,10 @@ me:
   auth:
     access-log:
       enabled: true
+  sso:
+    client:
+      # 外部访问地址
+      base-url: http://localhost:10010
+      app-id: internal-66657790
+      app-secret: b50d748354c54bef9b9fbf3a2af1182a0e3ccca184954ed5a55f278f6b8d1d97
+      redirect-uri: http://localhost:10020/index

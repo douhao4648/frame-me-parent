@@ -33,7 +33,7 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
 - 下游不自己验 token，调 `/userinfo` 由 SSO 代劳验证 + 返回用户信息
 - 无 JWT、无公钥私钥、无 jjwt 依赖
 
-> **安全基线**：`authorize` 强制校验 redirectUri 白名单与 scope 白名单（请求 scope 须 ⊆ 应用注册 scopes）；支持 `state` 参数原样回显（防登录 CSRF，下游生成并比对）；授权码一次性（Redis GETDEL 原子消费，60s 过期）；登录页 `/sso-login.html` 在 `me.auth.whitelist` 中匿名放行，且登录成功后的回跳地址仅允许站内相对路径（防 open redirect）。**管理端点（`/api/apps/**`、踢人、用户 CRUD）加设备闸**（`DefaultDeviceInterceptor`）：仅接受默认设备会话（deviceType=DEF，即 SSO 登录会话），SSO 下发的应用 token（deviceType=appId）即使放入 satoken 头也 403，堵住"窄钥匙开管理门"；匿名请求直接放行（`@Anonymous` 端点自验 token，受保护端点由 `@SaCheckRole` 拦 401）。开关与拦截路径可配：`me.sso.device-gate.enabled`（默认开）、`me.sso.device-gate.path-patterns`（默认 `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**`）。
+> **安全基线**：`authorize` 强制校验 redirectUri 白名单与 scope 白名单（请求 scope 须 ⊆ 应用注册 scopes）；`state` 原样回显，防登录 CSRF 由 RP 侧负责——`frame-me-sso-starter` 内置 `/sso-authorize` 发起端点签发高熵一次性 state（32 字节 SecureRandom，存 Redis + Cookie nonce 绑定浏览器，10 分钟过期，回调 GETDEL 原子消费 + nonce 比对，伪造/过期/重放/跨浏览器一律拒绝，集群多节点任意节点可消费），手写接入的下游必须自签自验 state；授权码一次性（Redis GETDEL 原子消费，60s 过期）；登录页 `/sso-login.html` 在 `me.auth.whitelist` 中匿名放行，且登录成功后的回跳地址仅允许站内相对路径（防 open redirect）。**管理端点（`/api/apps/**`、踢人、用户 CRUD）加设备闸**（`DefaultDeviceInterceptor`）：仅接受默认设备会话（deviceType=DEF，即 SSO 登录会话），SSO 下发的应用 token（deviceType=appId）即使放入 satoken 头也 403，堵住"窄钥匙开管理门"；匿名请求直接放行（`@Anonymous` 端点自验 token，受保护端点由 `@SaCheckRole` 拦 401）。开关与拦截路径可配：`me.sso.device-gate.enabled`（默认开）、`me.sso.device-gate.path-patterns`（默认 `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**`）。
 
 > **边界**：/userinfo 不校验 token 的 app 受众（不透明 token 模式下 deviceType 校验链路重，且 /userinfo 只返基础信息风险可控）。演进 OIDC 时 JWT 的 `aud` claim 天然解决受众校验。
 
@@ -56,7 +56,7 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
    ```
    返回 `appId`（如 `fm-internal-xxxx`）+ `appSecret`（**明文仅此一次返回**，妥善保管）。
 
-2. 用户访问应用 → 应用重定向到 SSO 授权（`state` 下游生成，SSO 原样回显）：
+2. 用户访问应用 → 应用重定向到 SSO 授权（`state` 下游生成，SSO 原样回显）。引了 `frame-me-sso-starter` 的下游不要手拼该 URL——从 starter 的 `GET /sso-authorize?target=<登录后回跳地址>` 发起即可，state 由 starter 签发（存 Redis + Cookie nonce 绑定浏览器，见「回调落地：两种方式」）；手写接入则自行生成高熵 state 并在回调时比对：
    ```
    GET http://sso:10010/api/auth/authorize?appId=fm-internal-xxxx&redirectUri=http://order.svc/cb&scope=openid&state=<random>
    ```
@@ -156,13 +156,17 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > `accessToken`/`refreshToken` 两段（与 `JwtAuthController` 契约一致）；sa-token 下游
 > 为单一不透明 token，`refreshToken` 恒 null。
 >
-> **开箱回调落地页**：starter 同时提供 `GET /index`（`SsoCallbackController` + 内置
-> `sso/index.html`，匿名）。把 `me.sso.client.redirect-uri` 配为该端点
-> （如 `http://your-app/index`），authorize 回调的 code/state 即落在该页：
-> 页面 JS 校验 state（仅站内相对路径，缺失/为空/不合法回落 `/`，防 open redirect），
-> 然后经 URL hash 携带 code 重定向到 state 标记的站内地址（hash 不进服务端日志/Referer），
-> 目标页（SPA 路由）从 `location.hash` 取 code 调 `/sso-login` 完成登录；
-> 无 code 的直达访问不跳转（防自转循环）。
+> **开箱登录发起与回调**：starter 同时提供（`SsoLoginFlowController`，类级 `@Anonymous`）：
+> - `GET /sso-authorize?target=<站内地址>`（`me.sso.client.authorize-path` 可配）——登录发起端点：
+>   生成高熵一次性 state（32 字节 SecureRandom），写入 Redis 绑定 target 并以 Cookie
+>   nonce 绑定浏览器（10 分钟过期，`me.sso.client.state-ttl` 可配），然后 302 到 SSO authorize；
+> - `GET /index`（`me.sso.client.index-path` 可配）——SPA 回调：带 `code` 时服务端 GETDEL 原子
+>   消费 Redis 中的 state 并比对 nonce Cookie（伪造/过期/重放/跨浏览器一律 4001），取出绑定的 target，302 到
+>   `target#code=<code>`（hash 不进服务端日志/Referer），目标页从 `location.hash`
+>   取 code 调 `/sso-login` 完成登录；不带 `code` 的直达访问返回静态占位页（防自转循环）；
+> - `GET /callback`——Cookie 会话回调，见「回调落地：两种方式」。
+>
+> 登录必须从 `/sso-authorize` 发起，调用方不能自带 state。
 >
 > **认证实现通用**：端点依赖 `IAuthService.loginByUser`，sa-token/JWT 两套实现均覆盖
 > （`SaTokenAuthService` 建会话 + Account-Session 快照缓存；`JwtTokenServiceImpl` 建 token 对并写入
@@ -170,43 +174,45 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 
 ## 回调落地：两种方式
 
-authorize 回调带 code 回到下游后，starter 提供两种落地方式（均由 `SsoCallbackController` 提供），按前端形态二选一（`me.sso.client.redirect-uri` 配哪个端点就走哪种）。
+authorize 回调带 code 回到下游后，starter 提供两种落地方式（均由 `SsoLoginFlowController` 提供），按前端形态二选一（`me.sso.client.redirect-uri` 配哪个端点就走哪种）。无论哪种方式，**登录一律从 `GET /sso-authorize?target=<站内地址>` 发起**：starter 在此签发高熵一次性 state 写入 Redis（key `sso:login:state:{state}`，value 含 target 与 nonce）并种 HttpOnly Cookie 绑定 nonce（`SsoStateStore`）；两个回调端点都 GETDEL 原子消费 state 并比对 nonce Cookie——伪造、过期（默认 10 分钟，`me.sso.client.state-ttl`）、重放、跨浏览器一律拒绝（4001），防登录 CSRF 与会话置换。不依赖 HttpSession，集群多节点任意节点均可消费。
 
 ### 方式 A：hash 落地页 + 前端换会话（SPA 默认）
 
-`redirect-uri` 配 `http://your-app/index`（内置落地页 `SsoCallbackController`）：
+`redirect-uri` 配 `http://your-app/index`（内置落地页 `SsoLoginFlowController`）：
 
 ```
-浏览器 → SSO authorize → 302 /index?code=xxx&state=<目标地址>
-/index → 页面 JS 校验 state（仅站内相对路径）→ location.replace(state + '#code=' + code)
+浏览器 → GET /sso-authorize?target=/log/page → starter 签发 state 写 Redis + 种 nonce Cookie → 302 SSO authorize
+浏览器 → SSO authorize → 302 /index?code=xxx&state=<一次性随机值>
+/index → 服务端 GETDEL 原子消费 state + 比对 nonce Cookie，取出绑定的 target → 302 到 target#code=<code>
 目标页 → 从 location.hash 取 code → POST /base/auth/sso-login → TokenVO（前端自存 token）
 后续请求 → Authorization/satoken Header 携带 token
 ```
 
 - code 经 URL hash 携带，**不进服务端日志/Referer**
-- 前端需两处逻辑（各一处即可，非每页）：401 拦截器发起 authorize 跳转；回调处取 code 调 `/sso-login`
+- state 是纯随机值，不承载目标地址；target 留在 RP 的 Redis 里，回调时随 state 原子取出——state 泄露不等于回跳地址可被篡改
+- 前端需两处逻辑（各一处即可，非每页）：401 拦截器跳 `/sso-authorize?target=<当前地址>`；回调处取 code 调 `/sso-login`
 - **适用**：SPA、JWT 下游、跨站必须走 Header 鉴权的场景
 
 ### 方式 B：服务端回调 + Cookie 会话（浏览器同站，零前端 JS）
 
-`redirect-uri` 配 `http://your-app/callback`（`SsoCallbackController#callback`，路径可由 `me.sso.client.callback-path` 改）：
+`redirect-uri` 配 `http://your-app/callback`（`SsoLoginFlowController#callback`，路径可由 `me.sso.client.callback-path` 改）：
 
 ```
-浏览器 → SSO authorize → 302 /callback?code=xxx&state=<目标地址>
-/callback → 服务端 SsoAuthService.ssoLogin(code) 换 token → /userinfo → 建本地会话
-         → sa-token 原生写 Cookie（is-read-cookie=true）→ 302 跳回 state
+浏览器 → GET /sso-authorize?target=/log/page → starter 签发 state 写 Redis + 种 nonce Cookie → 302 SSO authorize
+浏览器 → SSO authorize → 302 /callback?code=xxx&state=<一次性随机值>
+/callback → 服务端 GETDEL 原子消费 state + 比对 nonce Cookie 取出 target → SsoAuthService.ssoLogin(code) 换 token → /userinfo → 建本地会话
+         → sa-token 原生写 Cookie（is-read-cookie=true）→ 302 跳回 target
 后续请求 → 浏览器自动带 Cookie，前端零参与
 ```
 
-- 前端只剩"401 时跳 authorize"一处逻辑；回调、取 code、换 token、存 token 全部消失
+- 前端只剩"401 时跳 `/sso-authorize`"一处逻辑；回调、取 code、换 token、存 token 全部消失
 - code 走 query，会进下游 access log（`me.auth.access-log` 默认关闭）与浏览器历史——授权码一次性 + 60s 过期 + 落地即消费，泄露窗口可接受
 - token 存 **HttpOnly Cookie**，XSS 拿不走（优于方式 A 的前端 JS 可读存储）；CSRF 由 sa-token Cookie SameSite（建议 Lax）兜底
-- `state` 服务端校验与落地页同一套规则（仅站内相对路径，拒绝 `//` 协议相对、反斜杠、空白，剥离 hash 片段，不合法回落 `/`）
 - **适用**：sa-token 下游 + 浏览器同站 Cookie 会话。**JWT 下游不适用**（不签发 Cookie），走方式 A
 
 两种方式共用同一套 `SsoAuthService.ssoLogin` 编排（code 换 token → /userinfo → 建本地会话 → 留存上游 token），仅"谁发起调用、token 怎么交付"不同。换 token 失败（code 无效/已用）均抛 4001：方式 A 由前端留登录页显示错误，方式 B 由全局异常处理返回错误 JSON，均 fail-closed 不回跳。
 
-> **state 可携带 query 参数与 hash 片段**（分享链接/hash 路由场景）：`state=/api/log/page?type=error&page=2`、`state=/#/log/page` 两种方式均支持。前端拼 authorize URL 时对整个 state 做一次 `encodeURIComponent` 即可（推荐取 `location.pathname + location.search`，天然是编码后形态）。方式 B 服务端按需编码非法字符（裸中文 → UTF-8 percent-encode，已有 `%XX` 转义不二次编码）且**保留 hash 片段**（code 不经浏览器，片段无冲突）。方式 A 因 hash 通道用于携带 code，state 的 `#` 片段会被剥离——hash 路由 SPA 用方式 A 时，应在跳 SSO 前把完整原始地址存 `sessionStorage`、`state` 固定为回调路由，登录回来后恢复（或直接用方式 B）。
+> **target 可携带 query 参数与 hash 片段**（分享链接/hash 路由场景）：`/sso-authorize?target=/api/log/page?type=error%26page=2`、`/sso-authorize?target=/#/log/page` 两种方式均支持。target 只允许站内相对路径（拒绝 `//` 协议相对、反斜杠、空白，不合法回落 `/`，防 open redirect）；前端拼 target 时对整个值做一次 `encodeURIComponent`（推荐取 `location.pathname + location.search`，天然是编码后形态）。方式 B 服务端按需编码非法字符（裸中文 → UTF-8 percent-encode，已有 `%XX` 转义不二次编码）且**保留 hash 片段**（code 不经浏览器，片段无冲突）。方式 A 因 hash 通道用于携带 code，target 的 `#` 片段会被剥离——hash 路由 SPA 用方式 A 时，应在跳 SSO 前把完整原始地址存 `sessionStorage`、target 固定为回调路由，登录回来后恢复（或直接用方式 B）。
 
 ## 踢人机制
 
@@ -299,9 +305,12 @@ me:
   sso:
     client:
       enabled: true
+      base-url: http://frame-me-sso:10010  # SSO 服务地址（/sso-authorize 发起登录时拼接 authorize URL 用）
       app-id: fm-internal-your-app      # 本应用在 SSO 注册的应用 ID
       app-secret: ME(密文)              # 应用密钥，支持 sensi-encrypt 加密
-      redirect-uri: http://your-app/cb  # 授权码回调地址
+      redirect-uri: http://your-app/cb  # 授权码回调地址（方式 A 配 /index，方式 B 配 /callback）
+      # authorize-path: /sso-authorize  # 登录发起端点路径，默认 /sso-authorize
+      # state-ttl: 10m                  # 一次性 state 有效期，默认 10 分钟
 spring:
   http:
     serviceclient:

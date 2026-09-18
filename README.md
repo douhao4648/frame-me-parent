@@ -77,7 +77,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
 | `frame-me-starter-ws-mvc` | WebSocket 推送 starter（按需引入）：Servlet 原生 WebSocket 全双工，支持广播与定向推送。 |
 | `frame-me-reducer` | 阿里云系列 reducer 聚合模块（`pom`）：沉淀阿里云公共 SDK 底座（`frame-me-aliyun-common`）与各能力 starter（`frame-me-aliyun-starter-oss` 等）；当前为占位工程，后续按需补充 OSS 等客户端封装与自动装配。 |
 | `frame-me-boot` | 聚合启动模块：供业务 `xx-service` 引用，一键拉起通用 starter 能力（含 auth/multi-redis/l1l2-cache/sensi-encrypt/op-audit/msg-notify；不含 adapter、doc-openapi、cloud、sse-mvc、ws-mvc、auth-jwt、auth-sa-token、auth-rbac、cloud-nacos、mybatis-plus/flex、dynamic-ds、reducer）。 |
-| `frame-me-launcher/frame-me-sso` | SSO 认证服务聚合工程：`frame-me-sso-api`（`@HttpExchange` 契约 + 踢人事件）+ `frame-me-sso-service`（授权码/client_credentials 颁发 sa-token、/userinfo 代验、用户 CRUD）+ `frame-me-sso-starter`（下游 RP 一键接入：`/api/auth/sso-login` 端点 + 回调落地双模式（`/index` hash 落地页 / `/callback` 服务端 Cookie 会话回调）+ 踢人监听）。 |
+| `frame-me-launcher/frame-me-sso` | SSO 认证服务聚合工程：`frame-me-sso-api`（`@HttpExchange` 契约 + 踢人事件）+ `frame-me-sso-service`（授权码/client_credentials 颁发 sa-token、/userinfo 代验、用户 CRUD）+ `frame-me-sso-starter`（下游 RP 一键接入：`/api/auth/sso-login` 端点 + `/sso-authorize` 登录发起（一次性 state 防登录 CSRF）+ 回调落地双模式（`/index` hash 落地页 / `/callback` 服务端 Cookie 会话回调）+ 踢人监听）。 |
 | `frame-me-launcher/frame-me-audit` | 审计中心聚合工程：`frame-me-audit-api`（`ILogApi` 查询契约）+ `frame-me-audit-service`（订阅 `audit:log` 事件持久化到 MySQL + 审计日志查询，兼作 SSO 下游 RP）。 |
 | `frame-me-launcher/frame-me-gateway` | 已实现的业务网关：基于 Spring Cloud Gateway WebFlux，提供路由转发、路由级鉴权与身份头契约；挂在 `frame-me-launcher` 下独立运行。 |
 | `frame-me-tester` | 测试模块聚合器，包含 `frame-me-tester-api` 与 `frame-me-tester-service`。 |

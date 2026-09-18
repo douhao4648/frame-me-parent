@@ -30,6 +30,11 @@
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-auth</artifactId>
         </dependency>
+        <!-- 一次性 state 存储（SsoStateStore 用 StringRedisTemplate，集群可消费） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
         <!-- 审计（optional）：SsoAuthController 的 @AuditLog 注解来源，下游引入 op-audit 后生效 -->
         <dependency>
             <groupId>com.frame.me</groupId>

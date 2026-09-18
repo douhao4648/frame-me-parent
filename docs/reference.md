@@ -289,10 +289,11 @@
 | `SsoClientAutoConfiguration` | SSO 客户端自动配置（`frame-me-sso-starter`）：`@ImportHttpServices(group="sso")` 注册 `IAuthApi`/`IUserApi`/`IAppApi` 代理 + `@Import(UserLogoutEventConfiguration.class)` 订阅踢人事件 |
 | `SsoClientProperties` | `me.sso.client.*` 配置绑定（appId/appSecret/redirectUri） |
 | `SsoClientConstant` | SSO 客户端占位常量类（`frame-me-sso-starter`） |
-| `SsoAuthAutoConfiguration` | SSO RP 登录端点自动配置（`frame-me-sso-starter`）：`@Import(SsoAuthService/SsoAuthController)`，`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；仅 sa-token 下游可用 |
+| `SsoAuthAutoConfiguration` | SSO RP 登录端点自动配置（`frame-me-sso-starter`）：`@Import(SsoAuthService/SsoAuthController/SsoStateStore)`，`@ConditionalOnClass(IAuthService)` + `me.sso.client.enabled` 开关；仅 sa-token 下游可用 |
 | `SsoAuthService` | SSO RP 登录编排（`frame-me-sso-starter`）：code → SSO token → /userinfo → `IAuthService.loginByUser` 建本地会话 |
 | `SsoAuthController` | `POST /api/auth/sso-login`（`frame-me-sso-starter`）：授权码换本地会话 |
-| `SsoCallbackController` | 回调落地两端点（`frame-me-sso-starter`）：`GET /index`（`me.sso.client.index-path` 可配）hash 落地页（SPA 场景）；`GET /callback`（`me.sso.client.callback-path` 可配）服务端回调——code 换会话 + sa-token 写 Cookie + 302 回跳 state |
+| `SsoLoginFlowController` | 登录发起与回调落地三端点（`frame-me-sso-starter`，类级 `@Anonymous`）：`GET /sso-authorize`（`me.sso.client.authorize-path` 可配）签发一次性 state 并 302 到 SSO authorize；`GET /index`（`me.sso.client.index-path` 可配）SPA 回调——消费 state 后 302 到 `target#code=`，无 code 返回静态占位页；`GET /callback`（`me.sso.client.callback-path` 可配）服务端回调——消费 state、code 换会话 + sa-token 写 Cookie + 302 回跳 target |
+| `SsoStateStore` | 一次性 OAuth state 存储（`frame-me-sso-starter`）：32 字节 SecureRandom，Redis 存 `state→nonce+target`（key `sso:login:state:*`，TTL `me.sso.client.state-ttl` 默认 10min），HttpOnly Cookie 按 state 前缀命名持 nonce 绑定浏览器；回调 GETDEL 原子消费 + nonce 比对（伪造/过期/重放/跨浏览器均 4001），不依赖 HttpSession，集群可消费 |
 | `SsoLoginDTO` | RP 登录请求体（`frame-me-sso-starter`：code + 可选 redirectUri） |
 | `IAuthService.loginByUser` | 按已知用户直接建立会话（RP 场景，default 抛异常；`SaTokenAuthService` 覆盖为 `StpLogic.login` + 快照缓存） |
 | `SsoStpUtil` | SSO 独立账号体系入口（`frame-me-sso-service`）：`TYPE="sso"` + `STP_LOGIC`（`new StpLogic("sso")` 经 `SaManager.getStpLogic` 注册），SSO 全部登录/登出/验 token 动作与 `@SaCheck*(type=...)` 的统一体系标识 |

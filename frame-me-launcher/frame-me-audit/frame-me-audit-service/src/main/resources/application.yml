@@ -102,9 +102,6 @@ me:
   sso:
     client:
       enabled: true
-      app-id: internal-66657790
-      app-secret: b50d748354c54bef9b9fbf3a2af1182a0e3ccca184954ed5a55f278f6b8d1d97
-      redirect-uri: http://localhost:10020/index
       path: /base/auth
   audit:
     enabled: true

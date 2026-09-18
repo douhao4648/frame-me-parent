@@ -9,6 +9,7 @@ import com.frame.me.sso.auth.SsoAuthUserDetailsServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -26,6 +27,7 @@ class SsoAuthAutoConfigurationTest {
             .withBean(IAuthApi.class, () -> mock(IAuthApi.class))
             .withBean(IUserApi.class, () -> mock(IUserApi.class))
             .withBean(IAuthService.class, () -> mock(IAuthService.class))
+            .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
             .withBean(SsoClientProperties.class, SsoClientProperties::new);
 
     /**
