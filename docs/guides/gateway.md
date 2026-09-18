@@ -71,6 +71,7 @@ me:
 |---|---|
 | `Authorization` | `Signature keyId="<appKey>",algorithm="hmac-sha256",headers="date @request-target",signature="<base64>"` |
 | `Date` | HTTP GMT 日期（RFC 1123），与网关时钟偏差 >300 秒拒绝（对齐 APISIX `clock_skew` 默认值，防重放） |
+| `X-Nonce`（可选） | 客户端在 `headers` 列表中追加声明 `x-nonce` 并提供该头时，网关对 `keyId+nonce` 做 Redis `SET NX`（TTL=时钟窗）一次性消费——重放请求第二次到达即拒。不声明则维持 APISIX 基线（仅时钟窗）。声明即 opt-in：网关无 Redis 或 Redis 故障时 fail-closed 拒绝；nonce 空白或 >128 字符拒绝 |
 
 待签串（`\n` 拼接，尾随 `\n`）：`keyId` 为首行，随后按 `headers` 声明顺序逐行 `头名: 值`（头名保留声明的原样大小写），`@request-target` 展开为 `METHOD request-uri`（大写方法，raw path + query string，对齐 APISIX `request_uri`）。固定顺序下即：
 
@@ -81,6 +82,8 @@ GET /api/data?x=1\n
 ```
 
 签名 = `base64(HmacSHA256(secret, 待签串))`，与 APISIX 一致比较原始 HMAC 字节（本网关用常量时间比较防时序侧信道）。
+
+注意 **body 不在默认签名范围内**：需要防 body 篡改的客户端可把 `digest` 等头加进 `headers` 签名列表（机制已支持签名任意头），网关按声明原样校验。`x-nonce` 同理——声明后 nonce 值本身参与签名，且验签通过后网关做一次性消费（重放即拒）。
 
 与 APISIX 的三处有意识收窄/增强：仅支持 `hmac-sha256`（APISIX 默认还允许 sha1/sha512）；强制 `headers` 覆盖 `date` + `@request-target`（防降级——缺 date 即无防重放）；常量时间比较（APISIX 为直接相等）。**收益：未来 app 鉴权让渡到 APISIX/MSE 时客户端契约不变**（仅需补齐收窄项）。
 

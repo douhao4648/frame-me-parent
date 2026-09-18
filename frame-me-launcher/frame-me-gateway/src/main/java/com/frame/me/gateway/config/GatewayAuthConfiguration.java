@@ -62,12 +62,20 @@ public class GatewayAuthConfiguration {
 
     /**
      * 配置版应用认证器（app 签名凭证）.
+     *
+     * <p>注入 Redis 用于可选 nonce 防重放（{@code x-nonce} 声明后 SET NX 一次性消费）；
+     * 无 Redis 配置的实例照常工作，但声明了 nonce 的请求 fail-closed 拒绝.</p>
      */
     @Bean
     @ConditionalOnProperty(prefix = "me.gateway.auth", name = "app-auth-enabled",
             havingValue = "true", matchIfMissing = true)
-    public IAppAuthenticator configAppAuthenticator(GatewayAuthProperties properties) {
-        return new ConfigAppAuthenticator(properties.getApps());
+    public IAppAuthenticator configAppAuthenticator(GatewayAuthProperties properties,
+                                                    ObjectProvider<ReactiveStringRedisTemplate> redisProvider) {
+        ReactiveStringRedisTemplate redisTemplate = redisProvider.getIfAvailable();
+        if (redisTemplate == null) {
+            log.info("网关应用认证器：无 Redis，nonce 防重放不可用（声明 x-nonce 的请求将被拒绝）");
+        }
+        return new ConfigAppAuthenticator(properties.getApps(), redisTemplate);
     }
 
     /**

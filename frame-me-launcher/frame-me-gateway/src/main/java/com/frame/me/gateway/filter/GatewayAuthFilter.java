@@ -128,15 +128,15 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
      */
     private Mono<Void> filterApp(ServerWebExchange exchange, GatewayFilterChain chain,
                                  IAppAuthenticator appAuthenticator) {
-        String appKey = appAuthenticator.authenticate(exchange.getRequest());
-        if (appKey == null) {
-            return unauthorized(exchange, "invalid app credential");
-        }
-        ServerWebExchange mutated = stripIdentityHeaders(exchange);
-        ServerHttpRequest request = mutated.getRequest().mutate()
-                .header(GatewayConstant.HEADER_APP_KEY, appKey)
-                .build();
-        return chain.filter(mutated.mutate().request(request).build());
+        return appAuthenticator.authenticate(exchange.getRequest())
+                .flatMap(appKey -> {
+                    ServerWebExchange mutated = stripIdentityHeaders(exchange);
+                    ServerHttpRequest request = mutated.getRequest().mutate()
+                            .header(GatewayConstant.HEADER_APP_KEY, appKey)
+                            .build();
+                    return chain.filter(mutated.mutate().request(request).build());
+                })
+                .switchIfEmpty(Mono.defer(() -> unauthorized(exchange, "invalid app credential")));
     }
 
     /**
