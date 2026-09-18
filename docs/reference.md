@@ -298,7 +298,8 @@
 | `IAuthService.loginByUser` | 按已知用户直接建立会话（RP 场景，default 抛异常；`SaTokenAuthService` 覆盖为 `StpLogic.login` + 快照缓存） |
 | `SsoStpUtil` | SSO 独立账号体系入口（`frame-me-sso-service`）：`TYPE="sso"` + `STP_LOGIC`（`new StpLogic("sso")` 经 `SaManager.getStpLogic` 注册），SSO 全部登录/登出/验 token 动作与 `@SaCheck*(type=...)` 的统一体系标识 |
 | `Application`（audit） | 审计中心主启动类，`@Import(AuditLogEventConfiguration.class)` 订阅 `audit:log` 通道 |
-| `SsoAuthUserDetailsServiceImpl` | sso-starter 的 RP 兜底 `IAuthUserDetailsService`（下游未自定义时自动装配，`loadUserById` 委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建，取不到返回 null → 401 重登） |
+| `SsoAuthUserDetailsServiceImpl` | sso-starter 的 RP 兜底 `IAuthUserDetailsService`（下游未自定义时自动装配，`loadUserById` 委托 `SsoAuthService.loadUserByUpstreamToken` 回源重建：暂时不可达返回 null、上游明确判定失效抛 `UpstreamUserInvalidException` 阻断快照重建） |
+| `UpstreamUserInvalidException` | 上游身份源明确判定用户失效信号（`frame-me-starter-auth` SPI）：`IAuthUserDetailsService.loadUserById` 抛出时表示"确定失效"（区别于返回 null 的"暂时未知"），JWT/sa-token/trusted-header 消费方均 fail-closed |
 | `SsoLogoutEventListener` | `@EventListener(UserLogoutEvent)`（`frame-me-sso-starter`）：调 `IAuthService.logoutByUserId` 清本地会话（走 SPI，sa-token/JWT 两套通用） |
 | `LogEntity` / `LogMapper` | audit 审计日志实体（`@Table("audit_log")` extends `BaseEntity`）+ Mapper |
 | `LogEventListener` | audit `@EventListener(AuditLogEvent)`：持久化审计记录到 MySQL；多实例以 eventId 加 Redis 锁去重 |

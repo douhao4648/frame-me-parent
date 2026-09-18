@@ -10,6 +10,7 @@ import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.satoken.config.SaTokenAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
+import com.frame.me.auth.spi.UpstreamUserInvalidException;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -290,6 +291,10 @@ public class SaTokenAuthService implements IAuthService {
             // 无用户维度，按"无此用户"返回 null，调用方按未登录/无权限处理，
             // 不能让 NumberFormatException 逸出过滤器层变成 500
             log.debug("loginId 非数字用户 ID，按无用户处理: {}", loginId);
+            return null;
+        } catch (UpstreamUserInvalidException e) {
+            // 上游明确判定失效（被踢/禁用）：按"无此用户"返回 null，fail-closed
+            log.debug("上游判定用户失效: loginId={}, {}", loginId, e.getMessage());
             return null;
         }
         if (user != null && !User.STATUS_ENABLED.equals(user.getStatus())) {

@@ -2,6 +2,7 @@ package com.frame.me.auth.core;
 
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.auth.spi.IAuthUserResolver;
+import com.frame.me.auth.spi.UpstreamUserInvalidException;
 import com.frame.me.base.user.User;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -70,10 +71,16 @@ public class TrustedHeaderAuthUserResolver implements IAuthUserResolver {
     }
 
     /**
-     * 回源加载完整用户：不存在或已禁用均返回 {@code null}（fail-closed）.
+     * 回源加载完整用户：不存在、已禁用或上游明确判定失效均返回 {@code null}（fail-closed）.
      */
     private User loadFromSource(Long id) {
-        User user = userDetailsService.loadUserById(id);
+        User user;
+        try {
+            user = userDetailsService.loadUserById(id);
+        } catch (UpstreamUserInvalidException e) {
+            log.warn("身份头用户被上游判定失效: {}, {}", id, e.getMessage());
+            return null;
+        }
         if (user == null) {
             log.warn("身份头用户回源不存在: {}", id);
             return null;

@@ -4,6 +4,7 @@ import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
+import com.frame.me.auth.spi.UpstreamUserInvalidException;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -209,9 +210,16 @@ public class JwtTokenServiceImpl implements IAuthService {
             if (cached == null || !cached.equals(refreshToken)) {
                 throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 已失效");
             }
-            User user = userDetailsService.loadUserById(userId);
+            User user;
+            try {
+                user = userDetailsService.loadUserById(userId);
+            } catch (UpstreamUserInvalidException e) {
+                // 上游明确判定失效（被踢/禁用）：不走快照重建，直接拒绝续期
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "会话已失效，请重新登录", e);
+            }
             if (user == null) {
                 // RP 回退：无本地用户表的 SSO 下游，用 loginByUser 签入的快照 claims 重建
+                // （仅"暂时无法确认"时才允许；上游明确失效已在上面拦截）
                 user = rebuildRpUser(claims);
             }
             if (user == null) {
@@ -268,9 +276,15 @@ public class JwtTokenServiceImpl implements IAuthService {
         if (userId == null) {
             return null;
         }
-        User user = userDetailsService.loadUserById(userId);
+        User user;
+        try {
+            user = userDetailsService.loadUserById(userId);
+        } catch (UpstreamUserInvalidException e) {
+            // 上游明确判定失效（被踢/禁用）：不走快照重建，按未登录处理
+            return null;
+        }
         if (user == null) {
-            // RP 回退：无本地用户表的 SSO 下游（loadUserById 恒 null），
+            // RP 回退：无本地用户表的 SSO 下游（loadUserById 恒 null 或暂时不可达），
             // 用 loginByUser 签入的快照 claims 重建 User；密码登录 token 无 rp 标记不触发
             user = rebuildRpUser(claims);
         }

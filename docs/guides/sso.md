@@ -131,7 +131,11 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 > field = appId，TTL 对齐 Refresh Token 时效并随 `refresh` 续期，
 > `logout`/`logoutByUserId` 同步清除）。回源取数统一走
 > `SsoAuthService.loadUserByUpstreamToken(userId)`（取留存 token → 重拉 /userinfo →
-> 重建 User，含 sub 一致性校验防串号，取不到/失败返回 null 即 fail-closed）——RP 下游
+> 重建 User，含 sub 一致性校验防串号）。回源失败两分语义：暂时无法确认（无留存
+> token、网络故障/5xx）返回 null——JWT 下游可用 token 快照兜底保可用性；SSO 明确
+> 判定失效（token 被踢/禁用返 4001、回源串号）抛 `UpstreamUserInvalidException`——
+> 调用方 fail-closed，JWT 的 `getUser`/`refresh` 收到后**不走快照重建**（否则
+> "数据库已禁用"不等于"会话失效"）——RP 下游
 > （无本地用户表）无需自己实现 `IAuthUserDetailsService`：starter 在未自定义时兜底装配
 > `SsoAuthUserDetailsServiceImpl`（`loadUserById` 即委托该方法），自定义则自动退让。
 > **appId 隔离的意义**：不同应用的 token 互不覆盖，共用存储后端的多个下游结构性免疫互撞。

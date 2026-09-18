@@ -2,6 +2,7 @@ package com.frame.me.sso.auth;
 
 import com.frame.me.api.result.IResult;
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.auth.spi.UpstreamUserInvalidException;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -105,12 +106,15 @@ public class SsoAuthService {
      *
      * <p>供下游 {@code IAuthUserDetailsService#loadUserById} 在缓存 miss 时委托调用：
      * 取 {@link IAuthService#getUpstreamToken} 留存的 SSO token 调 {@code /userinfo}。
-     * 取不到（session 过期/被踢，token 已随会话销毁）或回源失败均返回 {@code null}——
-     * fail-closed，下游走 401 重新 SSO 登录；SSO 侧踢人同时作废 token，
-     * 即便取出残值 {@code /userinfo} 也 401，踢人语义不受破坏。</p>
+     * 失败分两种语义：SSO <b>明确判定失效</b>（token 被踢/禁用返 4001、回源串号）抛
+     * {@link UpstreamUserInvalidException}——调用方必须 fail-closed，不得用快照重建；
+     * <b>暂时无法确认</b>（无留存 token、网络故障/5xx）返回 {@code null}——JWT 下游可用
+     * token 快照兜底保可用性。SSO 侧踢人同时作废 token，即便取出残值 {@code /userinfo}
+     * 也 4001，踢人语义不受破坏。</p>
      *
      * @param userId 用户 ID
-     * @return 重建的 User，无法重建时返回 {@code null}
+     * @return 重建的 User，暂时无法确认时返回 {@code null}
+     * @throws UpstreamUserInvalidException SSO 明确判定用户失效（被踢/禁用/串号）
      */
     public User loadUserByUpstreamToken(Long userId) {
         if (userId == null) {
@@ -123,18 +127,22 @@ public class SsoAuthService {
         try {
             IResult<UserInfoVO> res = userApi.userinfo("Bearer " + ssoToken);
             if (res == null || !ResultCode.SUCCESS.getCode().equals(res.getCode()) || res.getData() == null) {
-                log.debug("SSO /userinfo 回源失败: userId={}, res={}", userId, res == null ? null : res.getCode());
-                return null;
+                // SSO 明确回答 token 无效（4001：被踢/禁用）——确定失效，抛异常阻断快照重建
+                log.debug("SSO /userinfo 判定失效: userId={}, res={}", userId, res == null ? null : res.getCode());
+                throw new UpstreamUserInvalidException("SSO 判定上游 token 失效: userId=" + userId);
             }
             UserInfoVO info = res.getData();
             // 防串号：回源用户必须与请求的用户一致（上游数据属信任边界，宁可拒不可错）
             if (!userId.toString().equals(info.getSub())) {
                 log.warn("SSO /userinfo 返回用户与请求不一致: 请求 userId={}, 返回 sub={}", userId, info.getSub());
-                return null;
+                throw new UpstreamUserInvalidException("SSO 回源用户串号: userId=" + userId);
             }
             return toUser(info);
+        } catch (UpstreamUserInvalidException e) {
+            throw e;
         } catch (Exception e) {
-            // 网络故障等按"无法重建"返回 null（下游 401 重登），不吞成 5xx 也不放行
+            // 网络故障/5xx 等按"暂时无法确认"返回 null（JWT 下游可用快照兜底保可用性），
+            // 不吞成 5xx 也不放行
             log.debug("SSO /userinfo 回源异常: userId={}, {}", userId, e.getMessage());
             return null;
         }

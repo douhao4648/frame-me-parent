@@ -13,10 +13,11 @@ import org.springframework.context.annotation.Lazy;
  *
  * <p>用户身份来自 SSO {@code /userinfo}：登录时 {@link SsoAuthService#ssoLogin} 建本地
  * 会话并写用户快照，后续读取缓存命中；{@link #loadUserById} 仅在快照缺失时被调，
- * 委托 {@link SsoAuthService#loadUserByUpstreamToken} 用留存的 SSO token 回源重建，
- * 取不到/失败返回 {@code null} → 401 → 重新 SSO 登录（fail-closed，踢人语义不受破坏）。
- * {@link #loadUserByAccount} 返回 {@code null}（RP 无账号密码登录入口），
- * 不覆盖 {@code matches}（用不到 BCrypt）。</p>
+ * 委托 {@link SsoAuthService#loadUserByUpstreamToken} 用留存的 SSO token 回源重建。
+ * 失败两分语义：暂时无法确认（网络故障等）返回 {@code null}；SSO 明确判定失效
+ * （被踢/禁用/串号）抛 {@code UpstreamUserInvalidException}，JWT 侧据此拒绝快照重建，
+ * 保证"数据库已禁用 = 会话失效"。{@link #loadUserByAccount} 返回 {@code null}
+ * （RP 无账号密码登录入口），不覆盖 {@code matches}（用不到 BCrypt）。</p>
  *
  * @author frame-me
  */

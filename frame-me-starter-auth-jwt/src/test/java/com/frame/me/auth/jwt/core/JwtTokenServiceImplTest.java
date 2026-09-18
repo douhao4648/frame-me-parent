@@ -4,6 +4,7 @@ import com.frame.me.auth.core.AuthUserAuthenticator;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
+import com.frame.me.auth.spi.UpstreamUserInvalidException;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
@@ -576,9 +577,61 @@ class JwtTokenServiceImplTest {
     }
 
     /**
+     * 上游明确判定失效（loadUserById 抛 {@link UpstreamUserInvalidException}，被踢/禁用）
+     * 时不得走快照重建：getUser 直接返回 null——"数据库已禁用"必须等于"会话失效".
+     */
+    @Test
+    void testRpFallback_upstreamInvalidNotRebuilt_getUser() {
+        JwtTokenServiceImpl rpService = rpService();
+        User rpUser = new User();
+        rpUser.setId(77L);
+        rpUser.setAccount("kicked");
+        rpUser.setStatus(User.STATUS_ENABLED);
+        String accessToken = rpService.loginByUser(rpUser).split(";")[0];
+
+        JwtTokenServiceImpl upstreamDown = rpServiceWith(id -> {
+            throw new UpstreamUserInvalidException("SSO 判定上游 token 失效");
+        });
+
+        assertNull(upstreamDown.getUser(accessToken), "上游明确失效时不允许快照重建 ENABLED 用户");
+    }
+
+    /**
+     * refresh 链路同理：上游明确失效时拒绝续期（4001），不能靠快照续出新的 ENABLED token.
+     */
+    @Test
+    void testRpFallback_upstreamInvalidRejected_refresh() {
+        JwtTokenServiceImpl rpService = rpService();
+        User rpUser = new User();
+        rpUser.setId(78L);
+        rpUser.setAccount("kicked2");
+        rpUser.setStatus(User.STATUS_ENABLED);
+        // 用同一存储签发的 refresh token 喂给"上游已失效"的服务实例（共享 store）
+        InMemoryRefreshTokenStore store = new InMemoryRefreshTokenStore();
+        JwtTokenServiceImpl issuing = rpServiceWith(id -> rpUser, store);
+        String refreshToken = issuing.loginByUser(rpUser).split(";")[1];
+
+        JwtTokenServiceImpl upstreamDown = rpServiceWith(id -> {
+            throw new UpstreamUserInvalidException("SSO 判定上游 token 失效");
+        }, store);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> upstreamDown.refresh(refreshToken));
+        assertEquals(ResultCode.BAD_CREDENTIAL.getCode(), ex.getCode());
+    }
+
+    /**
      * 构造 RP 场景服务：loadUserById 恒返回 null（无本地用户表）.
      */
     private JwtTokenServiceImpl rpService() {
+        return rpServiceWith(id -> null, new InMemoryRefreshTokenStore());
+    }
+
+    private JwtTokenServiceImpl rpServiceWith(java.util.function.Function<Long, User> loader) {
+        return rpServiceWith(loader, new InMemoryRefreshTokenStore());
+    }
+
+    private JwtTokenServiceImpl rpServiceWith(java.util.function.Function<Long, User> loader,
+                                              IRefreshTokenStore store) {
         JwtAuthProperties properties = new JwtAuthProperties();
         properties.setSecret(SECRET);
         properties.setAccessTokenExpires(Duration.ofMinutes(10));
@@ -591,9 +644,9 @@ class JwtTokenServiceImplTest {
 
             @Override
             public User loadUserById(Long id) {
-                return null;
+                return loader.apply(id);
             }
-        }, new InMemoryRefreshTokenStore(), AUTHENTICATOR);
+        }, store, AUTHENTICATOR);
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.frame.me.sso.auth;
 
 import com.frame.me.auth.spi.IAuthService;
+import com.frame.me.auth.spi.UpstreamUserInvalidException;
 import com.frame.me.base.exception.BusinessException;
 import com.frame.me.base.result.Result;
 import com.frame.me.base.result.ResultCode;
@@ -81,18 +82,20 @@ class SsoAuthServiceTest {
     }
 
     /**
-     * /userinfo 401（token 被 SSO 侧作废，踢人场景）→ null，不放行.
+     * /userinfo 判定 token 失效（被 SSO 侧作废，踢人场景）→ 抛 {@link UpstreamUserInvalidException}，
+     * 阻断 JWT 侧快照重建（fail-closed）.
      */
     @Test
-    void loadUserByUpstreamToken_userinfoUnauthorized_returnsNull() {
+    void loadUserByUpstreamToken_userinfoUnauthorized_throwsInvalid() {
         when(authService.getUpstreamToken(1001L, APP_ID)).thenReturn("sso-token-abc");
         when(userApi.userinfo("Bearer sso-token-abc")).thenReturn(Result.error(401, "未登录"));
 
-        assertThat(service.loadUserByUpstreamToken(1001L)).isNull();
+        assertThatThrownBy(() -> service.loadUserByUpstreamToken(1001L))
+                .isInstanceOf(UpstreamUserInvalidException.class);
     }
 
     /**
-     * /userinfo 远程调用异常 → null（按"无法重建"处理，不吞成 5xx 也不放行）.
+     * /userinfo 远程调用异常（网络故障/5xx）→ null（暂时无法确认，JWT 下游可用快照兜底）.
      */
     @Test
     void loadUserByUpstreamToken_userinfoThrows_returnsNull() {
@@ -103,14 +106,15 @@ class SsoAuthServiceTest {
     }
 
     /**
-     * /userinfo 返回用户与请求用户串号 → 拒绝（上游数据属信任边界）.
+     * /userinfo 返回用户与请求用户串号 → 抛 {@link UpstreamUserInvalidException}（上游数据属信任边界）.
      */
     @Test
-    void loadUserByUpstreamToken_userMismatch_returnsNull() {
+    void loadUserByUpstreamToken_userMismatch_throwsInvalid() {
         when(authService.getUpstreamToken(1001L, APP_ID)).thenReturn("sso-token-abc");
         when(userApi.userinfo("Bearer sso-token-abc")).thenReturn(Result.success(stubUserInfo("9999")));
 
-        assertThat(service.loadUserByUpstreamToken(1001L)).isNull();
+        assertThatThrownBy(() -> service.loadUserByUpstreamToken(1001L))
+                .isInstanceOf(UpstreamUserInvalidException.class);
     }
 
     private TokenVO stubTokenVO(String token) {
