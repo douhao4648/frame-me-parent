@@ -5,6 +5,7 @@ import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.auth.spi.IAuthService;
 import com.frame.me.auth.spi.IAuthUserDetailsService;
 import com.frame.me.base.exception.BusinessException;
+import com.frame.me.base.result.ResultCode;
 import com.frame.me.base.user.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -18,6 +19,12 @@ import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -38,15 +45,17 @@ class JwtTokenServiceImplTest {
     private static final AuthUserAuthenticator AUTHENTICATOR = new AuthUserAuthenticator(PASSWORD_ENCODER);
 
     private JwtTokenServiceImpl tokenService;
+    private JwtAuthProperties properties;
+    private IAuthUserDetailsService userDetailsService;
 
     @BeforeEach
     void setUp() {
-        JwtAuthProperties properties = new JwtAuthProperties();
+        properties = new JwtAuthProperties();
         properties.setSecret(SECRET);
         properties.setAccessTokenExpires(Duration.ofMinutes(10));
         properties.setRefreshTokenExpires(Duration.ofMinutes(30));
 
-        IAuthUserDetailsService userDetailsService = new IAuthUserDetailsService() {
+        userDetailsService = new IAuthUserDetailsService() {
             @Override
             public User loadUserByAccount(String account) {
                 if (!"admin".equals(account)) {
@@ -134,6 +143,41 @@ class JwtTokenServiceImplTest {
         String[] parts = newPair.split(";");
         assertEquals(2, parts.length);
         assertTrue(tokenService.validate(parts[0]));
+    }
+
+    @Test
+    void concurrentRefresh_allowsOnlyOneSuccessfulRotation() throws Exception {
+        BarrierRefreshTokenStore store = new BarrierRefreshTokenStore();
+        JwtTokenServiceImpl service = new JwtTokenServiceImpl(
+                properties, userDetailsService, store, AUTHENTICATOR);
+        String refreshToken = service.login("admin", "123456").split(";")[1];
+        store.blockNextTwoReads();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            Future<Boolean> first = executor.submit(() -> refreshSucceeded(service, refreshToken, start));
+            Future<Boolean> second = executor.submit(() -> refreshSucceeded(service, refreshToken, start));
+            start.countDown();
+
+            int successes = (first.get(10, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(10, TimeUnit.SECONDS) ? 1 : 0);
+            assertEquals(1, successes, "同一个 Refresh Token 只能有一个并发请求轮换成功");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private boolean refreshSucceeded(
+            JwtTokenServiceImpl service, String refreshToken, CountDownLatch start) throws InterruptedException {
+        start.await();
+        try {
+            service.refresh(refreshToken);
+            return true;
+        } catch (BusinessException expected) {
+            assertEquals(ResultCode.BAD_CREDENTIAL.getCode(), expected.getCode());
+            return false;
+        }
     }
 
     /**
@@ -570,8 +614,59 @@ class JwtTokenServiceImplTest {
         }
 
         @Override
+        public boolean rotate(Long userId, String expectedToken, String newToken, Duration expires) {
+            if (!expectedToken.equals(store.get(userId))) {
+                return false;
+            }
+            store.put(userId, newToken);
+            return true;
+        }
+
+        @Override
         public void delete(Long userId) {
             store.remove(userId);
+        }
+    }
+
+    /**
+     * 让两个刷新线程都先读到同一个旧 token，再继续执行，稳定复现 get/save 竞态.
+     */
+    private static class BarrierRefreshTokenStore implements IRefreshTokenStore {
+
+        private final InMemoryRefreshTokenStore delegate = new InMemoryRefreshTokenStore();
+        private final CyclicBarrier readBarrier = new CyclicBarrier(2);
+        private volatile boolean blockReads;
+
+        private void blockNextTwoReads() {
+            blockReads = true;
+        }
+
+        @Override
+        public void save(Long userId, String refreshToken, Duration expires) {
+            delegate.save(userId, refreshToken, expires);
+        }
+
+        @Override
+        public String get(Long userId) {
+            String value = delegate.get(userId);
+            if (blockReads) {
+                try {
+                    readBarrier.await(5, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new IllegalStateException("并发测试 barrier 失败", e);
+                }
+            }
+            return value;
+        }
+
+        @Override
+        public boolean rotate(Long userId, String expectedToken, String newToken, Duration expires) {
+            return delegate.rotate(userId, expectedToken, newToken, expires);
+        }
+
+        @Override
+        public void delete(Long userId) {
+            delegate.delete(userId);
         }
     }
 }

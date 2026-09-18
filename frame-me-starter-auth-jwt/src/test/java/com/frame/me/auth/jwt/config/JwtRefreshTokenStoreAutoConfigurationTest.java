@@ -127,6 +127,12 @@ class JwtRefreshTokenStoreAutoConfigurationTest {
             }
 
             @Override
+            public boolean rotate(Long userId, String expectedToken, String newToken,
+                                  java.time.Duration expires) {
+                return false;
+            }
+
+            @Override
             public void delete(Long userId) {
             }
         };

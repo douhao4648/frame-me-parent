@@ -76,6 +76,17 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
     }
 
     @Override
+    public boolean rotate(Long userId, String expectedToken, String newToken, Duration expires) {
+        Entry current = store.get(userId);
+        if (current == null || System.currentTimeMillis() > current.expireAtMillis()
+                || !current.token().equals(expectedToken)) {
+            return false;
+        }
+        Entry replacement = new Entry(newToken, System.currentTimeMillis() + expires.toMillis());
+        return store.replace(userId, current, replacement);
+    }
+
+    @Override
     public void delete(Long userId) {
         store.remove(userId);
     }

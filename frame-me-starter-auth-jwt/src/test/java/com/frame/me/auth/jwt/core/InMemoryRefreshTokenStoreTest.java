@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link InMemoryRefreshTokenStore} 单元测试.
@@ -41,5 +43,15 @@ class InMemoryRefreshTokenStoreTest {
     @Test
     void getMissingReturnsNull() {
         assertNull(store.get(99L));
+    }
+
+    @Test
+    void rotateReplacesOnlyMatchingCurrentToken() {
+        store.save(1L, "old-token", Duration.ofMinutes(30));
+
+        assertTrue(store.rotate(1L, "old-token", "new-token", Duration.ofMinutes(30)));
+        assertEquals("new-token", store.get(1L));
+        assertFalse(store.rotate(1L, "old-token", "attacker-token", Duration.ofMinutes(30)));
+        assertEquals("new-token", store.get(1L));
     }
 }

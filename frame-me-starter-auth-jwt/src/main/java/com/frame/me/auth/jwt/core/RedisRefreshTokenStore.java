@@ -3,8 +3,11 @@ package com.frame.me.auth.jwt.core;
 import com.frame.me.auth.jwt.config.JwtAuthProperties;
 import com.frame.me.redis.util.RedisClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
 
 import java.time.Duration;
+import java.util.Collections;
 
 /**
  * 基于 Redis 的 Refresh Token 存储实现.
@@ -13,6 +16,16 @@ import java.time.Duration;
  */
 @RequiredArgsConstructor
 public class RedisRefreshTokenStore implements IRefreshTokenStore {
+
+    private static final String ROTATE_LUA = """
+            if redis.call('get', KEYS[1]) ~= ARGV[1] then
+                return 0
+            end
+            redis.call('psetex', KEYS[1], ARGV[3], ARGV[2])
+            return 1
+            """;
+    private static final RedisScript<Long> ROTATE_SCRIPT =
+            new DefaultRedisScript<>(ROTATE_LUA, Long.class);
 
     private final JwtAuthProperties properties;
     private final RedisClient redisClient;
@@ -25,6 +38,20 @@ public class RedisRefreshTokenStore implements IRefreshTokenStore {
     @Override
     public String get(Long userId) {
         return redisClient.get(properties.getRefreshTokenPrefix() + userId);
+    }
+
+    @Override
+    public boolean rotate(Long userId, String expectedToken, String newToken, Duration expires) {
+        Long result = redisClient.executeScript(
+                ROTATE_SCRIPT,
+                Collections.singletonList(properties.getRefreshTokenPrefix() + userId),
+                expectedToken,
+                newToken,
+                String.valueOf(expires.toMillis()));
+        if (result == null) {
+            throw new IllegalStateException("Redis Refresh Token 轮换脚本未返回结果");
+        }
+        return result == 1L;
     }
 
     @Override

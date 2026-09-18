@@ -235,7 +235,13 @@ public class JwtTokenServiceImpl implements IAuthService {
             // 上游 token 条目同步续期：refresh 已把本地会话拉长（Refresh Token 重存完整 TTL），
             // 上游条目不续则第一个 refresh 周期后"同生共死"断裂；存超上游自身时效无害，SSO 侧 401 兜底
             refreshTokenStore.renewUpstreamTokens(userId, properties.getRefreshTokenExpires());
-            return buildTokenPair(user, authTimeMillis, claims.get(CLAIM_RP_SNAPSHOT) != null);
+            TokenPair tokenPair = createTokenPair(
+                    user, authTimeMillis, claims.get(CLAIM_RP_SNAPSHOT) != null);
+            if (!refreshTokenStore.rotate(userId, refreshToken, tokenPair.refreshToken,
+                    properties.getRefreshTokenExpires())) {
+                throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 已失效或已被使用");
+            }
+            return tokenPair.encoded();
         } catch (ExpiredJwtException e) {
             throw new BusinessException(ResultCode.BAD_CREDENTIAL, "Refresh Token 已过期", e);
         } catch (JwtException | IllegalArgumentException e) {
@@ -314,12 +320,36 @@ public class JwtTokenServiceImpl implements IAuthService {
      *                   仅 {@code loginByUser}（SSO 下游无本地用户表）及 RP 续期链路透传为 true
      */
     private String buildTokenPair(User user, long authTimeMillis, boolean rpSnapshot) {
+        TokenPair tokenPair = createTokenPair(user, authTimeMillis, rpSnapshot);
+        refreshTokenStore.save(user.getId(), tokenPair.refreshToken, properties.getRefreshTokenExpires());
+        return tokenPair.encoded();
+    }
+
+    /**
+     * 仅生成 TokenPair，不写入 Refresh Token 存储；刷新链路用它先生成候选 token，
+     * 再通过 {@link IRefreshTokenStore#rotate} 原子提交，避免并发重复消费旧 token.
+     */
+    private TokenPair createTokenPair(User user, long authTimeMillis, boolean rpSnapshot) {
         String accessToken = buildToken(user, TOKEN_TYPE_ACCESS, properties.getAccessTokenExpires(),
                 null, rpSnapshot);
         String refreshToken = buildToken(user, TOKEN_TYPE_REFRESH, properties.getRefreshTokenExpires(),
                 authTimeMillis, rpSnapshot);
-        refreshTokenStore.save(user.getId(), refreshToken, properties.getRefreshTokenExpires());
-        return accessToken + ";" + refreshToken;
+        return new TokenPair(accessToken, refreshToken);
+    }
+
+    private static final class TokenPair {
+
+        private final String accessToken;
+        private final String refreshToken;
+
+        private TokenPair(String accessToken, String refreshToken) {
+            this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
+        }
+
+        private String encoded() {
+            return accessToken + ";" + refreshToken;
+        }
     }
 
     /**

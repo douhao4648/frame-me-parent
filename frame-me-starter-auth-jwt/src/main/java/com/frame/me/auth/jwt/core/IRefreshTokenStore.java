@@ -27,6 +27,18 @@ public interface IRefreshTokenStore {
     String get(Long userId);
 
     /**
+     * 原子轮换 Refresh Token：仅当前存储值仍等于 {@code expectedToken} 时，
+     * 才替换为 {@code newToken} 并重置有效期.
+     *
+     * @param userId       用户 ID
+     * @param expectedToken 调用方持有的旧 Refresh Token
+     * @param newToken      新 Refresh Token
+     * @param expires       新 Token 有效期
+     * @return 轮换成功返回 {@code true}；旧 Token 已失效或被并发消费返回 {@code false}
+     */
+    boolean rotate(Long userId, String expectedToken, String newToken, Duration expires);
+
+    /**
      * 删除用户的 Refresh Token.
      *
      * @param userId 用户 ID
