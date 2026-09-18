@@ -1,6 +1,8 @@
 package com.frame.me.api.query;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -20,13 +22,16 @@ public class PageQuery implements Serializable {
     /**
      * 当前页码，默认 1.
      */
+    @Min(value = 1, message = "页码必须大于 0")
     @Schema(description = "当前页码，默认 1")
     private Long current = 1L;
 
     /**
-     * 每页条数，默认 10.
+     * 每页条数，默认 10，最大 200（防大结果集拉垮服务/DB）.
      */
-    @Schema(description = "每页条数，默认 10")
+    @Min(value = 1, message = "每页条数必须大于 0")
+    @Max(value = 200, message = "每页条数不能超过 200")
+    @Schema(description = "每页条数，默认 10，最大 200")
     private Long size = 10L;
 
     /**

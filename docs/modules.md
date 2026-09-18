@@ -7,7 +7,7 @@
 - **关键类**：
   - `com.frame.me.api.result.IResult<T>` — 统一响应结果接口。
   - `com.frame.me.api.result.PageData<T>` — 通用分页结果。
-  - `com.frame.me.api.query.PageQuery` — 通用分页查询参数。
+  - `com.frame.me.api.query.PageQuery` — 通用分页查询参数（`size` 上限 200、`current` ≥1，Bean Validation 强制，防大结果集）。
   - `com.frame.me.validation.CreateGroup` — 校验分组：新增场景。
   - `com.frame.me.validation.UpdateGroup` — 校验分组：更新场景。
   - `com.frame.me.validation.annotation.TimeRange` — 类级时间范围校验注解。
@@ -1247,7 +1247,7 @@ public class AlertService {
 | `LogEntity` | `audit/entity/LogEntity` | `@Table("audit_log") extends BaseEntity`，字段映射 `AuditLogRecord` |
 | `LogMapper` | `audit/mapper/LogMapper` | `@Mapper extends BaseMapper<LogEntity>`；`getById` 走 `resources/mapper/LogMapper.xml` 自定义 SQL（详情查询统一走 XML） |
 | `LogEventListener` | `audit/service/listener/LogEventListener` | `@EventListener(AuditLogEvent)`：取 record 写 `audit_log` 表；**多实例去重**以 `event.getEventId()` 为 key 加 Redis 锁（`audit:log:dedup:<eventId>`）全局只入库一次，锁不主动释放靠 TTL(30s)覆盖各实例广播副本到达窗口，Redis 故障降级放行时可能重复；失败不阻断事件链路 |
-| `ILogApi` | `audit-api/ILogApi` | 审计日志管理查询契约（`@HttpExchange("/api/log")`）：`/list`、`/page`、`/{id}`，均收 `@QueryMap LogQuery`（action/operatorId/description 模糊，category/sourceService/success 精确，startTime/endTime 按 timestamp 圈区间，`@TimeRange` 校验） |
+| `ILogApi` | `audit-api/ILogApi` | 审计日志管理查询契约（`@HttpExchange("/api/log")`）：`/list`（硬上限 1000 条）、`/page`、`/{id}`，均收 `@QueryMap LogQuery`（action/operatorId/description 模糊，category/sourceService/success 精确，startTime/endTime 按 timestamp 圈区间，`@TimeRange` 校验） |
 | `LogController` | `audit/controller/LogController` | 实现 `ILogApi`，全局 `me.auth.enforce-login` 强制登录保护 |
 | `LogServiceImpl` | `audit/service/impl/LogServiceImpl` | `QueryWrapper` + `LogEntityTableDef` 类型安全拼条件，默认 `timestamp desc` 排序（`PageUtils.toOrderBy` 白名单） |
 | `LogConvert` | `audit/service/convert/LogConvert` | MapStruct entity → VO |

@@ -32,13 +32,17 @@ public class LogServiceImpl implements ILogService {
      * 默认排序：事件发生时间倒序（最新在前）.
      */
     private static final String DEFAULT_ORDER_BY = "timestamp desc";
+    /**
+     * 无分页 list 的硬上限（防大结果集拉垮服务/DB；更大批量请走 /page）.
+     */
+    private static final int MAX_LIST_SIZE = 1000;
 
     private final LogMapper auditLogMapper;
     private final LogConvert auditLogConvert;
 
     @Override
     public List<LogVO> list(LogQuery query) {
-        return auditLogConvert.toVoList(auditLogMapper.selectListByQuery(buildWrapper(query)));
+        return auditLogConvert.toVoList(auditLogMapper.selectListByQuery(buildWrapper(query).limit(MAX_LIST_SIZE)));
     }
 
     @Override

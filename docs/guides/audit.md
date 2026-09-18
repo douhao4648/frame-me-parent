@@ -167,11 +167,11 @@ public class AuditLogPersistenceHandler {
 
 | 端点 | 说明 |
 |---|---|
-| `GET /api/log/list` | 按条件搜索列表（不分页），默认 `timestamp desc` |
+| `GET /api/log/list` | 按条件搜索列表（不分页，硬上限 1000 条，更大批量走 `/page`），默认 `timestamp desc` |
 | `GET /api/log/page` | 按条件搜索分页（`PageQuery` + `PageData`） |
 | `GET /api/log/{id}` | 详情，不存在抛 `NOT_FOUND`；走 `mapper/LogMapper.xml` 自定义 SQL（`LogMapper.getById`） |
 
-搜索条件（`LogQuery extends PageQuery`，`@QueryMap` 绑定）：`action`/`operatorId`/`description` 模糊，`category`/`sourceService`/`success` 精确，`startTime`/`endTime` 按 `timestamp` 列圈区间（`@TimeRange` 校验起始 ≤ 截止）；排序走 `PageUtils.toOrderBy` 字段白名单，默认 `timestamp desc`。端点由全局 `me.auth.enforce-login` 强制登录保护，未单独加角色闸。
+搜索条件（`LogQuery extends PageQuery`，`@QueryMap` 绑定；`PageQuery.size` 上限 200）：`action`/`operatorId`/`description` 模糊，`category`/`sourceService`/`success` 精确，`startTime`/`endTime` 按 `timestamp` 列圈区间（`@TimeRange` 校验起始 ≤ 截止）；排序走 `PageUtils.toOrderBy` 字段白名单，默认 `timestamp desc`。端点由全局 `me.auth.enforce-login` 强制登录保护，未单独加角色闸。
 
 ### 配置
 

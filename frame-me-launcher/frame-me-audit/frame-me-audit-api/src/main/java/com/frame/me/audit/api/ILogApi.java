@@ -28,7 +28,7 @@ import java.util.List;
 @HttpExchange("/api/log")
 public interface ILogApi {
 
-    @Operation(summary = "查询列表", description = "按条件搜索审计日志列表（不分页，按事件发生时间倒序）")
+    @Operation(summary = "查询列表", description = "按条件搜索审计日志列表（不分页，按事件发生时间倒序，硬上限 1000 条，更大批量请用分页查询）")
     @GetExchange("/list")
     IResult<List<LogVO>> list(@Valid @QueryMap LogQuery query);
 
