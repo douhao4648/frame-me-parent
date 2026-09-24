@@ -502,6 +502,26 @@ class SsoAuthFlowTest {
     }
 
     /**
+     * 禁用旁路回归：经普通更新接口（PUT/POST update）把状态置为 DISABLED，
+     * 与专用禁用接口同一安全语义——联动踢出该应用全部存量会话，已颁发 token 立即 401.
+     */
+    @Test
+    void updateAppDisableAlsoRevokesIssuedTokens() {
+        AppEntity app = appService.register("普通更新禁用应用", AccessType.INTERNAL,
+                List.of(CALLBACK), "openid");
+        String userToken = exchangeUserToken(app);
+        assertThat(userinfoCode(userToken)).isEqualTo(200);
+
+        String admin = login("alice", "123456");
+        Map<String, Object> res = postForMap("/api/apps/" + app.getAppId(),
+                Map.of("status", "DISABLED"), admin);
+        assertThat(res.get("code")).isEqualTo(200);
+
+        // 禁用后存量 token 立即失效（不再等自然过期）
+        assertThat(userinfoCode(userToken)).isEqualTo(401);
+    }
+
+    /**
      * 用户 CRUD 全生命周期：创建（VO 无密码字段）→ 重复账号拒绝 → 详情/列表 →
      * 更新 name/roles → 删除（逻辑删 + 踢会话）→ 详情报错、账号不可再登录.
      */

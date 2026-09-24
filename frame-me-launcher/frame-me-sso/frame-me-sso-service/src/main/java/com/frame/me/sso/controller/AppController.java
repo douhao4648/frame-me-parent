@@ -7,6 +7,7 @@ import com.frame.me.sso.api.IAppApi;
 import com.frame.me.sso.api.dto.AppRegisterDTO;
 import com.frame.me.sso.api.dto.AppUpdateDTO;
 import com.frame.me.sso.api.enums.AccessType;
+import com.frame.me.sso.api.enums.AppStatus;
 import com.frame.me.sso.api.vo.AppVO;
 import com.frame.me.sso.entity.AppEntity;
 import com.frame.me.sso.infrastructure.satoken.SsoStpUtil;
@@ -58,6 +59,9 @@ public class AppController implements IAppApi {
 
     /**
      * 更新应用.
+     *
+     * <p>经本接口把状态置为 DISABLED 时与 {@link #disableApp} 同一安全语义：
+     * 联动踢出该应用全部存量会话，避免"禁用"存在两种生效强度.</p>
      */
     @SaCheckRole(value = "admin", type = SsoStpUtil.TYPE)
     @Override
@@ -72,10 +76,16 @@ public class AppController implements IAppApi {
         if (app.getScopes() != null) {
             entity.setScopes(app.getScopes());
         }
+        boolean newlyDisabled = app.getStatus() != null
+                && AppStatus.DISABLED.name().equals(app.getStatus())
+                && !AppStatus.DISABLED.name().equals(entity.getStatus());
         if (app.getStatus() != null) {
             entity.setStatus(app.getStatus());
         }
         appService.update(entity);
+        if (newlyDisabled) {
+            logoutService.logoutByApp(appId, "app-disabled");
+        }
         return Result.success(true);
     }
 

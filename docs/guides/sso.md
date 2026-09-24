@@ -259,7 +259,7 @@ SSO 踢人时通过事件桥接发布 `UserLogoutEvent`（type=`sso:user-logout`
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | `/api/apps/` | 注册应用（`@Valid`：appName 非空、accessType 仅 INTERNAL/EXTERNAL、redirectUris 非空） |
-| POST | `/api/apps/{appId}` | 更新应用（`@Valid`：status 仅 ACTIVE/DISABLED，null 表示不更新） |
+| POST | `/api/apps/{appId}` | 更新应用（`@Valid`：status 仅 ACTIVE/DISABLED，null 表示不更新；置 DISABLED 与专用禁用接口同一语义——联动踢出全部存量会话） |
 | POST | `/api/apps/{appId}/reset-secret` | 重置 EXTERNAL 密钥 |
 | POST | `/api/apps/{appId}/disable` | 禁用应用（**禁用即生效**：联动踢出该应用全部存量会话） |
 | POST | `/api/apps/{appId}/logout` | 按应用踢人（注销该 appId 全部会话：用户 token + 应用 token，发档3事件 userId=null） |
