@@ -10,6 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -30,10 +31,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>使用 Testcontainers 启动 Redis，验证 {@link RedissonLock} 的可重入锁、
  * 互斥性与并发竞争行为。</p>
+ *
+ * <p>测试 profile 全局关闭 Redis（{@code me.redis.enabled=false}，防并发 JVM 共享本机
+ * Redis 互踩），本类作为 Redis 专项测试类级重新开启，地址由 Testcontainers 注入.</p>
  */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
+@TestPropertySource(properties = "me.redis.enabled=true")
 class RedissonLockTest {
 
     @Autowired

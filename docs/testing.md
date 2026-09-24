@@ -23,11 +23,8 @@ rg --files -g '*Test.java' | sort
 - `DefaultConfigurationStartupTest`：不激活 profile，验证默认配置无需 MySQL / Redis 即可启动。
 - `HealthControllerIntegrationTest`：验证 `/api/health` 可匿名访问并正常返回 `UP`；下线状态由 cloud 模块测试覆盖。
 - `AbstractIntegrationTest`：Testcontainers + MySQL 集成测试基类。
-- `DemoMapperIntegrationTest`：覆盖插入/自动填充、查询、乐观锁、逻辑删除、分页。
-- `MybatisPlusCrudAndFillTest`：覆盖 CRUD 与自动填充。
-- `MybatisPlusLogicDeleteTest`：覆盖逻辑删除行为。
-- `MybatisPlusOptimisticLockTest`：覆盖乐观锁版本递增与冲突。
-- `MybatisPlusPaginationTest`：覆盖分页插件与条件分页。
+
+> MyBatis-Plus 集成测试已随 tester 迁移到 MyBatis-Flex 而移除（两个 starter 互斥，见 `docs/conventions.md`），当前 `frame-me-starter-mybatis-plus` 无集成测试；MyBatis-Flex 侧由 `FlexMultiDataSourceTest` / `FlexDemoServiceImplTest` 覆盖。如需恢复 MyBatis-Plus 覆盖，应在 `frame-me-starter-mybatis-plus` 模块内新建测试，而非加回 tester-service。
 
 `frame-me-starter-base` 包含 `EnvironmentHelperTest`、`SnowflakeUtilsTest` 等基础单元测试，以及 `PoolingRestClientAutoConfigurationTest`——验证池化 HTTP 客户端配置（观测某个调用用了哪个池：飞行途中断言共享 `PoolingHttpClientConnectionManager.getTotalStats().getLeased()`；并覆盖 `me.restclient.pool.*` / `spring.http.clients.*` / `spring.http.serviceclient.<group>.*` 三层配置叠加）。
 
@@ -45,7 +42,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw tes
 
 Maven 会按 reactor 顺序编译并执行各模块自身的测试。
 
-如果本地没有 Docker，`DemoMapperIntegrationTest` 中的测试会自动跳过，`ApplicationTests` 仍会正常执行。
+如果本地没有 Docker，Testcontainers 集成测试（如 `FlexMultiDataSourceTest`）会自动跳过，`ApplicationTests` 仍会正常执行。
 
 ### 运行单个测试类
 
@@ -152,12 +149,8 @@ curl http://localhost:9090/api/health
 | `AbstractIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java` | 测试基类，负责启动 MySQL 容器并注入数据源配置 |
 | `JwtAuthEndToEndTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/JwtAuthEndToEndTest.java` | 覆盖 JWT 登录/刷新/当前用户/登出 |
 | `PermissionIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/PermissionIntegrationTest.java` | 覆盖 `@RequireAuth` 注解权限与 Filter 路径规则 |
-| `DemoMapperIntegrationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java` | 覆盖插入/自动填充、查询、乐观锁、逻辑删除、分页 |
+| `DemoMapperIntegrationTest` | — | 已移除：tester 迁移到 MyBatis-Flex 后删除（原为全注释死代码），MyBatis-Plus 当前无集成测试 |
 | `FlexMultiDataSourceTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/flex/FlexMultiDataSourceTest.java` | 演示 MyBatis-Flex + dynamic-ds 多数据源切换 |
-| `MybatisPlusCrudAndFillTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java` | 覆盖 CRUD 与自动填充 |
-| `MybatisPlusLogicDeleteTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java` | 覆盖逻辑删除 |
-| `MybatisPlusOptimisticLockTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java` | 覆盖乐观锁 |
-| `MybatisPlusPaginationTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java` | 覆盖分页插件 |
 | `DemoServiceCacheTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java` | 演示 JetCache 两级缓存集成测试 |
 | `JasyptEncryptTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java` | 演示 Jasypt 配置加密解密测试 |
 | `UserCreatedEventFlowTest` | `frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java` | 演示事件桥接端到端测试 |
@@ -174,7 +167,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=DemoMapperIntegrationTest
+  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=FlexMultiDataSourceTest
 ```
 
 ### 技术说明

@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -29,11 +30,15 @@ import static org.awaitility.Awaitility.await;
  *
  * <p>使用 Testcontainers 启动 Redis，验证事件桥接的发布-订阅-本地消费完整链路。</p>
  *
+ * <p>测试 profile 全局关闭 Redis（{@code me.redis.enabled=false}，防并发 JVM 共享本机
+ * Redis 互踩），本类作为 Redis 专项测试类级重新开启，地址由 Testcontainers 注入.</p>
+ *
  * @author frame-me
  */
 @SpringBootTest
 @Testcontainers
 @ActiveProfiles("test")
+@TestPropertySource(properties = "me.redis.enabled=true")
 @Import(UserCreatedEventConfiguration.class)
 class UserCreatedEventFlowTest {
 

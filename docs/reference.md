@@ -207,11 +207,6 @@
 | `PermissionIntegrationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/PermissionIntegrationTest.java` |
 | `FlexMultiDataSourceTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/flex/FlexMultiDataSourceTest.java` |
 | `FlexDemoServiceImplTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/service/impl/FlexDemoServiceImplTest.java` |
-| `DemoMapperIntegrationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java` |
-| `MybatisPlusCrudAndFillTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java` |
-| `MybatisPlusLogicDeleteTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java` |
-| `MybatisPlusOptimisticLockTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java` |
-| `MybatisPlusPaginationTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java` |
 | `DemoServiceCacheTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java` |
 | `JasyptEncryptTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java` |
 | `UserCreatedEventFlowTest` | `/Users/douhao4648/Documents/Frame_Me/frame-me-parent/frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java` |

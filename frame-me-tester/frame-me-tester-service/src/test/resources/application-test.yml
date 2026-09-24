@@ -42,7 +42,12 @@ mybatis-flex:
 
 me:
   redis:
-    enabled: true
+    # 测试全局关闭 Redis：避免并发测试 JVM 共享本机 Redis 互踩（auth:refresh:<userId>
+    # 固定 key 被另一进程覆盖/删除，刷新接口 200 变 4001）。关闭后 auth-jwt 回退内存
+    # token store、auth-rbac 回退配置规则源、RedisController 条件退避；Redis 专项测试
+    # （RedissonLockTest、UserCreatedEventFlowTest）用类级 TestPropertySource 单独开启
+    # 并指向各自的 Testcontainers 实例
+    enabled: false
   auth:
     login-rate-limit:
       enabled: false
