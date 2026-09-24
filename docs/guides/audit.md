@@ -82,7 +82,7 @@ public OrderUpdateResult updateOrderStatus(Long orderId, String status) { ... }
 - 非审计服务收到消息后，因 `targetService` 不匹配而忽略，避免重复落库。
 - **审计中心（接收侧）需显式启用订阅**：在启动类或任意配置类加 `@Import(AuditLogEventConfiguration.class)`（`com.frame.me.op.audit`），注册 `AuditLogEventType` 后 `EventBridgeListener` 才会订阅 `audit:op-log` 通道并还原消息。该配置刻意不随自动装配生效——发送侧经 `EventBridgePublisher` 直发不查注册表，自动注册只会让无关服务白订阅通道。
 - 审计服务还原 `AuditLogEvent` 后，可自定义 `@EventListener` 或持久化监听器写入数据库/ES。
-- **多实例去重**：audit 多实例部署时，同一 Pub/Sub 广播会被每个在线实例收到。`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），全局只入库一次。**锁不主动释放**，靠 TTL（30s）覆盖各实例广播副本先后到达的窗口；Redis 故障降级放行时可能重复入库。`eventId` 由事件层 `AbstractMeApplicationEvent` 提供（缺省 UUID，业务可自定义）。
+- **多实例去重（两层）**：audit 多实例部署时，同一 Pub/Sub 广播会被每个在线实例收到。第一层：`LogEventListener` 以 `event.getEventId()` 为 key 加 Redis 分布式锁（`audit:log:dedup:<eventId>`），**锁不主动释放**、靠 TTL（30s）覆盖各实例广播副本先后到达的窗口，作用是减少重复写压力；第二层：`audit_log.event_id` **唯一约束**兜底——锁窗口外重放、Redis 故障降级放行产生的重复 insert 被唯一冲突拦截并视为去重成功（debug 级日志，不上抛）。`eventId` 由事件层 `AbstractMeApplicationEvent` 提供（缺省 UUID，业务可自定义），旧链路无 eventId 时落 `NULL`（唯一索引允许多个 NULL）。存量表迁移见下方 schema.sql 注释。
 
 ```java
 @Component
@@ -159,7 +159,7 @@ public class AuditLogPersistenceHandler {
 
 ### 持久化实体
 
-`LogEntity extends BaseEntity`，`@Table("audit_log")`，字段映射 `AuditLogRecord`（action/category/description/operatorId/targetId/params/result/success/errorMsg/durationMs/timestamp/sourceService/targetService）。
+`LogEntity extends BaseEntity`，`@Table("audit_log")`，字段映射 `AuditLogRecord`（action/category/description/operatorId/targetId/params/result/success/errorMsg/durationMs/timestamp/sourceService/targetService）外加 `eventId`（事件幂等标识，唯一约束兜底去重）。
 
 ### 管理查询接口
 

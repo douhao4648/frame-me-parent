@@ -1148,17 +1148,17 @@ public class AlertService {
 | `frame-me-starter-mybatis-plus` | `frame-me-api` |
 | `frame-me-starter-mybatis-flex` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-adapter-api` | `frame-me-api` |
-| `frame-me-adapter-starter` | `frame-me-adapter-api`、`frame-me-starter-base` |
+| `frame-me-adapter-starter` | `frame-me-adapter-api`、`frame-me-starter-base`（`frame-me-starter-mybatis-plus` optional，`PageableUtils` 需要） |
 | `frame-me-starter-dynamic-ds` | `frame-me-starter-base` |
 | `frame-me-starter-doc-openapi` | `spring-boot-autoconfigure`（框架依赖） |
-| `frame-me-starter-auth` | `frame-me-starter-base` |
+| `frame-me-starter-auth` | `frame-me-starter-base`、`spring-security-crypto`（`frame-me-starter-op-audit`、`spring-cloud-commons` optional） |
 | `frame-me-starter-auth-rbac` | `frame-me-starter-auth`、`caffeine`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-auth-jwt` | `frame-me-starter-auth`、`jjwt-api`/`jjwt-impl`/`jjwt-gson`、`spring-security-crypto`（`frame-me-starter-multi-redis`、`frame-me-starter-op-audit` optional） |
 | `frame-me-starter-auth-sa-token` | `frame-me-starter-auth`、`sa-token-spring-boot4-starter`、`fastjson2`、`spring-security-crypto`（`frame-me-starter-multi-redis`、`frame-me-starter-op-audit` optional） |
 | `frame-me-starter-cloud` | `spring-boot-starter-actuator`、`spring-cloud-context`、`spring-cloud-commons`（`frame-me-starter-sensi-encrypt` optional；不依赖 `frame-me-starter-base`） |
 | `frame-me-starter-cloud-nacos` | `frame-me-starter-cloud`、`spring-cloud-starter-alibaba-nacos-config`、`spring-cloud-starter-alibaba-nacos-discovery` |
-| `frame-me-starter-sse-mvc` | `frame-me-api` |
-| `frame-me-starter-ws-mvc` | `frame-me-api` |
+| `frame-me-starter-sse-mvc` | `frame-me-starter-base`、`spring-boot-starter-web`、`fastjson2` |
+| `frame-me-starter-ws-mvc` | `frame-me-starter-base`、`spring-boot-starter-websocket`、`fastjson2` |
 | `frame-me-starter-op-audit` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-starter-msg-notify` | `frame-me-api`、`frame-me-starter-base` |
 | `frame-me-boot` | `frame-me-starter-auth`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify` |
@@ -1248,7 +1248,7 @@ public class AlertService {
 | `SsoLogoutEventListener` | `sso-starter/auth/SsoLogoutEventListener`（已搬到 `frame-me-sso-starter`） | `@EventListener(UserLogoutEvent)`：调 `IAuthService.logoutByUserId(userId)` 清本地会话——走 SPI，sa-token 清 sa-token 会话，JWT 删 Refresh Token，两套认证实现通用 |
 | `LogEntity` | `audit/entity/LogEntity` | `@Table("audit_log") extends BaseEntity`，字段映射 `AuditLogRecord` |
 | `LogMapper` | `audit/mapper/LogMapper` | `@Mapper extends BaseMapper<LogEntity>`；`getById` 走 `resources/mapper/LogMapper.xml` 自定义 SQL（详情查询统一走 XML） |
-| `LogEventListener` | `audit/service/listener/LogEventListener` | `@EventListener(AuditLogEvent)`：取 record 写 `audit_log` 表；**多实例去重**以 `event.getEventId()` 为 key 加 Redis 锁（`audit:log:dedup:<eventId>`）全局只入库一次，锁不主动释放靠 TTL(30s)覆盖各实例广播副本到达窗口，Redis 故障降级放行时可能重复；失败不阻断事件链路 |
+| `LogEventListener` | `audit/service/listener/LogEventListener` | `@EventListener(AuditLogEvent)`：取 record 写 `audit_log` 表（含 `eventId`）；**两层去重**——Redis 锁（`audit:log:dedup:<eventId>`，不主动释放、TTL 30s 覆盖广播副本窗口）减压 + `audit_log.event_id` 唯一约束兜底（窗口外重放/Redis 降级重复的 insert 冲突视为去重成功）；失败不阻断事件链路 |
 | `ILogApi` | `audit-api/ILogApi` | 审计日志管理查询契约（`@HttpExchange("/api/log")`）：`/list`（硬上限 1000 条）、`/page`、`/{id}`，均收 `@QueryMap LogQuery`（action/operatorId/description 模糊，category/sourceService/success 精确，startTime/endTime 按 timestamp 圈区间，`@TimeRange` 校验） |
 | `LogController` | `audit/controller/LogController` | 实现 `ILogApi`，全局 `me.auth.enforce-login` 强制登录保护 |
 | `LogServiceImpl` | `audit/service/impl/LogServiceImpl` | `QueryWrapper` + `LogEntityTableDef` 类型安全拼条件，默认 `timestamp desc` 排序（`PageUtils.toOrderBy` 白名单） |
@@ -1264,6 +1264,7 @@ public class AlertService {
 | `me.sso.client.app-id` | — | audit 在 SSO 注册的应用 ID |
 | `me.sso.client.app-secret` | — | 应用密钥（支持 `ME(密文)` 加密） |
 | `me.sso.client.redirect-uri` | — | 授权码回调地址 |
+| `me.sso.client.cookie-secure` | `true` | nonce Cookie 是否带 `Secure`（防 HTTP 明文传输/中间人覆写；localhost 属可信源不影响本地开发，仅纯 HTTP 域名对内服务时关闭） |
 | `spring.http.serviceclient.sso.base-url` | — | SSO 服务地址（HTTP Interface group=`sso` 的 baseUrl） |
 | `me.audit.target-service` | `frame-me-audit` | 自身审计事件定向发给自己 |
 

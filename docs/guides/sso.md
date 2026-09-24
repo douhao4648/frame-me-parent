@@ -33,7 +33,7 @@ SSO 颁发的是 **sa-token 不透明 token**（非 JWT），带 **app 维度 + 
 - 下游不自己验 token，调 `/userinfo` 由 SSO 代劳验证 + 返回用户信息
 - 无 JWT、无公钥私钥、无 jjwt 依赖
 
-> **安全基线**：`authorize` 强制校验 redirectUri 白名单与 scope 白名单（请求 scope 须 ⊆ 应用注册 scopes）；`state` 原样回显，防登录 CSRF 由 RP 侧负责——`frame-me-sso-starter` 内置 `/sso-authorize` 发起端点签发高熵一次性 state（32 字节 SecureRandom，存 Redis + Cookie nonce 绑定浏览器，10 分钟过期，回调 GETDEL 原子消费 + nonce 比对，伪造/过期/重放/跨浏览器一律拒绝，集群多节点任意节点可消费），手写接入的下游必须自签自验 state；授权码一次性（Redis GETDEL 原子消费，60s 过期）；登录页 `/sso-login.html` 在 `me.auth.whitelist` 中匿名放行，且登录成功后的回跳地址仅允许站内相对路径（防 open redirect）。**管理端点（`/api/apps/**`、踢人、用户 CRUD）加设备闸**（`DefaultDeviceInterceptor`）：仅接受默认设备会话（deviceType=DEF，即 SSO 登录会话），SSO 下发的应用 token（deviceType=appId）即使放入 satoken 头也 403，堵住"窄钥匙开管理门"；匿名请求直接放行（`@Anonymous` 端点自验 token，受保护端点由 `@SaCheckRole` 拦 401）。开关与拦截路径可配：`me.sso.device-gate.enabled`（默认开）、`me.sso.device-gate.path-patterns`（默认 `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**`）。
+> **安全基线**：`authorize` 强制校验 redirectUri 白名单与 scope 白名单（请求 scope 须 ⊆ 应用注册 scopes）；`state` 原样回显，防登录 CSRF 由 RP 侧负责——`frame-me-sso-starter` 内置 `/sso-authorize` 发起端点签发高熵一次性 state（32 字节 SecureRandom，存 Redis + Cookie nonce 绑定浏览器，10 分钟过期，回调 GETDEL 原子消费 + nonce 比对，伪造/过期/重放/跨浏览器一律拒绝，集群多节点任意节点可消费），手写接入的下游必须自签自验 state；授权码一次性（Redis GETDEL 原子消费，60s 过期），授权码与应用密钥均为 256 位 SecureRandom 生成（禁用 Hutool fastSimpleUUID 等非密码学随机源）；登录页 `/sso-login.html` 在 `me.auth.whitelist` 中匿名放行，且登录成功后的回跳地址仅允许站内相对路径（防 open redirect）。**管理端点（`/api/apps/**`、踢人、用户 CRUD）加设备闸**（`DefaultDeviceInterceptor`）：仅接受默认设备会话（deviceType=DEF，即 SSO 登录会话），SSO 下发的应用 token（deviceType=appId）即使放入 satoken 头也 403，堵住"窄钥匙开管理门"；匿名请求直接放行（`@Anonymous` 端点自验 token，受保护端点由 `@SaCheckRole` 拦 401）。开关与拦截路径可配：`me.sso.device-gate.enabled`（默认开）、`me.sso.device-gate.path-patterns`（默认 `/api/apps/**`、`/api/auth/*/logout`、`/api/users/**`）。
 
 > **边界**：/userinfo 不校验 token 的 app 受众（不透明 token 模式下 deviceType 校验链路重，且 /userinfo 只返基础信息风险可控）。演进 OIDC 时 JWT 的 `aud` claim 天然解决受众校验。
 
@@ -178,7 +178,7 @@ SSO 颁发的 token 在下游只用于"调 /userinfo 取用户信息建 session"
 
 ## 回调落地：两种方式
 
-authorize 回调带 code 回到下游后，starter 提供两种落地方式（均由 `SsoLoginFlowController` 提供），按前端形态二选一（`me.sso.client.redirect-uri` 配哪个端点就走哪种）。无论哪种方式，**登录一律从 `GET /sso-authorize?target=<站内地址>` 发起**：starter 在此签发高熵一次性 state 写入 Redis（key `sso:login:state:{state}`，value 含 target 与 nonce）并种 HttpOnly Cookie 绑定 nonce（`SsoStateStore`）；两个回调端点都 GETDEL 原子消费 state 并比对 nonce Cookie——伪造、过期（默认 10 分钟，`me.sso.client.state-ttl`）、重放、跨浏览器一律拒绝（4001），防登录 CSRF 与会话置换。不依赖 HttpSession，集群多节点任意节点均可消费。
+authorize 回调带 code 回到下游后，starter 提供两种落地方式（均由 `SsoLoginFlowController` 提供），按前端形态二选一（`me.sso.client.redirect-uri` 配哪个端点就走哪种）。无论哪种方式，**登录一律从 `GET /sso-authorize?target=<站内地址>` 发起**：starter 在此签发高熵一次性 state 写入 Redis（key `sso:login:state:{state}`，value 含 target 与 nonce）并种 HttpOnly+SameSite=Lax+Secure Cookie 绑定 nonce（`SsoStateStore`；Secure 默认开，纯 HTTP 对内部署可 `me.sso.client.cookie-secure=false` 关闭，localhost 可信源不受影响）；两个回调端点都 GETDEL 原子消费 state 并比对 nonce Cookie——伪造、过期（默认 10 分钟，`me.sso.client.state-ttl`）、重放、跨浏览器一律拒绝（4001），防登录 CSRF 与会话置换。不依赖 HttpSession，集群多节点任意节点均可消费。
 
 ### 方式 A：hash 落地页 + 前端换会话（SPA 默认）
 
