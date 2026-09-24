@@ -91,7 +91,9 @@ public final class PageUtils {
      */
     public static int pageNumber(PageQuery query) {
         long current = query.getCurrent() == null || query.getCurrent() < 1 ? 1 : query.getCurrent();
-        return (int) current;
+        // 饱和转换：超出 int 范围的页码钳到 Integer.MAX_VALUE（分页语义=超出末页返回空记录），
+        // 直接 (int) 强转会回绕成负数（潜在 500）或错误正页码（静默错页）
+        return (int) Math.min(current, Integer.MAX_VALUE);
     }
 
     public static int pageSize(PageQuery query) {
