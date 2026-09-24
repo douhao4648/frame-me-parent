@@ -33,10 +33,14 @@ public class AuthCodeServiceImpl implements IAuthCodeService {
      * 签发授权码.
      *
      * <p>value 用 JSON 序列化：scopes/redirectUri 用户可控，":" 等分隔符拼接会被注入错位.</p>
+     *
+     * <p>授权码是 bearer 凭证，必须 CSPRNG：{@code simpleUUID}（Hutool 非 fast 版）底层是
+     * {@link java.security.SecureRandom}；{@code fastSimpleUUID} 是 ThreadLocalRandom，
+     * 输出可被外部观测序列推导，禁止用于安全凭证。两段拼接取 256 位熵（hex 天然 URL-safe）.</p>
      */
     @Override
     public String issue(String appId, Long userId, String scopes, String redirectUri) {
-        String code = IdUtil.fastSimpleUUID();
+        String code = IdUtil.simpleUUID() + IdUtil.simpleUUID();
         Duration expires = properties.getAuthCode().getExpires();
         String key = SsoConstant.AUTH_CODE_KEY_PREFIX + code;
         CodePayload payload = new CodePayload();

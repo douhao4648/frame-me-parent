@@ -165,8 +165,13 @@ public class AppServiceImpl implements IAppService {
         return accessType.name().toLowerCase() + "-" + IdUtil.fastSimpleUUID().substring(0, 8);
     }
 
+    /**
+     * 应用密钥（client secret，bearer 凭证）必须 CSPRNG：{@code simpleUUID}（Hutool 非
+     * fast 版）底层是 {@link java.security.SecureRandom}；{@code fastSimpleUUID} 是
+     * ThreadLocalRandom，输出可被外部观测序列推导，禁止用于安全凭证。两段拼接取 256 位熵.
+     */
     private String generateSecret() {
-        return IdUtil.fastSimpleUUID() + IdUtil.fastSimpleUUID();
+        return IdUtil.simpleUUID() + IdUtil.simpleUUID();
     }
 
     /**
