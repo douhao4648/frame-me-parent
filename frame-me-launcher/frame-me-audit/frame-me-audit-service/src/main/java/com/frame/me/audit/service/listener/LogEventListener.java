@@ -8,6 +8,7 @@ import com.frame.me.redis.util.RedissonLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -21,10 +22,12 @@ import java.time.ZoneId;
  * 通道，把跨服务广播的审计事件还原为本地 {@link AuditLogEvent}。本处理器收到后
  * 取 {@link AuditLogRecord} 写入 {@code audit_log} 表。</p>
  *
- * <p><b>多实例去重</b>：audit 多实例部署时，同一广播事件会被每个实例收到。
- * 以 {@link AuditLogEvent#getEventId()} 为 key 加 Redis 分布式锁
- * （{@code audit:log:dedup:<eventId>}），全局只入库一次。Redis 故障降级放行
- * （审计是旁路，宁可重复不可丢失）；锁 waitMs=0 不阻塞，leaseMs=30s。</p>
+ * <p><b>多实例去重（两层）</b>：audit 多实例部署时，同一广播事件会被每个实例收到。
+ * 第一层以 {@link AuditLogEvent#getEventId()} 为 key 加 Redis 分布式锁
+ * （{@code audit:log:dedup:<eventId>}），在 30s 广播副本到达窗口内只入库一次，
+ * 作用是减少重复写压力；第二层是 {@code audit_log.event_id} 唯一约束兜底——
+ * 锁窗口外重放、Redis 故障降级放行产生的重复 insert 被唯一冲突拦截，视为去重成功。
+ * 锁 waitMs=0 不阻塞，leaseMs=30s。</p>
  *
  * <p><b>锁不主动释放</b>：insert 完后<b>不</b> unlock，靠 leaseMs=30s 自动过期。
  * 这样同一 Pub/Sub 广播被多个在线审计实例收到时，在 TTL 窗口内只有一个实例可以入库。
@@ -50,8 +53,8 @@ public class LogEventListener {
     public void onAuditLog(AuditLogEvent event) {
         String eventId = event.getEventId();
         if (eventId == null || eventId.isBlank()) {
-            // 兼容旧链路无 eventId：直接入库（去重降级）
-            persist(event.getRecord());
+            // 兼容旧链路无 eventId：直接入库（去重降级；event_id 唯一索引允许多个 NULL）
+            persist(null, event.getRecord());
             return;
         }
         String lockKey = LOCK_KEY_PREFIX + eventId;
@@ -69,16 +72,22 @@ public class LogEventListener {
             return;
         }
         // 不主动 unlock：靠 leaseMs=30s 自动过期，覆盖多实例广播副本的到达窗口（见类 Javadoc）
-        persist(event.getRecord());
+        persist(eventId, event.getRecord());
     }
 
     /**
      * 持久化审计记录，失败不阻断事件链路.
+     *
+     * <p>event_id 唯一冲突（锁窗口外重放 / Redis 降级重复）视为去重成功，仅 debug；
+     * 其余异常按旁路原则 error 但不抛出。</p>
      */
-    private void persist(AuditLogRecord record) {
+    private void persist(String eventId, AuditLogRecord record) {
         try {
             LogEntity entity = toEntity(record);
+            entity.setEventId(eventId);
             auditLogMapper.insert(entity);
+        } catch (DuplicateKeyException e) {
+            log.debug("审计日志已入库（唯一约束去重）: eventId={}", eventId);
         } catch (Exception e) {
             log.error("审计日志持久化失败: {}", e.getMessage(), e);
         }

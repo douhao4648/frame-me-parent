@@ -22,6 +22,16 @@ import java.time.LocalDateTime;
 public class LogEntity extends BaseEntity {
 
     /**
+     * 事件幂等标识（{@code AbstractMeApplicationEvent.eventId}）.
+     *
+     * <p>数据库唯一约束兜底去重：Redis 锁只覆盖 30s 广播副本窗口，窗口外重放
+     * 与 Redis 故障降级重复由该约束拦截。旧链路无 eventId 时为 {@code null}
+     * （唯一索引允许多个 NULL，互不冲突）。</p>
+     */
+    @Column
+    private String eventId;
+
+    /**
      * 操作动作.
      */
     @Column
