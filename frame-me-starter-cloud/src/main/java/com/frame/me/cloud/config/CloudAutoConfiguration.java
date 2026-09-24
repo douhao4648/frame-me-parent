@@ -36,9 +36,14 @@ import org.springframework.core.env.EnumerablePropertySource;
  * <p>同时注册 {@link CloudCommonsInfrastructureRoleFixer} 以消除 spring-cloud-commons
  * 内部配置类的 BeanPostProcessor 警告。</p>
  *
+ * <p>必须声明在 sensi-encrypt 之后装配（afterName）：{@link RefreshDecryptAutoConfiguration}
+ * 的 {@code @ConditionalOnBean(StringEncryptor.class)} 只能看到先处理的自动配置注册的 Bean，
+ * 不声明顺序时按类名序 cloud 先于 encrypt 处理，监听器永远装配不上。用 afterName 字符串
+ * 而非类引用，避免主配置类引用 optional 依赖类型。</p>
+ *
  * @author frame-me
  */
-@AutoConfiguration
+@AutoConfiguration(afterName = "com.frame.me.encrypt.config.EncryptAutoConfiguration")
 @EnableConfigurationProperties(GracefulShutdownProperties.class)
 @Import(CloudCommonsInfrastructureRoleFixer.class)
 public class CloudAutoConfiguration {

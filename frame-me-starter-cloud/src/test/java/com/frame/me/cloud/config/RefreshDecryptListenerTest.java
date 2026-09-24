@@ -113,6 +113,25 @@ class RefreshDecryptListenerTest {
     }
 
     /**
+     * 真实装配链路：StringEncryptor 由 sensi-encrypt 的 EncryptAutoConfiguration 注册，
+     * 而非手工注入。两个自动配置按真实排序（类名序 cloud 在 encrypt 前）装配时，
+     * 监听器仍须注册——否则运行时刷新后的密文不会被重新解密.
+     */
+    @Test
+    void listenerAssembledWithRealEncryptAutoConfiguration() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        CloudAutoConfiguration.class,
+                        com.frame.me.encrypt.config.EncryptAutoConfiguration.class))
+                .withPropertyValues("me.encrypt.password=" + PASSWORD)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(StringEncryptor.class);
+                    assertThat(context).hasBean("refreshDecryptListener");
+                });
+    }
+
+    /**
      * 未配主密码（无 StringEncryptor Bean）时，CloudAutoConfiguration.RefreshDecryptAutoConfiguration
      * 不装配，刷新后含密文源不会被解密.
      */
