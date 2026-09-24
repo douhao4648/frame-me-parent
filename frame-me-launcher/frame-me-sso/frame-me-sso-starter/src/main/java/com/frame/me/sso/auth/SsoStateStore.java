@@ -80,10 +80,13 @@ public class SsoStateStore {
         return COOKIE_PREFIX + state.substring(0, COOKIE_NAME_STATE_CHARS);
     }
 
-    /** jakarta Cookie 不支持 SameSite，手写 Set-Cookie 头；Secure 交由 HTTPS 部署自行加网关层保证. */
+    /** jakarta Cookie 不支持 SameSite，手写 Set-Cookie 头；Secure 由 {@code me.sso.client.cookie-secure} 控制（默认开，localhost 可信源不影响本地开发）. */
     private void writeCookie(HttpServletResponse response, String name, String value, int maxAgeSeconds) {
-        response.addHeader(HttpHeaders.SET_COOKIE,
-                name + "=" + value + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + maxAgeSeconds);
+        String cookie = name + "=" + value + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + maxAgeSeconds;
+        if (properties.isCookieSecure()) {
+            cookie += "; Secure";
+        }
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie);
     }
 
     private String readCookie(HttpServletRequest request, String name) {

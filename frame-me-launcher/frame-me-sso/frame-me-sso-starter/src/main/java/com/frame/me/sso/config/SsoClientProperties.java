@@ -82,6 +82,15 @@ public class SsoClientProperties {
     private Duration stateTtl = Duration.ofMinutes(10);
 
     /**
+     * nonce Cookie 是否带 {@code Secure} 属性，默认 true.
+     *
+     * <p>{@code Secure} 阻止 Cookie 经 HTTP 明文传输或被中间人覆写，是防登录 CSRF
+     * 的最后一环。localhost 属浏览器可信源，本地 HTTP 开发不受影响；仅当下游确实
+     * 以纯 HTTP 域名对内提供服务时才显式关闭。</p>
+     */
+    private boolean cookieSecure = true;
+
+    /**
      * client_credentials 应用 token 的本地缓存时长，默认 1 小时.
      *
      * <p>应用 token 由 {@code SsoAuthService#getAppToken} 缓存复用，过期后自动重取。

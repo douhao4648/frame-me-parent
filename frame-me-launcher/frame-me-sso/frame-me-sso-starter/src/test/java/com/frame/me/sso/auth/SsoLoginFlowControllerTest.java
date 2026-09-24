@@ -188,7 +188,7 @@ class SsoLoginFlowControllerTest {
         String state = UriComponentsBuilder.fromUriString(started.getResponse().getRedirectedUrl())
                 .build().getQueryParams().getFirst("state");
         String setCookie = started.getResponse().getHeader(HttpHeaders.SET_COOKIE);
-        assertThat(setCookie).contains("HttpOnly").contains("SameSite=Lax");
+        assertThat(setCookie).contains("HttpOnly").contains("SameSite=Lax").contains("Secure");
         Cookie nonceCookie = parseSetCookie(setCookie);
         assertThat(nonceCookie.getName()).startsWith("sso_sn_" + state.substring(0, 8));
 
@@ -200,6 +200,19 @@ class SsoLoginFlowControllerTest {
                 .andExpect(header().string("Location", "/dashboard"));
 
         verify(ssoAuthService).ssoLogin("http-code");
+    }
+
+    /** 纯 HTTP 对内部署可显式关闭 Secure；默认开启由 {@link #httpFlow_issuesStateWithNonceCookieAndConsumesBoth} 锁定. */
+    @Test
+    void authorize_omitsSecureAttributeWhenCookieSecureDisabled() {
+        properties.setCookieSecure(false);
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        controller.authorize("/dashboard", "openid", response);
+
+        assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
+                .contains("HttpOnly").contains("SameSite=Lax")
+                .doesNotContain("Secure");
     }
 
     /** 走一遍发起流程，返回签发的 state 与 nonce Cookie. */
