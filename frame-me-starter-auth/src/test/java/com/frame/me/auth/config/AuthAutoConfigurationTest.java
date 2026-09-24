@@ -199,6 +199,42 @@ class AuthAutoConfigurationTest {
     }
 
     /**
+     * JVM 层机制验证：缺 op-audit 时，对配置类反射枚举方法（getDeclaredMethods，
+     * 真实 Web 应用中 CommonAnnotation/Scheduled 后处理器的标准动作）不得抛
+     * NoClassDefFoundError.
+     *
+     * <p>必须用 child-first 加载器让配置类真正由"缺包的加载器"定义；
+     * 普通 FilteredClassLoader 双亲委派会让配置类回落到父加载器，掩盖问题.</p>
+     */
+    @Test
+    void configClassSurvivesMethodReflectionWithoutOpAudit() throws Exception {
+        ClassLoader classLoader = new ChildFirstNoAuditClassLoader(getClass().getClassLoader());
+        Class<?> configClass = Class.forName("com.frame.me.auth.config.AuthAutoConfiguration", false, classLoader);
+        org.assertj.core.api.Assertions.assertThatCode(configClass::getDeclaredMethods)
+                .doesNotThrowAnyException();
+    }
+
+    /**
+     * op-audit 为 optional 依赖：消费方剔除审计 JAR 后配置类仍须正常装配，
+     * 不装配审计操作人 Bean，也不得抛 NoClassDefFoundError.
+     *
+     * <p>配置类显式经 child-first 缺包加载器加载，模拟真实消费方 classpath 缺包场景
+     * （直接传 Class 字面量或双亲委派 FilteredClassLoader 都会走测试类加载器，掩盖失败）.</p>
+     */
+    @Test
+    void loadsWithoutOpAuditJar() throws Exception {
+        ClassLoader classLoader = new ChildFirstNoAuditClassLoader(getClass().getClassLoader());
+        Class<?> configClass = Class.forName("com.frame.me.auth.config.AuthAutoConfiguration", false, classLoader);
+        runner.withClassLoader(classLoader)
+                .withConfiguration(AutoConfigurations.of(configClass))
+                .withPropertyValues("me.auth.trusted-header.enabled=true")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean("auditAuthOperatorSupplier");
+                });
+    }
+
+    /**
      * 测试基础设施：authFilter 依赖的 MVC 与错误响应写入器 stub.
      */
     @Configuration(proxyBeanMethods = false)
@@ -248,6 +284,53 @@ class AuthAutoConfigurationTest {
         @Override
         public User resolve(HttpServletRequest request) {
             return null;
+        }
+    }
+
+    /**
+     * 模拟"消费方剔除 op-audit"的 child-first 加载器：auth 包类由本加载器定义，
+     * op-audit 包一律视为不存在，其余委托父加载器.
+     */
+    static final class ChildFirstNoAuditClassLoader extends ClassLoader {
+
+        ChildFirstNoAuditClassLoader(ClassLoader parent) {
+            super(parent);
+        }
+
+        @Override
+        protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> loaded = findLoadedClass(name);
+                if (loaded == null) {
+                    if (name.startsWith("com.frame.me.op.audit")) {
+                        throw new ClassNotFoundException(name);
+                    }
+                    if (name.startsWith("com.frame.me.auth")) {
+                        loaded = defineFromParent(name);
+                    }
+                    else {
+                        loaded = super.loadClass(name, false);
+                    }
+                }
+                if (resolve) {
+                    resolveClass(loaded);
+                }
+                return loaded;
+            }
+        }
+
+        private Class<?> defineFromParent(String name) throws ClassNotFoundException {
+            String resource = name.replace('.', '/') + ".class";
+            try (java.io.InputStream in = getParent().getResourceAsStream(resource)) {
+                if (in == null) {
+                    throw new ClassNotFoundException(name);
+                }
+                byte[] bytes = in.readAllBytes();
+                return defineClass(name, bytes, 0, bytes.length);
+            }
+            catch (java.io.IOException e) {
+                throw new ClassNotFoundException(name, e);
+            }
         }
     }
 }

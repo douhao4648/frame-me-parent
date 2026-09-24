@@ -15,7 +15,6 @@ import com.frame.me.base.config.AsyncAutoConfiguration;
 import com.frame.me.base.limit.InMemoryLoginRateLimiter;
 import com.frame.me.base.limit.LoginRateLimiter;
 import com.frame.me.base.web.IFilterErrorResponseWriter;
-import com.frame.me.op.audit.config.AuditAutoConfiguration;
 import com.frame.me.op.audit.spi.IAuditLogOperatorSupplier;
 import jakarta.servlet.Filter;
 import lombok.extern.slf4j.Slf4j;
@@ -57,7 +56,7 @@ import java.util.List;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnProperty(prefix = "me.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(AuthProperties.class)
-@AutoConfigureBefore({AuditAutoConfiguration.class, AsyncAutoConfiguration.class})
+@AutoConfigureBefore(value = AsyncAutoConfiguration.class, name = "com.frame.me.op.audit.config.AuditAutoConfiguration")
 public class AuthAutoConfiguration {
 
     private final AuthProperties properties;
@@ -187,16 +186,6 @@ public class AuthAutoConfiguration {
     }
 
     /**
-     * 审计操作人提供者，从认证上下文获取当前用户 ID.
-     */
-    @Bean
-    @ConditionalOnClass(IAuditLogOperatorSupplier.class)
-    @ConditionalOnMissingBean(IAuditLogOperatorSupplier.class)
-    public IAuditLogOperatorSupplier auditAuthOperatorSupplier() {
-        return new AuditAuthOperatorSupplier();
-    }
-
-    /**
      * 认证信息传播拦截器，用于把当前请求的认证头复制到 {@code @ImportHttpServices} 出站请求.
      */
     @Bean
@@ -235,6 +224,25 @@ public class AuthAutoConfiguration {
     @ConditionalOnProperty(prefix = "me.auth.propagate.async", name = "enabled", havingValue = "true", matchIfMissing = true)
     public AuthContextTaskDecorator authContextTaskDecorator(AuthProperties properties) {
         return new AuthContextTaskDecorator(properties);
+    }
+
+    /**
+     * 审计操作人提供者装配：classpath 存在审计 SPI 时，从认证上下文提供当前用户 ID.
+     *
+     * <p>op-audit 为 optional 依赖，必须隔离在独立嵌套配置中并配合类级条件注解：
+     * 缺包时本类整体不加载；若把返回审计类型的 @Bean 方法直接挂在外层配置类上，
+     * Web 应用后处理器（CommonAnnotation/Scheduled）反射枚举方法时会解析返回类型，
+     * 抛 NoClassDefFoundError 拖垮启动。</p>
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(IAuditLogOperatorSupplier.class)
+    static class AuditOperatorConfiguration {
+
+        @Bean
+        @ConditionalOnMissingBean(IAuditLogOperatorSupplier.class)
+        IAuditLogOperatorSupplier auditAuthOperatorSupplier() {
+            return new AuditAuthOperatorSupplier();
+        }
     }
 
     /**
