@@ -190,19 +190,19 @@ public class AuthController implements IAuthApi {
      * <p>loginId 用 {@code "app:"+appId} 字符串，与用户 token 的数字 userId 区分；
      * 该 token 调 /userinfo 会 401（无对应用户），只应用于机器对机器调用.
      * INTERNAL / EXTERNAL 均强制校验 appSecret（注册时两类型都发密钥）。
-     * 入口按 appId 限流（{@code me.auth.login-rate-limit.*}，默认 5 次/60s），防密钥爆破.</p>
+     * 密钥失败路径按 appId 限流（{@code me.auth.login-rate-limit.*}，默认 5 次/60s），
+     * 只限失败不限成功——合法 M2M 调用方可能合法突发，密钥爆破必然聚焦单个 appId.</p>
      */
     private IResult<TokenVO> clientCredentialsGrant(TokenRequestDTO req) {
-        // 按 appId 限流：本模式直面 appId+appSecret 校验，是 appSecret 爆破面
-        // （authorization_code 的密钥失败路径同样限流，见 authorizationCodeGrant）；
-        // 不用 IP 维度——M2M 调用方可能合法突发，密钥爆破必然聚焦单个 appId
-        loginRateLimiter.ifAvailable(limiter -> limiter.acquire("token:" + req.getAppId()));
         AppEntity app = appService.findByAppId(req.getAppId());
         if (app == null || !"ACTIVE".equals(app.getStatus())) {
             // 凭证错误（4001）：换 token 流程的凭证校验失败
             return Result.error(ResultCode.BAD_CREDENTIAL, "应用不存在或已禁用");
         }
         if (!appService.verifySecret(app, req.getAppSecret())) {
+            // 本模式直面 appId+appSecret 校验，是 appSecret 爆破面：
+            // 失败路径按 appId 限流（与 authorizationCodeGrant 同策），成功兑换不消耗额度
+            loginRateLimiter.ifAvailable(limiter -> limiter.acquire("token:" + req.getAppId()));
             return Result.error(ResultCode.BAD_CREDENTIAL, "密钥校验失败");
         }
         return Result.success(issueToken(SsoTokenUtils.appLoginId(app.getAppId()), app.getAppId()));
