@@ -53,3 +53,13 @@ buildNumber.properties
 .DS_Store
 Thumbs.db
 #CLAUDE.md
+
+# 本地工具 / 运行时产物
+.codegraph
+.debug-journal.md
+.superpowers/
+logs/
+
+# 隐私信息（见 CLAUDE.md 隐私存储规则）
+.secrets/
+*.env
