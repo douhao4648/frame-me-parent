@@ -37,7 +37,7 @@ export JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home
   - JetCache：`2.8.0.RC`
   - Kryo5：`5.6.2`（由 `frame-me-starter-l1l2-cache` 使用，版本在根 `pom.xml` 集中管理）
 - 编译插件：`maven-compiler-plugin:3.15.0`，启用 `-parameters` 参数。
-- 注解处理器分层声明：根 POM 的 `annotationProcessorPaths` 全局声明 `lombok` 与 `spring-boot-configuration-processor`（后者为 13 个 starter 生成配置元数据）；`mybatis-flex-processor` 与 `mapstruct-processor` 仅 `frame-me-tester-service` 使用，下放到该模块自行声明（`combine.children="append"` 在继承根配置基础上追加，不覆盖 lombok/configuration-processor）。
+- 注解处理器分层声明：根 POM 的 `annotationProcessorPaths` 全局声明 `lombok` 与 `spring-boot-configuration-processor`（后者为所有包含 `@ConfigurationProperties` 的模块生成配置元数据，不维护易漂移的固定数量）；`mybatis-flex-processor` 与 `mapstruct-processor` 仅 `frame-me-tester-service` 使用，下放到该模块自行声明（`combine.children="append"` 在继承根配置基础上追加，不覆盖 lombok/configuration-processor）。
 - `maven-source-plugin:3.3.1` 会在构建时附带源码包。
 
 ## 常用 Maven 命令
@@ -83,6 +83,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
 ```
 
 应用默认运行在 `9090` 端口（管理端口 `9091`），应用名称为 `frame-me-tester`。
+默认配置使用 H2 且关闭 Redis，可直接启动；需要连接 MySQL / Redis 时追加 `-Dspring-boot.run.profiles=daily`，并按需用环境变量覆盖 `application-daily.yml` 中的连接参数。
 
 ## Maven Profile
 

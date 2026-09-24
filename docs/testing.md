@@ -2,26 +2,13 @@
 
 ## 测试现状
 
-当前项目中存在的测试位于：
+测试分布在 API、adapter、各 starter、launcher 与 tester 模块，不再只集中于 `frame-me-tester`。完整清单以源码为准，可用以下命令实时获取，避免文档中的静态文件列表再次漂移：
 
+```bash
+rg --files -g '*Test.java' | sort
 ```
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/ApplicationTests.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/AbstractIntegrationTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/async/AsyncCustomPrefixTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/async/AsyncIntegrationTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/JwtAuthEndToEndTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/auth/PermissionIntegrationTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/cache/DemoServiceCacheTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/encrypt/JasyptEncryptTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/event/UserCreatedEventFlowTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/flex/FlexMultiDataSourceTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/DemoMapperIntegrationTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusCrudAndFillTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusLogicDeleteTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusOptimisticLockTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/mybatis/MybatisPlusPaginationTest.java
-frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/RedissonLockTest.java
-```
+
+主要覆盖范围包括：基础响应与校验、自动装配、JWT / sa-token / RBAC、Redis 与事件传输、缓存、MyBatis、SSE / WebSocket、Cloud / Nacos、SSO、审计服务、网关，以及 tester 的端到端示例。
 
 - `AsyncCustomPrefixTest`：验证自定义 `@Async` 线程池前缀。
 - `AsyncIntegrationTest`：验证默认 `@Async` 线程池与异常通知行为。
@@ -33,6 +20,8 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/
 - `FlexMultiDataSourceTest`：演示 MyBatis-Flex + dynamic-ds 多数据源切换。
 - `RedissonLockTest`：演示 Redisson 分布式锁集成测试。
 - `ApplicationTests`：使用 H2 内存数据库验证 Spring Boot 上下文能正常启动，不依赖 Docker。
+- `DefaultConfigurationStartupTest`：不激活 profile，验证默认配置无需 MySQL / Redis 即可启动。
+- `HealthControllerIntegrationTest`：验证 `/api/health` 可匿名访问并正常返回 `UP`；下线状态由 cloud 模块测试覆盖。
 - `AbstractIntegrationTest`：Testcontainers + MySQL 集成测试基类。
 - `DemoMapperIntegrationTest`：覆盖插入/自动填充、查询、乐观锁、逻辑删除、分页。
 - `MybatisPlusCrudAndFillTest`：覆盖 CRUD 与自动填充。
@@ -40,7 +29,7 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/
 - `MybatisPlusOptimisticLockTest`：覆盖乐观锁版本递增与冲突。
 - `MybatisPlusPaginationTest`：覆盖分页插件与条件分页。
 
-其他模块目前测试代码较少；`frame-me-starter-base` 包含 `EnvironmentHelperTest`、`SnowflakeUtilsTest` 等基础单元测试，以及 `PoolingRestClientAutoConfigurationTest`——验证池化 HTTP 客户端配置（观测某个调用用了哪个池：飞行途中断言共享 `PoolingHttpClientConnectionManager.getTotalStats().getLeased()`；并覆盖 `me.restclient.pool.*` / `spring.http.clients.*` / `spring.http.serviceclient.<group>.*` 三层配置叠加）。
+`frame-me-starter-base` 包含 `EnvironmentHelperTest`、`SnowflakeUtilsTest` 等基础单元测试，以及 `PoolingRestClientAutoConfigurationTest`——验证池化 HTTP 客户端配置（观测某个调用用了哪个池：飞行途中断言共享 `PoolingHttpClientConnectionManager.getTotalStats().getLeased()`；并覆盖 `me.restclient.pool.*` / `spring.http.clients.*` / `spring.http.serviceclient.<group>.*` 三层配置叠加）。
 
 `frame-me-sso-service` 包含 `SsoAuthFlowTest`：Testcontainers Redis + H2 + TestRestTemplate 真实 HTTP 的授权码全流程端到端测试（登录页匿名可访问、未登录 302、登录→发 code（state 回显）→换 token→Bearer /userinfo、授权码重放拒绝、scope/redirectUri 白名单 400、EXTERNAL 密钥强制校验、应用注册/更新 DTO 校验、client_credentials 应用 token 颁发（INTERNAL/EXTERNAL 均强制 secret）与其调 /userinfo 被拒、管理端点设备闸（应用 token 塞 satoken 头 403）、按 appId 踢人、禁用应用联动踢存量会话、用户 CRUD 全生命周期（重复账号/垃圾入参拒绝、VO 无密码字段）、用户更新校验与防自锁（禁用/删除当前登录账号拒绝）、改密码/禁用联动踢会话、用户管理端点设备闸拦截应用 token）。Docker 不可用时自动跳过，`ContextLoadTest` 仍会执行。
 
@@ -51,10 +40,10 @@ frame-me-tester/frame-me-tester-service/src/test/java/com/frame/me/tester/redis/
 ### 运行全部测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home mvn test
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw test
 ```
 
-Maven 会按 reactor 顺序编译所有模块，最后执行 `frame-me-tester` 中的测试。
+Maven 会按 reactor 顺序编译并执行各模块自身的测试。
 
 如果本地没有 Docker，`DemoMapperIntegrationTest` 中的测试会自动跳过，`ApplicationTests` 仍会正常执行。
 
@@ -62,20 +51,20 @@ Maven 会按 reactor 顺序编译所有模块，最后执行 `frame-me-tester` �
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
+  ./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests
 ```
 
 ### 运行单个测试方法
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
+  ./mvnw -pl frame-me-tester/frame-me-tester-service test -Dtest=ApplicationTests#contextLoads
 ```
 
 ### 跳过测试
 
 ```bash
-JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home mvn clean compile -DskipTests
+JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home ./mvnw clean compile -DskipTests
 ```
 
 ## 认证实现切换（jwt / sa-token）
@@ -94,14 +83,14 @@ sa-token 模式的运行配置已预置在 `application.yml`：框架自有配�
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service spring-boot:run
+  ./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run
 ```
 
 ### 运行打包后的 Jar
 
 ```bash
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
-  mvn -pl frame-me-tester/frame-me-tester-service package
+  ./mvnw -pl frame-me-tester/frame-me-tester-service package
 
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   java -jar frame-me-tester/frame-me-tester-service/target/frame-me-tester-service-1.0.0-SNAPSHOT.jar
@@ -126,26 +115,19 @@ spring:
 
 - 访问端口：`9090`（管理端口 `9091`）
 - 应用名称：`frame-me-tester`
-- 当前未配置其他 profile 或外部配置中心。
+- 默认使用 H2 内存数据库、关闭 Redis，并让 JetCache remote 使用进程内 mock，因此无需预装 MySQL / Redis 即可启动。
+- 需要连接日常开发环境的 MySQL / Redis 时激活 `daily` profile：`./mvnw -pl frame-me-tester/frame-me-tester-service spring-boot:run -Dspring-boot.run.profiles=daily`。连接信息位于 `application-daily.yml`，敏感值通过环境变量覆盖。
 
 ## 示例接口
 
-`HealthController` 映射到 `/health`：
+`HealthController` 映射到 `/api/health`：
 
-```java
-@RestController
-@RequestMapping("/health")
-public class HealthController {
-
-    @GetMapping
-    public Result<String> health() {
-        String text = null;
-        return Result.success(text.toUpperCase());
-    }
-}
+```bash
+curl http://localhost:9090/api/health
+# {"code":200,"msg":"请求成功","data":"UP","success":true}
 ```
 
-注意：该实现故意对 `null` 调用 `toUpperCase()`，会触发 `NullPointerException`，用于验证全局异常处理链路。
+正常运行时返回 HTTP 200 / `UP`；优雅下线流程清除就绪标记后返回 HTTP 503 / `DOWN`。全局异常处理由独立测试覆盖，不再通过健康接口故意制造异常。
 
 ## 测试约定
 

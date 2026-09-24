@@ -32,7 +32,7 @@ frame-me-tester-service ──→ frame-me-tester-api ──→ frame-me-api
 - `frame-me-starter-auth-jwt`：依赖 `frame-me-starter-auth`，JWT 认证实现，完全接管 `IAuthService` / `IAuthUserResolver`，提供登录/登出/刷新/当前用户接口与默认 Controller，业务只需实现 `IAuthUserDetailsService`。
 - `frame-me-starter-auth-sa-token`：依赖 `frame-me-starter-auth` + `sa-token-spring-boot4-starter`（cn.dev33，1.45.0），sa-token 会话治理型认证实现，同样接管 `IAuthService` / `IAuthUserResolver`，提供踢人/封禁/在线会话/多端互斥能力；`frame-me-starter-multi-redis` 为 optional 依赖，显式引入即激活 Redis 会话后端（缺席退回内存 DAO，仅单实例可用）。
 - `frame-me-starter-auth-rbac`：依赖 `frame-me-starter-auth`，轻量 RBAC 授权模块，提供 `@RequireAuth`(SpEL) 注解、方法拦截器、路径 Filter、权限数据源 SPI 与数据权限能力；可选 Redis 权限后端（引入 `frame-me-starter-multi-redis` 即激活）。
-- `frame-me-starter-cloud`：**无工程内模块依赖**（依赖 `spring-boot-starter-actuator` + `spring-cloud-context` + `spring-cloud-commons`，web 栈无关——Servlet 与 WebFlux 消费方都可用），云基础底座模块（优雅下线编排 + 配置刷新解密），不纳入 boot，按需引入。
+- `frame-me-starter-cloud`：仅 optional 依赖工程内的 `frame-me-starter-sensi-encrypt`，不依赖 `frame-me-starter-base`；同时依赖 `spring-boot-starter-actuator` + `spring-cloud-context` + `spring-cloud-commons`，保持 web 栈无关，Servlet 与 WebFlux 消费方都可用。该模块不纳入 boot，按需引入。
 - `frame-me-boot`：可扩展的 starter 聚合模块，当前依赖 `frame-me-starter-auth`、`frame-me-starter-multi-redis`、`frame-me-starter-l1l2-cache`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`，本身无业务源码与自动装配，供外部业务工程的 `xx-service` 统一引入通用能力；该清单不是冻结边界，治理只要求 boot 的出边指向 starter。`frame-me-adapter`（含 `frame-me-adapter-starter`）、`frame-me-starter-doc-openapi`、`frame-me-starter-cloud`、`frame-me-starter-sse-mvc`、`frame-me-starter-ws-mvc`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-sa-token`、`frame-me-starter-auth-rbac`、`frame-me-starter-cloud-nacos`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` / `frame-me-starter-mybatis-flex`、`frame-me-reducer`（阿里云系列）不纳入当前聚合。
 - `frame-me-tester`：`pom` 聚合模块，包含 `frame-me-tester-api`（契约接口）与 `frame-me-tester-service`（可运行入口）。`frame-me-tester-api` 依赖 `frame-me-api`；`frame-me-tester-service` 依赖 `frame-me-tester-api`、`frame-me-boot`、`frame-me-starter-auth-jwt`、`frame-me-starter-auth-rbac`、`frame-me-starter-mybatis-flex`、`frame-me-starter-ws-mvc`，当前以 MyBatis-Flex 为数据访问演示（MyBatis-Plus 版 `DemoController`/`DemoEntity`/`DemoMapper` 等整体注释保留，`frame-me-adapter-starter`、`frame-me-starter-dynamic-ds`、`frame-me-starter-mybatis-plus` 依赖在 POM 中注释保留）。通过 `frame-me-starter-base` 的 Maven profile 可选引入 `frame-me-starter-doc-openapi` 与 `p6spy`。
 
@@ -60,7 +60,7 @@ frame-me-tester-service ──→ frame-me-tester-api ──→ frame-me-api
 
 ## Spring Boot 自动装配
 
-项目使用 Spring Boot 3 风格的自动装配，不使用 `spring.factories`。
+Bean 自动装配使用 Spring Boot 3 风格的 `AutoConfiguration.imports`；必须在自动装配之前执行的 `EnvironmentPostProcessor` 仍按 Spring Boot 扩展协议使用 `spring.factories`。
 
 ### 注册方式
 

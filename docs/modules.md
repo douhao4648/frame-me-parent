@@ -1125,15 +1125,17 @@ public class AlertService {
     - `RedissonLockTest.shouldOnlyAllowOneThreadInCriticalSection` 的 `successCount >= 1` 断言过弱（无法有效验证互斥）。
     - `DemoServiceCacheTest` 整体 `@Disabled`（依赖被注释的 `DemoServiceImpl`），当前无实际覆盖。
   - `com.frame.me.tester.ApplicationTests` — 上下文加载测试。
+  - `com.frame.me.tester.DefaultConfigurationStartupTest` — 验证默认 profile 无需 MySQL / Redis 即可启动。
+  - `com.frame.me.tester.controller.HealthControllerIntegrationTest` — 验证 `/api/health` 匿名访问与 `UP` 响应。
   - `com.frame.me.tester.AbstractIntegrationTest` — Testcontainers + MySQL 集成测试基类。
-  - 测试目录按能力划分：`async` / `auth` / `cache` / `encrypt` / `event` / `flex` / `mybatis` / `redis`。
-  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 端口 `9090`（管理端口 `9091`），应用名 `frame-me-tester`；MyBatis-Flex 双数据源（`mybatis-flex.datasource.master` = `frame_me_test`，`second` = `frame_me_test_2`）；`me.auth.jwt`（接口路径 `/base/auth`）+ `me.auth.whitelist`；`me.sse.path=/base/sse`；`me.redis.clients.second`；JetCache（kryo5 序列化）；OpenAPI 分组（`tester-api` 匹配 `/api/**`、`base-api` 匹配 `/base/**`）；P6Spy 配置。
+  - 测试目录按能力划分：`async` / `auth` / `cache` / `controller` / `encrypt` / `event` / `flex` / `mybatis` / `redis` / `service`。
+  - `frame-me-tester/frame-me-tester-service/src/main/resources/application.yml` — 默认使用 H2 双内存数据源、关闭 Redis、JetCache remote 使用 mock，可在无外部基础设施时直接启动；`application-daily.yml` 才启用 MySQL、Redis、第二 Redis 客户端与 Redis JetCache。两套配置均保留 `me.auth.jwt`（接口路径 `/base/auth`）、`me.auth.whitelist`、`me.sse.path=/base/sse` 与 OpenAPI 分组。
 - **构建插件**：包含 `spring-boot-maven-plugin`，用于打包可运行 Jar。
 - **扩展提示**：作为集成验证入口，新模块加入后应在此添加对应的集成测试或示例 Controller。
 
 ## IDE 配置提示
 
-所有带 `@ConfigurationProperties` 的 starter 模块（`frame-me-starter-base`、`frame-me-starter-mybatis-plus`、`frame-me-starter-mybatis-flex`、`frame-me-starter-multi-redis`、`frame-me-starter-sse-mvc`、`frame-me-starter-ws-mvc`、`frame-me-starter-doc-openapi`、`frame-me-starter-sensi-encrypt`、`frame-me-starter-op-audit`、`frame-me-starter-msg-notify`）在编译时都会生成 `META-INF/spring-configuration-metadata.json`。在 IntelliJ IDEA（Ultimate / Community 均支持）或 VS Code（安装 Spring Boot Extension Pack）中编辑 `application.yml` / `application.properties` 时，输入 `me.` / `spring.data.redis.redisson.` 等前缀即可获得属性名、类型、默认值和中文描述提示。
+所有带 `@ConfigurationProperties` 的模块在编译时都会生成 `META-INF/spring-configuration-metadata.json`，范围包括 base、auth 系列、cloud、数据访问/Redis、SSE/WS、文档/加密/审计/通知 starter，以及 gateway、SSO service/starter 等可运行或集成模块。具体清单以源码中的 `@ConfigurationProperties` 和各模块构建产物为准，不在文档中维护固定数量。在 IntelliJ IDEA（Ultimate / Community 均支持）或 VS Code（安装 Spring Boot Extension Pack）中编辑 `application.yml` / `application.properties` 时，输入 `me.` / `spring.data.redis.redisson.` 等前缀即可获得属性名、类型、默认值和中文描述提示。
 
 生成元数据依赖 `spring-boot-configuration-processor` 注解处理器，已统一配置在根 POM 的 `annotationProcessorPaths` 中，各 starter 模块无需额外依赖即可生效。注解处理器分层声明：根 POM 全局挂 `lombok` 与 `spring-boot-configuration-processor`（通用基础设施）；`mybatis-flex-processor`（生成 `TableDef`）与 `mapstruct-processor`（生成 `*ConvertImpl`）仅 `frame-me-tester-service` 使用，下放到该模块 pom 自行声明，其余模块不再加载无用处理器。
 
@@ -1153,7 +1155,7 @@ public class AlertService {
 | `frame-me-starter-auth-rbac` | `frame-me-starter-auth`、`caffeine`（`frame-me-starter-multi-redis` optional） |
 | `frame-me-starter-auth-jwt` | `frame-me-starter-auth`、`jjwt-api`/`jjwt-impl`/`jjwt-gson`、`spring-security-crypto`（`frame-me-starter-multi-redis`、`frame-me-starter-op-audit` optional） |
 | `frame-me-starter-auth-sa-token` | `frame-me-starter-auth`、`sa-token-spring-boot4-starter`、`fastjson2`、`spring-security-crypto`（`frame-me-starter-multi-redis`、`frame-me-starter-op-audit` optional） |
-| `frame-me-starter-cloud` | `frame-me-starter-base`、`spring-cloud-context`（`frame-me-starter-sensi-encrypt` optional） |
+| `frame-me-starter-cloud` | `spring-boot-starter-actuator`、`spring-cloud-context`、`spring-cloud-commons`（`frame-me-starter-sensi-encrypt` optional；不依赖 `frame-me-starter-base`） |
 | `frame-me-starter-cloud-nacos` | `frame-me-starter-cloud`、`spring-cloud-starter-alibaba-nacos-config`、`spring-cloud-starter-alibaba-nacos-discovery` |
 | `frame-me-starter-sse-mvc` | `frame-me-api` |
 | `frame-me-starter-ws-mvc` | `frame-me-api` |
