@@ -214,7 +214,7 @@ public class AuthProperties {
          *
          * <p>{@code 0} 表示不限制。</p>
          */
-        private int maxLength = 200;
+        private int maxLength = 2000;
     }
 
     /**

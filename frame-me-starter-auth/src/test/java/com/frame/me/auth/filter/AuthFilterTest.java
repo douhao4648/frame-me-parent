@@ -331,6 +331,15 @@ class AuthFilterTest {
         assertNull(AuthContext.getUser());
     }
 
+    /**
+     * 访问日志 maxLength 默认值钉住 2000（与 Javadoc、modules.md、gateway 同款约定一致），
+     * 防止注释与代码再次漂移。
+     */
+    @Test
+    void testAccessLogMaxLengthDefault() {
+        assertEquals(2000, new AuthProperties().getAccessLog().getMaxLength());
+    }
+
     @Anonymous
     static class AnonController {
         @Anonymous
