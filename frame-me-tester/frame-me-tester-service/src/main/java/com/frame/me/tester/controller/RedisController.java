@@ -7,6 +7,7 @@ import com.frame.me.redis.util.RedisClientRegistry;
 import com.frame.me.redis.util.RedissonLock;
 import com.frame.me.tester.api.IRedisApi;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -19,6 +20,7 @@ import java.util.UUID;
  */
 @RestController
 @RequiredArgsConstructor
+@ConditionalOnBean({RedisClientRegistry.class, RedissonLock.class})
 public class RedisController implements IRedisApi {
 
     private final RedisClientRegistry redisClients;

@@ -1,0 +1,49 @@
+management:
+  health:
+    redis:
+      enabled: true
+
+spring:
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:frame_me_test3}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      database: 0
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+mybatis-flex:
+  datasource:
+    master:
+      url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_MASTER_DATABASE:frame_me_test}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      username: ${MYSQL_USERNAME:root}
+      password: ${MYSQL_PASSWORD:ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+    second:
+      url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_SECOND_DATABASE:frame_me_test_2}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+      username: ${MYSQL_USERNAME:root}
+      password: ${MYSQL_PASSWORD:ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)}
+      driver-class-name: com.mysql.cj.jdbc.Driver
+
+me:
+  redis:
+    enabled: true
+    clients:
+      second:
+        host: ${REDIS_HOST:localhost}
+        port: ${REDIS_PORT:6379}
+        database: 1
+
+jetcache:
+  remote:
+    default:
+      type: redis.lettuce
+      keyConvertor: fastjson2
+      valueEncoder: kryo5
+      valueDecoder: kryo5
+      expireAfterWriteInMillis: 1800000
+      broadcastChannel: ${spring.application.name}
+      uri: redis://${REDIS_HOST:localhost}:${REDIS_PORT:6379}/0

@@ -4,16 +4,18 @@ server:
 management:
   server:
     port: 9091
+  health:
+    redis:
+      enabled: false
 
 spring:
   application:
     name: frame-me-tester
   datasource:
-    url: jdbc:mysql://localhost:3306/frame_me_test3?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: root
-    # 示例密文：主密码 me2026、默认迭代 100000 次、明文 root
-    password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:h2:mem:frame_me;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 10
@@ -45,13 +47,6 @@ spring:
   #          driver-class-name: com.mysql.cj.jdbc.Driver
   jackson:
     default-property-inclusion: non_null
-  data:
-    redis:
-      database: 0
-      host: localhost
-      port: 6379
-  #      username: xx
-  #      password: xx
   sql:
     init:
       mode: always
@@ -81,10 +76,10 @@ mybatis-flex:
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   datasource:
     master:
-      url: jdbc:mysql://localhost:3306/frame_me_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-      username: root
-      password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
-      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:h2:mem:frame_me;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
       type: hikari
       maximum-pool-size: 20
       minimum-idle: 5
@@ -104,10 +99,10 @@ mybatis-flex:
     #      test-on-borrow: false
     #      test-on-return: false
     second:
-      url: jdbc:mysql://localhost:3306/frame_me_test_2?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-      username: root
-      password: ME(yyXcSdXTD0x/NVk0pXe41WQLEZBCArW55GdRFxQwRPegpEcWqF507VDzp+FkAi58)
-      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:h2:mem:frame_me_second;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
       type: hikari
       maximum-pool-size: 20
       minimum-idle: 5
@@ -147,6 +142,8 @@ sa-token:
   #   domain: .example.com
 
 me:
+  redis:
+    enabled: false
   auth:
     enabled: true
     jwt:
@@ -184,12 +181,6 @@ me:
       - name: base-api
         paths-to-match:
           - /base/**
-  redis:
-    clients:
-      second:
-        host: localhost
-        port: 6379
-        database: 1
   # mybatis:
   #   meta-object-handler:
   #     enabled: true
@@ -211,12 +202,8 @@ jetcache:
       expireAfterWriteInMillis: 600000
   remote:
     default:
-      type: redis.lettuce
+      type: mock
       keyConvertor: fastjson2
-      valueEncoder: kryo5
-      valueDecoder: kryo5
+      valueEncoder: java
+      valueDecoder: java
       expireAfterWriteInMillis: 1800000
-      broadcastChannel: ${spring.application.name}
-      uri: redis://localhost:6379/0
-#      uri: redis://u:p@host:port/db # @符号得替换成编码符
-

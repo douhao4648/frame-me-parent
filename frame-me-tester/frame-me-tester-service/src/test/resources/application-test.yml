@@ -41,7 +41,11 @@ mybatis-flex:
       type: hikari
 
 me:
+  redis:
+    enabled: true
   auth:
+    login-rate-limit:
+      enabled: false
     permission:
       rules:
         "[/api/filter-test/**]": "role('admin')"
