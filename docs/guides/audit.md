@@ -35,6 +35,9 @@ public class UserService {
 | `target-service` | `""` | 配置为审计服务名时经事件桥接定向发送；为空且 `broadcast=false` 时仅本地发布（不产生跨服务流量） |
 | `broadcast` | `false` | 为 `true` 时即使 `target-service` 为空也经事件桥接广播（全员送达）；接收侧需 `@Import(AuditLogEventConfiguration.class)` 才会订阅通道 |
 | `max-param-length` | `8192` | 参数与返回值 JSON 的最大字节长度，0 表示不限制；超限按 UTF-8 字节截断并追加 `...`，多字节字符不会被截半 |
+| `async.*` | 见下 | `enabled`（默认 `false`，同步发布）/`core-pool-size`/`max-pool-size`/`queue-capacity`；异步模式序列化在业务线程完成，仅 publish 异步化，队列满丢弃审计并计数告警（不阻塞业务） |
+
+> 异步发布池的关闭策略：先 `shutdown()` 有界排空积压审计（最多 5 秒），超时后 `shutdownNow()` 强制中断仍在阻塞的任务，工作线程为 daemon——阻塞任务不会阻止 JVM 退出。
 
 > 与事件桥接的关系：桥接开启（`me.event-bridge.enabled=true`，默认）且配置了远程目标（`target-service` 或 `broadcast=true`）时审计事件经 `EventBridgePublisher` 本地发布 + 跨服务发送；未配置远程目标或桥接关闭时仅本地发布（`AuditLogLogger` 等本进程监听器照常消费），不产生跨服务流量。`EventBridgeProperties` 在桥接关闭时由 `AuditAutoConfiguration` 兜底注册，保证自身过滤语义一致。
 

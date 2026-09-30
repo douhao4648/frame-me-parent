@@ -291,6 +291,50 @@ class AuditLogAspectTest {
         verify(publisher, times(3)).publish(any());
     }
 
+    /**
+     * 排空超时（5s）后强制中断仍在阻塞的任务：shutdownNow 中断工作线程、线程池最终终止，
+     * 且工作线程为 daemon——阻塞任务不能阻止 JVM 退出（只限等待时间不终止任务是缺陷）.
+     */
+    @Test
+    void shouldInterruptBlockingTaskAfterShutdownTimeout() throws Exception {
+        properties.getAsync().setCorePoolSize(1);
+        properties.getAsync().setMaxPoolSize(1);
+        properties.getAsync().setQueueCapacity(10);
+        java.util.concurrent.CountDownLatch started = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch block = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicBoolean interrupted = new java.util.concurrent.atomic.AtomicBoolean();
+        java.util.concurrent.atomic.AtomicReference<Thread> worker = new java.util.concurrent.atomic.AtomicReference<>();
+        org.mockito.Mockito.doAnswer(inv -> {
+            worker.set(Thread.currentThread());
+            started.countDown();
+            try {
+                block.await(); // 永不放行，模拟阻塞任务
+            } catch (InterruptedException e) {
+                interrupted.set(true);
+                throw e;
+            }
+            return null;
+        }).when(publisher).publish(any());
+        aspect.initPublishExecutor();
+
+        service.simpleAction(); // 阻塞唯一工作线程
+        assertThat(started.await(3, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        long begin = System.nanoTime();
+        aspect.shutdownPublishExecutor(); // 5s 排空超时 → shutdownNow 强制中断
+        long elapsedMs = (System.nanoTime() - begin) / 1_000_000;
+
+        assertThat(interrupted).isTrue();
+        assertThat(worker.get().isDaemon()).isTrue();
+        // 确实等过排空窗口才强停（不是立即丢弃）
+        assertThat(elapsedMs).isGreaterThanOrEqualTo(4000);
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(3).toNanos();
+        while (worker.get().isAlive() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertThat(worker.get().isAlive()).isFalse();
+    }
+
     public static class AuditService {
 
         @AuditLog(action = "创建用户", category = "用户管理",

@@ -86,6 +86,8 @@ public class AuditLogAspect {
         // 清空队列丢弃积压审计；开启后 shutdown() 等待队列排空，超时才放弃
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(5);
+        // daemon 线程：超时强停后仍有中断免疫的阻塞任务时，也不拖住 JVM 退出
+        executor.setDaemon(true);
         // 队列满时丢弃审计（不阻塞业务线程是刻意取舍），但丢弃必须可观测：计数 + 节流 WARN
         executor.setRejectedExecutionHandler((r, pool) -> {
             long discarded = DISCARDED_AUDITS.incrementAndGet();
@@ -105,6 +107,9 @@ public class AuditLogAspect {
         // waitForTasksToCompleteOnShutdown=true 时 shutdown() 自身完成有界排空与超时告警
         if (publishExecutor instanceof ThreadPoolTaskExecutor tpte) {
             tpte.shutdown();
+            // 5s 排空超时后：shutdown() 不会中断在跑任务（非 daemon 线程会阻止 JVM 退出），
+            // 补 shutdownNow 强制中断收尾；已排空时为空操作
+            tpte.getThreadPoolExecutor().shutdownNow();
         }
     }
 
