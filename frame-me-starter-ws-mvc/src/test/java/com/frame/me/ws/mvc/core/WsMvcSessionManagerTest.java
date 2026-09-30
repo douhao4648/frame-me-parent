@@ -261,37 +261,44 @@ class WsMvcSessionManagerTest {
     }
 
     /**
-     * 移除 session 与并发注册新 session 竞态：compute 原子清理保证新 session 不丢.
+     * 最后一个旧连接清理与新连接注册并发：新 session 不得加入已脱离 map 的旧集合.
      *
-     * <p>旧实现 remove-then-removeKey 两步之间，并发注册拿到被清空的空 Set，
-     * add 后又被 removeKey 误删；compute 把两步收敛到原子段，新 session 保留.</p>
+     * <p>旧实现路由注册在锁外 computeIfAbsent(...).add()：清理的 compute 可先判空移除 key，
+     * 新 session 的 add 随后落到已脱离 map 的旧集合——连接存活却收不到推送。
+     * 修复后注册与清理共用 registerLock 互斥；多轮执行提高竞态命中率.</p>
      */
     @Test
     void shouldNotLoseConcurrentlyRegisteredSessionOnRemove() throws Exception {
-        WebSocketSession s1 = mockSession("s1");
-        WebSocketSession s2 = mockSession("s2");
-        manager.registerBroadcast(s1, "user:created");
-
         ExecutorService pool = Executors.newFixedThreadPool(2);
-        CountDownLatch start = new CountDownLatch(1);
-        Future<?> removeFuture = pool.submit(() -> {
-            start.await();
-            manager.removeSession(s1);
-            return null;
-        });
-        Future<?> registerFuture = pool.submit(() -> {
-            start.await();
-            manager.registerBroadcast(s2, "user:created");
-            return null;
-        });
-        start.countDown();
-        removeFuture.get();
-        registerFuture.get();
-        pool.shutdown();
+        for (int round = 0; round < 100; round++) {
+            WsMvcSessionManager fresh = new WsMvcSessionManager(properties,
+                    java.util.Optional.of(com.frame.me.base.event.IReceiverIdAuthorizer.permitAll()));
+            WebSocketSession s1 = mockSession("s1");
+            WebSocketSession s2 = mockSession("s2");
+            fresh.registerBroadcast(s1, "user:created");
 
-        // s1 移除后 s2 应仍可广播命中；若竞态致 s2 丢失则 sent=0
-        int sent = manager.broadcast("user:created", WsMvcPayload.of("user:created", "hi"));
-        assertThat(sent).isEqualTo(1);
+            CountDownLatch start = new CountDownLatch(1);
+            Future<?> removeFuture = pool.submit(() -> {
+                start.await();
+                fresh.removeSession(s1);
+                return null;
+            });
+            Future<?> registerFuture = pool.submit(() -> {
+                start.await();
+                fresh.registerBroadcast(s2, "user:created");
+                return null;
+            });
+            start.countDown();
+            removeFuture.get();
+            registerFuture.get();
+
+            // s1 移除后 s2 必须仍挂在通道上：广播恰好命中 1 个存活 session；
+            // 若竞态致 s2 加入脱离 map 的旧集合，则 channels=0、sent=0
+            assertThat(fresh.activeSessionCount()).isEqualTo(1);
+            int sent = fresh.broadcast("user:created", WsMvcPayload.of("user:created", "hi"));
+            assertThat(sent).as("round %d: 新注册 session 丢失路由", round).isEqualTo(1);
+        }
+        pool.shutdown();
     }
 
     private WebSocketSession mockSession(String id) {

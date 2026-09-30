@@ -40,7 +40,8 @@ public class WsMvcSessionManager {
     private final Map<String, SessionMetadata> sessionMetadata = new ConcurrentHashMap<>();
     private final Set<WebSocketSession> allSessions = ConcurrentHashMap.newKeySet();
     /**
-     * 注册路径锁：消除 checkSessionLimit → add 之间的 TOCTOU 窗口.
+     * 注册/清理路径锁：消除 checkSessionLimit → add 的 TOCTOU 窗口，
+     * 并串行化"路由注册"与"最后一个连接清理"，防止新连接加入已脱离 map 的旧集合.
      */
     private final Object registerLock = new Object();
 
@@ -60,10 +61,12 @@ public class WsMvcSessionManager {
         synchronized (registerLock) {
             checkSessionLimit();
             allSessions.add(decorated);
+            // 路由注册与元数据必须在锁内：与 removeSession 的"判空移除 key"互斥，
+            // 否则清理可先移除 key，add 落到已脱离 map 的旧集合上，连接存活却收不到推送
+            broadcastSessions.computeIfAbsent(eventType, k -> ConcurrentHashMap.newKeySet()).add(decorated);
+            sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
+                    WsMvcConstant.SUBSCRIBE_BROADCAST, eventType, null));
         }
-        broadcastSessions.computeIfAbsent(eventType, k -> ConcurrentHashMap.newKeySet()).add(decorated);
-        sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
-                WsMvcConstant.SUBSCRIBE_BROADCAST, eventType, null));
     }
 
     /**
@@ -79,10 +82,11 @@ public class WsMvcSessionManager {
         synchronized (registerLock) {
             checkSessionLimit();
             allSessions.add(decorated);
+            // 同 registerBroadcast：路由注册与元数据都必须在锁内，与清理互斥
+            targetedSessions.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(decorated);
+            sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
+                    WsMvcConstant.SUBSCRIBE_TARGETED, null, receiverId));
         }
-        targetedSessions.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(decorated);
-        sessionMetadata.put(session.getId(), new SessionMetadata(session.getId(), decorated,
-                WsMvcConstant.SUBSCRIBE_TARGETED, null, receiverId));
     }
 
     /**
@@ -91,16 +95,20 @@ public class WsMvcSessionManager {
      * @param session WebSocket session
      */
     public void removeSession(WebSocketSession session) {
-        SessionMetadata metadata = sessionMetadata.remove(session.getId());
-        if (metadata == null) {
-            return;
-        }
-        WebSocketSession registered = metadata.getSession();
-        allSessions.remove(registered);
-        if (WsMvcConstant.SUBSCRIBE_BROADCAST.equals(metadata.getSubscribeType())) {
-            removeFromMap(broadcastSessions, metadata.getEventType(), registered);
-        } else {
-            removeFromMap(targetedSessions, metadata.getReceiverId(), registered);
+        // 与注册共用 registerLock：清理（含判空移除 key）与路由注册互斥，
+        // 保证新连接不会加入已脱离 map 的集合
+        synchronized (registerLock) {
+            SessionMetadata metadata = sessionMetadata.remove(session.getId());
+            if (metadata == null) {
+                return;
+            }
+            WebSocketSession registered = metadata.getSession();
+            allSessions.remove(registered);
+            if (WsMvcConstant.SUBSCRIBE_BROADCAST.equals(metadata.getSubscribeType())) {
+                removeFromMap(broadcastSessions, metadata.getEventType(), registered);
+            } else {
+                removeFromMap(targetedSessions, metadata.getReceiverId(), registered);
+            }
         }
     }
 
