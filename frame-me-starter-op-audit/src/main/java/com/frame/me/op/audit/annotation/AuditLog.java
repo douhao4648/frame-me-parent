@@ -22,7 +22,10 @@ import java.lang.annotation.Target;
 public @interface AuditLog {
 
     /**
-     * 操作动作，为空时默认取 {@code ClassName#methodName}.
+     * 操作动作，为空时默认取 {@code 全限定类名#方法名}（常态 70~150 字符）.
+     *
+     * <p>契约：审计中心 {@code audit_log.action} 列为 {@code VARCHAR(255)}，
+     * 显式 action 不应超过 255 字符（超长落库即约束拒绝，不会截断碰撞）。</p>
      *
      * @return 操作动作
      */

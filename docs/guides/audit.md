@@ -159,7 +159,7 @@ public class AuditLogPersistenceHandler {
 
 ### 持久化实体
 
-`LogEntity extends BaseEntity`，`@Table("audit_log")`，字段映射 `AuditLogRecord`（action/category/description/operatorId/targetId/params/result/success/errorMsg/durationMs/timestamp/sourceService/targetService）外加 `eventId`（事件幂等标识，唯一约束兜底去重）。
+`LogEntity extends BaseEntity`，`@Table("audit_log")`，字段映射 `AuditLogRecord`（action/category/description/operatorId/targetId/params/result/success/errorMsg/durationMs/timestamp/sourceService/targetService）外加 `eventId`（事件幂等标识，唯一约束兜底去重）。`action` 列为 `VARCHAR(255)`：须容纳默认 action（全限定类名#方法名，常态 70~150 字符），显式 action 不应超过 255 字符（超长落库即约束拒绝，不做截断——截断会让不同 action 碰撞）。
 
 ### 管理查询接口
 
