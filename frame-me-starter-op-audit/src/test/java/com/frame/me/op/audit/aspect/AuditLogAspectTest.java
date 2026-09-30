@@ -36,6 +36,7 @@ class AuditLogAspectTest {
     private IAuditLogOperatorSupplier operatorSupplier;
     private AuditProperties properties;
     private EventBridgeProperties eventBridgeProperties;
+    private AuditLogAspect aspect;
     private AuditService service;
 
     @BeforeEach
@@ -55,6 +56,7 @@ class AuditLogAspectTest {
 
         AuditLogAspect aspect = new AuditLogAspect(localPublisher, bridgePublisherProvider,
                 operatorSupplier, properties, eventBridgeProperties);
+        this.aspect = aspect;
         AspectJProxyFactory factory = new AspectJProxyFactory(new AuditService());
         factory.addAspect(aspect);
         service = factory.getProxy();
@@ -261,6 +263,32 @@ class AuditLogAspectTest {
         String result = captor.getValue().getRecord().getResult();
         assertThat(result.getBytes(java.nio.charset.StandardCharsets.UTF_8).length)
                 .isLessThanOrEqualTo(13); // 10 bytes + "..." (3 bytes)
+    }
+
+    /**
+     * 异步模式关闭时有界排空：开启 waitForTasksToCompleteOnShutdown 后，
+     * shutdown 等待队列中积压的审计事件发布完成，不再走 shutdownNow 丢弃.
+     */
+    @Test
+    void shouldDrainBacklogOnShutdown() {
+        properties.getAsync().setCorePoolSize(1);
+        properties.getAsync().setMaxPoolSize(1);
+        properties.getAsync().setQueueCapacity(10);
+        java.util.concurrent.CountDownLatch block = new java.util.concurrent.CountDownLatch(1);
+        org.mockito.Mockito.doAnswer(inv -> {
+            block.await();
+            return null;
+        }).when(publisher).publish(any());
+        aspect.initPublishExecutor();
+
+        service.simpleAction(); // 占用唯一工作线程并阻塞
+        service.simpleAction(); // 积压进队列
+        service.simpleAction();
+
+        block.countDown();
+        aspect.shutdownPublishExecutor(); // shutdown() 内部等待排空完成
+
+        verify(publisher, times(3)).publish(any());
     }
 
     public static class AuditService {

@@ -82,6 +82,10 @@ public class AuditLogAspect {
         executor.setMaxPoolSize(cfg.getMaxPoolSize());
         executor.setQueueCapacity(cfg.getQueueCapacity());
         executor.setThreadNamePrefix("audit-publish-");
+        // 关闭时有界排空（最多 5s）：默认 waitForTasksToCompleteOnShutdown=false 会走 shutdownNow
+        // 清空队列丢弃积压审计；开启后 shutdown() 等待队列排空，超时才放弃
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(5);
         // 队列满时丢弃审计（不阻塞业务线程是刻意取舍），但丢弃必须可观测：计数 + 节流 WARN
         executor.setRejectedExecutionHandler((r, pool) -> {
             long discarded = DISCARDED_AUDITS.incrementAndGet();
@@ -98,16 +102,9 @@ public class AuditLogAspect {
 
     @PreDestroy
     void shutdownPublishExecutor() {
+        // waitForTasksToCompleteOnShutdown=true 时 shutdown() 自身完成有界排空与超时告警
         if (publishExecutor instanceof ThreadPoolTaskExecutor tpte) {
             tpte.shutdown();
-            try {
-                if (!tpte.getThreadPoolExecutor().awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                    log.warn("审计异步线程池等待超时，部分审计事件可能未发布");
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warn("审计异步线程池关闭被中断");
-            }
         }
     }
 
