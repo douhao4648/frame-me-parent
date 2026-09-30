@@ -60,6 +60,27 @@ class MeDynamicDataSourceProviderTest {
     }
 
     /**
+     * 双配置（spring.datasource.url + 显式 dynamic master）：跳过备用池创建——
+     * 否则备用池会被 Yml provider putAll 覆盖且无人关闭，连接与线程泄漏.
+     */
+    @Test
+    void skipsFallbackPoolWhenExplicitDynamicMasterConfigured() {
+        StandardEnvironment env = new StandardEnvironment();
+        env.getPropertySources().addLast(new MapPropertySource("test",
+                Map.of("spring.datasource.url", "jdbc:fallback",
+                        "spring.datasource.dynamic.datasource.master.url", "jdbc:explicit")));
+
+        @SuppressWarnings("unchecked")
+        DefaultDataSourceCreator creator = mock(DefaultDataSourceCreator.class);
+        MeDynamicDataSourceProvider provider = new MeDynamicDataSourceProvider(creator, env);
+        Map<String, DataSource> result = provider.loadDataSources();
+
+        assertThat(result).isEmpty();
+        org.mockito.Mockito.verify(creator, org.mockito.Mockito.never())
+                .createDataSource(org.mockito.ArgumentMatchers.any());
+    }
+
+    /**
      * 未配 url 时返回空 Map，不创建数据源.
      */
     @Test
