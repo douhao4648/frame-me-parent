@@ -18,7 +18,8 @@ me:
     auth:
       jwt:
         secret: ${JWT_SECRET:me-jwt-secret-key-at-least-32-characters-long-ksndifkwenkfj}
-        issuer: me
+        # 与下游 me.auth.jwt.issuer 同一环境变量联动，默认对齐体系 me
+        issuer: ${JWT_ISSUER:me}
 #      allow-anonymous: ${ALLOW_ANONYMOUS:false}
       # apps:
       #   - app-key: fm-external-demo

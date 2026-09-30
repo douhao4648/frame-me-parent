@@ -1,0 +1,15 @@
+# 公网实例拓扑 profile：钉死匿名关闭 + 关闭注册中心自动路由（显式 routes 白名单化，
+# 路由在 nacos ${spring.application.name}-public.yml 或本文件 spring.cloud.gateway.server.webflux.routes 配置）
+me:
+  gateway:
+    auth:
+      allow-anonymous: false
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
