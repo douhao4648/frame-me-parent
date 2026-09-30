@@ -36,11 +36,14 @@ public class SseEmitterManager {
      */
     private final Optional<IReceiverIdAuthorizer> receiverIdAuthorizer;
     private final Map<String, List<SseEmitter>> broadcastEmitters = new ConcurrentHashMap<>();
+    /** 广播 emitter → eventType 反向索引：清理时直查所属通道，免遍历全部 eventType. */
+    private final Map<SseEmitter, String> emitterToEventType = new ConcurrentHashMap<>();
     private final Map<String, Set<SseEmitter>> targetedEmitters = new ConcurrentHashMap<>();
     private final Map<SseEmitter, String> emitterToReceiver = new ConcurrentHashMap<>();
     private final Set<SseEmitter> activeEmitters = ConcurrentHashMap.newKeySet();
     /**
-     * 注册路径锁：消除 checkEmitterLimit → add 之间的 TOCTOU 窗口.
+     * 注册/清理路径锁：消除 checkEmitterLimit → add 的 TOCTOU 窗口，
+     * 并串行化"路由注册"与"最后一个连接清理"，防止新连接加入已脱离 map 的旧集合.
      */
     private final Object registerLock = new Object();
 
@@ -56,8 +59,11 @@ public class SseEmitterManager {
         synchronized (registerLock) {
             checkEmitterLimit();
             activeEmitters.add(emitter);
+            // 路由注册必须在锁内：与 removeEmitter 的"判空移除 key"互斥，
+            // 否则清理可先移除 key，add 落到已脱离 map 的旧集合上，连接存活却收不到推送
+            broadcastEmitters.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(emitter);
+            emitterToEventType.put(emitter, eventType);
         }
-        broadcastEmitters.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(emitter);
 
         emitter.onCompletion(() -> removeEmitter(emitter));
         emitter.onTimeout(() -> removeEmitter(emitter));
@@ -79,9 +85,10 @@ public class SseEmitterManager {
         synchronized (registerLock) {
             checkEmitterLimit();
             activeEmitters.add(emitter);
+            // 同 registerBroadcast：路由注册与反向索引都必须在锁内，与清理互斥
+            targetedEmitters.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(emitter);
+            emitterToReceiver.put(emitter, receiverId);
         }
-        targetedEmitters.computeIfAbsent(receiverId, k -> ConcurrentHashMap.newKeySet()).add(emitter);
-        emitterToReceiver.put(emitter, receiverId);
 
         emitter.onCompletion(() -> removeEmitter(emitter));
         emitter.onTimeout(() -> removeEmitter(emitter));
@@ -245,29 +252,35 @@ public class SseEmitterManager {
     }
 
     private void removeEmitter(SseEmitter emitter) {
-        if (!activeEmitters.remove(emitter)) {
-            return;
-        }
-        // 遍历中改 map 结构会触发 ConcurrentModificationException，用 compute 原子清理.
-        // 每个 key 的"移除元素 + 判空移除 key"在 compute 段内原子完成，避免新连接复用被清空的空集合.
-        for (String type : new java.util.ArrayList<>(broadcastEmitters.keySet())) {
-            broadcastEmitters.compute(type, (k, list) -> {
-                if (list == null) {
-                    return null;
-                }
-                list.remove(emitter);
-                return list.isEmpty() ? null : list;
-            });
-        }
-        String receiverId = emitterToReceiver.remove(emitter);
-        if (receiverId != null) {
-            targetedEmitters.compute(receiverId, (k, set) -> {
-                if (set == null) {
-                    return null;
-                }
-                set.remove(emitter);
-                return set.isEmpty() ? null : set;
-            });
+        // 与注册共用 registerLock：清理（含判空移除 key）与路由注册互斥，
+        // 保证新连接不会加入已脱离 map 的集合
+        synchronized (registerLock) {
+            if (!activeEmitters.remove(emitter)) {
+                return;
+            }
+            // 遍历中改 map 结构会触发 ConcurrentModificationException，用 compute 原子清理.
+            // "移除元素 + 判空移除 key"在 compute 段内原子完成，避免新连接复用被清空的空集合.
+            // 反向索引直查所属通道，不遍历全部 eventType（连接/通道数高时清理 O(1)）
+            String eventType = emitterToEventType.remove(emitter);
+            if (eventType != null) {
+                broadcastEmitters.compute(eventType, (k, list) -> {
+                    if (list == null) {
+                        return null;
+                    }
+                    list.remove(emitter);
+                    return list.isEmpty() ? null : list;
+                });
+            }
+            String receiverId = emitterToReceiver.remove(emitter);
+            if (receiverId != null) {
+                targetedEmitters.compute(receiverId, (k, set) -> {
+                    if (set == null) {
+                        return null;
+                    }
+                    set.remove(emitter);
+                    return set.isEmpty() ? null : set;
+                });
+            }
         }
     }
 }

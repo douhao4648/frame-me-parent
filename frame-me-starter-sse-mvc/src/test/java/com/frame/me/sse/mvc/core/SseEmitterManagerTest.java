@@ -59,9 +59,25 @@ class SseEmitterManagerTest {
         assertThat(manager.activeEmitterCount()).isEqualTo(0);
     }
 
+    /**
+     * 反向索引清理：移除某通道的广播 emitter 只清理其所属通道，
+     * 其他通道的 emitter 与通道 key 不受影响（不遍历全部 eventType）.
+     */
     @Test
-    void shouldBroadcastToMultipleSubscribers() {
-        manager.registerBroadcast("user:created");
+    void shouldOnlyCleanOwnChannelOnBroadcastRemoval() {
+        SseEmitter dead = manager.registerBroadcast("user:created");
+        manager.registerBroadcast("order:paid");
+        dead.complete();
+
+        manager.broadcast("user:created", SsePayload.of("user:created", "x"));
+
+        assertThat(manager.broadcastChannelCount()).isEqualTo(1);
+        assertThat(manager.activeEmitterCount()).isEqualTo(1);
+        assertThat(manager.broadcast("order:paid", SsePayload.of("order:paid", "y"))).isEqualTo(1);
+    }
+
+    @Test
+    void shouldBroadcastToMultipleSubscribers() {        manager.registerBroadcast("user:created");
         manager.registerBroadcast("user:created");
 
         int sent = manager.broadcast("user:created", SsePayload.of("user:created", "hello"));
@@ -213,6 +229,47 @@ class SseEmitterManagerTest {
         manager.broadcast("user:created", SsePayload.of("user:created", "cleanup"));
         int sent = manager.broadcast("user:created", SsePayload.of("user:created", "hi"));
         assertThat(sent).isEqualTo(manager.activeEmitterCount());
+    }
+
+    /**
+     * 最后一个旧连接清理与新连接注册并发：新连接不得加入已脱离 map 的旧集合.
+     *
+     * <p>旧实现路由注册在锁外 computeIfAbsent(...).add()：清理的 compute 可先判空移除 key，
+     * 新连接的 add 随后落到已脱离 map 的旧集合——连接仍活跃并占用上限，却收不到该通道推送
+     * （复现特征：active=1, channels=0）。修复后注册与清理共用 registerLock 互斥.</p>
+     */
+    @Test
+    void shouldNotLoseRouteWhenLastEmitterRemovedDuringRegister() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        for (int round = 0; round < 100; round++) {
+            SseEmitterManager fresh = new SseEmitterManager(properties,
+                    java.util.Optional.of(com.frame.me.base.event.IReceiverIdAuthorizer.permitAll()));
+            SseEmitter old = fresh.registerBroadcast("user:created");
+            CountDownLatch start = new CountDownLatch(1);
+            // complete 的 emitter 经广播发送失败触发 removeEmitter，清空通道并移除 key
+            // （单测环境无 MVC 基础设施，complete() 本身不触发 onCompletion 回调）
+            Future<?> removeFuture = pool.submit(() -> {
+                start.await();
+                old.complete();
+                fresh.broadcast("user:created", SsePayload.of("user:created", "cleanup"));
+                return null;
+            });
+            Future<?> registerFuture = pool.submit(() -> {
+                start.await();
+                fresh.registerBroadcast("user:created");
+                return null;
+            });
+            start.countDown();
+            removeFuture.get();
+            registerFuture.get();
+
+            // 新连接必须仍挂在通道上：广播恰好命中 1 个存活 emitter；
+            // 若竞态致其加入脱离 map 的旧集合，则 channels=0、sent=0
+            assertThat(fresh.activeEmitterCount()).isEqualTo(1);
+            int sent = fresh.broadcast("user:created", SsePayload.of("user:created", "hi"));
+            assertThat(sent).as("round %d: 新注册 emitter 丢失路由", round).isEqualTo(1);
+        }
+        pool.shutdown();
     }
 
     /**
