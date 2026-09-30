@@ -113,6 +113,7 @@ public class GlobalExceptionHandler {
     public IResult<Void> handleResponseStatusException(ResponseStatusException e, HttpServletResponse response) {
         log.warn("响应状态异常: {} - {}", e.getStatusCode(), e.getReason());
         response.setStatus(e.getStatusCode().value());
+        copyErrorHeaders(e, response);
         return Result.error(e.getStatusCode().value(), e.getReason());
     }
 
@@ -143,6 +144,7 @@ public class GlobalExceptionHandler {
                 log.warn("请求异常: {} - {}", statusCode, e.getMessage());
             }
             response.setStatus(statusCode.value());
+            copyErrorHeaders(errorResponse, response);
             return Result.error(statusCode.value(), e.getMessage());
         }
         log.error("系统异常: {}", e.getMessage(), e);
@@ -150,6 +152,15 @@ public class GlobalExceptionHandler {
                 ? ResultCode.ERROR.getMsg()
                 : (e.getMessage() != null ? e.getMessage() : e.getClass().getName());
         return errorResult(ResultCode.ERROR.getCode(), message, e);
+    }
+
+    /**
+     * 透传 {@link ErrorResponse} 自带的协议响应头：405 必须携带 {@code Allow}（RFC 9110），
+     * 只设状态码会让客户端丢失"资源支持哪些方法"的协议信息；无自带头的异常该方法是空操作.
+     */
+    private static void copyErrorHeaders(ErrorResponse errorResponse, HttpServletResponse response) {
+        errorResponse.getHeaders().forEach((name, values) ->
+                values.forEach(value -> response.addHeader(name, value)));
     }
 
     private IResult<Void> errorResult(Integer code, String message, Throwable throwable) {

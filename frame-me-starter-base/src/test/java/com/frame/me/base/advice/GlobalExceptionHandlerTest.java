@@ -8,6 +8,7 @@ import com.frame.me.base.result.ResultCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,6 +110,21 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getCode()).isEqualTo(ResultCode.ERROR.getCode());
         assertThat(result.getMsg()).isEqualTo(ResultCode.ERROR.getMsg());
         assertThat(result.getMsg()).doesNotContain("t_secret_user");
+    }
+
+    /**
+     * 405 必须携带 Allow 响应头（RFC 9110）：ErrorResponse 自带的协议响应头
+     * 不能只设状态码而丢失，否则客户端无法得知资源支持的方法.
+     */
+    @Test
+    void methodNotSupported_copiesAllowHeader() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(new ExceptionProperties());
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        IResult<Void> result = handler.handleException(
+                new HttpRequestMethodNotSupportedException("POST", java.util.List.of("GET")), response);
+        assertThat(response.getStatus()).isEqualTo(405);
+        assertThat(response.getHeader(org.springframework.http.HttpHeaders.ALLOW)).isEqualTo("GET");
+        assertThat(result.getCode()).isEqualTo(405);
     }
 
     /**
