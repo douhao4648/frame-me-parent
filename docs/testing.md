@@ -90,7 +90,7 @@ JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
   ./mvnw -pl frame-me-tester/frame-me-tester-service package
 
 JAVA_HOME=/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home \
-  java -jar frame-me-tester/frame-me-tester-service/target/frame-me-tester-service-1.0.0-SNAPSHOT.jar
+  java -jar frame-me-tester/frame-me-tester-service/target/app.jar
 ```
 
 ## 运行时配置

@@ -53,7 +53,7 @@
   - `com.frame.me.base.notify.INotifySender` — 通用通知发送接口，业务代码通过它发送通知而无需关心底层通道。
   - `com.frame.me.base.config.AsyncAutoConfiguration` / `com.frame.me.base.config.AsyncProperties` — 默认 `@Async` 线程池与未捕获异常处理；异常通知发送失败仅降级为 warn，不会逃逸出异常处理器。
   - `com.frame.me.base.config.SchedulingAutoConfiguration` / `com.frame.me.base.config.SchedulingProperties` — 默认 `@Scheduled` 调度线程池；调度异常处理同上，通知故障不影响后续调度。
-  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 HTTP 客户端自动配置。注册共享 `PoolingHttpClientConnectionManager`（maxTotal=200/maxPerRoute=50，空闲/过期连接驱逐由 HC5 原生 `IdleConnectionEvictor` 承担）+ `ClientHttpRequestFactoryBuilder`，让所有 HTTP 调用方式（注入 `RestClient.Builder`、`@ImportHttpServices` 声明式接口、`RestTemplateBuilder` → `RestTemplate`）复用同一连接池；所有产出的 HttpClient 均标记 `connectionManagerShared`，单个 factory 被 close 不会连带关闭共享池。超时优先级：`read-timeout` → `spring.http.serviceclient.<group>.read-timeout`（group 级）→ `spring.http.clients.read-timeout`（全局级）→ `me.restclient.pool.response-timeout`（池化默认）；`connect-timeout` → `spring.http.clients.connect-timeout`（全局级）→ `me.restclient.pool.connect-timeout`（池化默认），group 级 connect-timeout 无法 per-request 覆盖（ConnectionConfig 绑共享 ConnectionManager），统一用全局值。重定向：builder 响应 `HttpClientSettings.redirects()`，`DONT_FOLLOW` 时 `disableRedirectHandling()`（HC5 默认跟随；`FOLLOW_WHEN_POSSIBLE`/`FOLLOW` 即默认行为），保证 `TestRestTemplate.withRedirects(DONT_FOLLOW)` 等调用生效。
+  - `com.frame.me.base.config.PoolingRestClientAutoConfiguration` / `com.frame.me.base.config.PoolingRestClientProperties` — 基于 HttpClient 5 的池化 HTTP 客户端自动配置。注册共享 `PoolingHttpClientConnectionManager`（maxTotal=200/maxPerRoute=50）+ 独立 `IdleConnectionEvictor` Bean（10s 扫描/30s 空闲上限，随容器启停——所有 HttpClient 均 `connectionManagerShared`，HC5 对共享池不接线内建驱逐，builder 的 `evict*` 是死配置）+ `ClientHttpRequestFactoryBuilder`，让所有 HTTP 调用方式（注入 `RestClient.Builder`、`@ImportHttpServices` 声明式接口、`RestTemplateBuilder` → `RestTemplate`）复用同一连接池；所有产出的 HttpClient 均标记 `connectionManagerShared`，单个 factory 被 close 不会连带关闭共享池。超时优先级：`read-timeout` → `spring.http.serviceclient.<group>.read-timeout`（group 级）→ `spring.http.clients.read-timeout`（全局级）→ `me.restclient.pool.response-timeout`（池化默认）；`connect-timeout` → `spring.http.clients.connect-timeout`（全局级）→ `me.restclient.pool.connect-timeout`（池化默认），group 级 connect-timeout 无法 per-request 覆盖（ConnectionConfig 绑共享 ConnectionManager），统一用全局值。重定向：builder 响应 `HttpClientSettings.redirects()`，`DONT_FOLLOW` 时 `disableRedirectHandling()`（HC5 默认跟随；`FOLLOW_WHEN_POSSIBLE`/`FOLLOW` 即默认行为），保证 `TestRestTemplate.withRedirects(DONT_FOLLOW)` 等调用生效。
   - `com.frame.me.base.user.User` — 通用用户模型占位类；`password` 字段标记 `@ToString.Exclude` + `@JsonProperty(WRITE_ONLY)`，口令哈希不随日志打印落盘，且任何 Jackson 序列化输出（接口响应、sa-token 会话缓存 JSON）一律剥离、仅允许反序列化写入。
   - `com.frame.me.base.util.SnowflakeUtils` — 雪花 ID 生成工具，优先使用 MyBatis-Plus / MyBatis-Flex 的生成器实例，其次使用 base 的 `Snowflake` Bean，最后回退到 Hutool 默认生成器。
   - `com.frame.me.base.web.IFilterErrorResponseWriter` — Filter 层错误响应写入器 SPI，允许业务模块自定义 Filter 层错误消息体格式。
@@ -235,7 +235,7 @@ me:
   - `me.mybatis.datasource-bridge.enabled=true`（默认 `true`，可省略）——「`spring.datasource` 自动注册为 master」的统一开关，与 `frame-me-starter-mybatis-flex` 的桥接共用。
 - **使用方式**：
   - 当存在 `spring.datasource.url` 时，自动创建 `master` 数据源。
-  - 若 `spring.datasource.dynamic.datasource` 中也显式配置了 `master`，则显式配置优先级更高，会覆盖自动创建的 `master`。
+  - 若 `spring.datasource.dynamic.datasource` 中也显式配置了 `master`（检测 `...master.url`），则显式配置优先级更高：桥接 Provider 直接跳过备用池创建——否则备用池会被 Yml Provider `putAll` 覆盖且无人关闭，连接与 housekeeping 线程泄漏。
   - 支持读取 `spring.datasource.hikari.*` 和 `spring.datasource.druid.*` 连接池属性；属性按 Spring 优先级解析（高优先级源先占位、低优先级源不覆盖，与 `environment.getProperty` 一致）。
   - `me.mybatis` 互斥：`frame-me-starter-mybatis-plus` 与 `frame-me-starter-mybatis-flex` 不可同时引入（`BaseMapper`/实体基类/基础设施冲突，同时引入会启动失败）；二者各自 `@ConditionalOnClass` 检测，业务按需选择其一。
   - 需要切换数据源时，使用 `@DS("slave")` 等 baomidou 注解。
@@ -908,7 +908,7 @@ public Boolean delete(Long id) { ... }
 - **依赖**：`frame-me-api`、`frame-me-starter-base`、`spring-boot-starter`、`spring-aop`、`aspectjweaver`、`fastjson2`、`lombok`。
 - **关键类**：
   - `com.frame.me.op.audit.annotation.AuditLog` — 标记需要记录审计日志的方法。
-  - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`；操作人 SPI 异常降级为 `anonymous`，不阻断业务；`maxParamLength` 同时约束参数与返回值；异步发布（`me.audit.async.*`）用有界线程池，队列满丢弃审计（刻意不阻塞业务线程）但累计计数 + 节流 WARN（每 1000 条报一次，丢弃可观测，据此调 `queue-capacity`）。
+  - `com.frame.me.op.audit.aspect.AuditLogAspect` — AOP 切面，拦截方法并组装 `AuditLogRecord`；操作人 SPI 异常降级为 `anonymous`，不阻断业务；`maxParamLength` 同时约束参数与返回值；异步发布（`me.audit.async.*`）用有界线程池，队列满丢弃审计（刻意不阻塞业务线程）但累计计数 + 节流 WARN（每 1000 条报一次，丢弃可观测，据此调 `queue-capacity`）；线程池开启 `waitForTasksToCompleteOnShutdown`，关闭时有界排空积压任务（最多 5s），滚动重启不丢已入队审计。
   - `com.frame.me.op.audit.core.AuditLogEvent` — 审计事件，继承 `AbstractMeApplicationEvent`。
   - `com.frame.me.op.audit.core.AuditLogRecord` — 审计记录负载。
   - `com.frame.me.op.audit.listener.AuditLogLogger` — 本地 `@EventListener`，默认输出结构化日志；仅打印本实例产生的事件（按 `sourceInstanceId` 与 `me.event-bridge.instance-id` 比对），不重复打印其他实例广播来的事件。
@@ -1293,5 +1293,5 @@ public class AlertService {
 
 - **依赖红线**：不引 `frame-me-boot`/`base`/`auth*`/`multi-redis`/sa-token——它们经 base 拖入 `spring-boot-starter-web`（Servlet 栈），与 SC Gateway WebFlux 同 classpath 启动失败。验签/查 Redis 能力在网关内以 web 无关方式重写，约定见 guide。
 - **用户验证器体系级二选一**：体系内统一认证底座，无混合拓扑，故开关在应用级（`me.gateway.auth.user-validator`），Nacos 改配置重启即切换。
-- **拓扑 profile 部署**：`application-public.yml`（对公网，钉死 `allow-anonymous: false`）/ 内网实例激活 `internal` profile 名 + `allow-anonymous: true`（可开 discovery locator），一份代码按需部署；将来拆 app 专属实例只需 `user-auth-enabled: false`，代码零改动。
+- **拓扑 profile 部署**：`application-public.yml`（对公网，钉死 `allow-anonymous: false` + 关闭 discovery locator，路由显式白名单化）/ 内网实例激活 `internal` profile 名 + `allow-anonymous: true`（可开 discovery locator），一份代码按需部署；将来拆 app 专属实例只需 `user-auth-enabled: false`，代码零改动。
 - **SSO 零改动**：客户端流程不变（SSO 登录 → 下游 sso-login 换下游 token → 带 token 走网关）。
