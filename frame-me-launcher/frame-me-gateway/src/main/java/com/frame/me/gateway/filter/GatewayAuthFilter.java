@@ -1,6 +1,7 @@
 package com.frame.me.gateway.filter;
 
 import com.frame.me.gateway.auth.IAppAuthenticator;
+import com.frame.me.gateway.auth.CachedRequestBody;
 import com.frame.me.gateway.auth.IUserValidator;
 import com.frame.me.gateway.config.GatewayAuthProperties;
 import com.frame.me.gateway.config.GatewayConstant;
@@ -11,10 +12,13 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.ObjectMapper;
 
@@ -125,18 +129,37 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
 
     /**
      * app 凭证：HMAC 签名验证 → 剥离身份头 → 注入 appKey.
+     *
+     * <p>声明 digest 的请求：认证器已按真实字节校验摘要并消费 body 流，
+     * 这里把校验过的字节原样重放给下游（被篡改的 body 在认证阶段已被 401，到不了这里）。</p>
      */
     private Mono<Void> filterApp(ServerWebExchange exchange, GatewayFilterChain chain,
                                  IAppAuthenticator appAuthenticator) {
-        return appAuthenticator.authenticate(exchange.getRequest())
-                .flatMap(appKey -> {
+        return appAuthenticator.authenticate(exchange.getRequest(), result -> {
                     ServerWebExchange mutated = stripIdentityHeaders(exchange);
                     ServerHttpRequest request = mutated.getRequest().mutate()
-                            .header(GatewayConstant.HEADER_APP_KEY, appKey)
+                            .header(GatewayConstant.HEADER_APP_KEY, result.appKey())
                             .build();
-                    return chain.filter(mutated.mutate().request(request).build());
+                    if (result.cachedBody() != null) {
+                        request = replayBody(request, result.cachedBody(), mutated);
+                    }
+                    return chain.filter(mutated.mutate().request(request).build()).thenReturn(Boolean.TRUE);
                 })
-                .switchIfEmpty(Mono.defer(() -> unauthorized(exchange, "invalid app credential")));
+                .switchIfEmpty(Mono.defer(() -> unauthorized(exchange, "invalid app credential").thenReturn(Boolean.FALSE)))
+                .then();
+    }
+
+    /**
+     * 用认证阶段校验过的 body 字节包装请求，保证下游读到的与摘要校验的字节一致.
+     */
+    private static ServerHttpRequest replayBody(ServerHttpRequest request, CachedRequestBody body,
+                                                ServerWebExchange exchange) {
+        return new ServerHttpRequestDecorator(request) {
+            @Override
+            public Flux<DataBuffer> getBody() {
+                return body.replay(exchange.getResponse().bufferFactory());
+            }
+        };
     }
 
     /**

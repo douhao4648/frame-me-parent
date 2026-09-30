@@ -71,7 +71,7 @@ me:
 |---|---|
 | `Authorization` | `Signature keyId="<appKey>",algorithm="hmac-sha256",headers="date @request-target",signature="<base64>"` |
 | `Date` | HTTP GMT 日期（RFC 1123），与网关时钟偏差 >300 秒拒绝（对齐 APISIX `clock_skew` 默认值，防重放） |
-| `X-Nonce`（可选） | 客户端在 `headers` 列表中追加声明 `x-nonce` 并提供该头时，网关对 `keyId+nonce` 做 Redis `SET NX`（TTL=时钟窗）一次性消费——重放请求第二次到达即拒。不声明则维持 APISIX 基线（仅时钟窗）。声明即 opt-in：网关无 Redis 或 Redis 故障时 fail-closed 拒绝；nonce 空白或 >128 字符拒绝 |
+| `X-Nonce`（可选） | 客户端在 `headers` 列表中追加声明 `x-nonce` 并提供该头时，网关对 `keyId+nonce` 做 Redis `SET NX`（TTL=2×时钟窗+取整裕量，覆盖 Date 超前 300 秒时签名的最大剩余有效期 600 秒）一次性消费——重放请求第二次到达即拒。不声明则维持 APISIX 基线（仅时钟窗）。声明即 opt-in：网关无 Redis 或 Redis 故障时 fail-closed 拒绝；nonce 空白或 >128 字符拒绝 |
 
 待签串（`\n` 拼接，尾随 `\n`）：`keyId` 为首行，随后按 `headers` 声明顺序逐行 `头名: 值`（头名保留声明的原样大小写），`@request-target` 展开为 `METHOD request-uri`（大写方法，raw path + query string，对齐 APISIX `request_uri`）。固定顺序下即：
 
@@ -83,7 +83,26 @@ GET /api/data?x=1\n
 
 签名 = `base64(HmacSHA256(secret, 待签串))`，与 APISIX 一致比较原始 HMAC 字节（本网关用常量时间比较防时序侧信道）。
 
-注意 **body 不在默认签名范围内**：需要防 body 篡改的客户端可把 `digest` 等头加进 `headers` 签名列表（机制已支持签名任意头），网关按声明原样校验。`x-nonce` 同理——声明后 nonce 值本身参与签名，且验签通过后网关做一次性消费（重放即拒）。
+注意 **body 不在默认签名范围内**，防篡改为显式 opt-in：客户端把 `digest` 加进 `headers` 签名列表并提供 `Digest: SHA-256=<base64>`（或 SHA-512，RFC 3230）头时，网关除验签外还**分块读取完整请求体并增量计算摘要**。缓存阈值由 `me.gateway.auth.digest-memory-threshold` 配置，默认 `256KB`（256 KiB）：累计大小不超过阈值时只用内存，不创建文件；超过后将此前内存内容及后续字节完整转存到 `java.io.tmpdir` 下的临时文件。阈值是缓存方式切换点，不是请求大小限制；设为 `0B` 时非空请求直接走文件。摘要通过后才完整转发，不截断 body。缓存在拒绝、转发完成、异常或取消时释放；磁盘读写在专用调度器执行。其他自定义头仍按声明的字符串值原样校验。未声明 `digest` 时不读取、不暂存 body，保持直接转发。`x-nonce` 同理——声明后 nonce 值本身参与签名，且摘要通过后网关做一次性消费（重放即拒）。
+
+缓存目录可以通过 `me.gateway.auth.digest-cache-directory` 覆盖，默认仍为 JVM 的 `java.io.tmpdir`。仅在超过内存阈值时创建目录和临时文件；请求结束后删除文件，保留目录供后续请求使用。
+
+```yaml
+me:
+  gateway:
+    auth:
+      digest-memory-threshold: 256KB
+      digest-cache-directory: /var/tmp/me-digest
+      digest-max-size: 20MB
+      digest-read-timeout: 60s
+      digest-cache-max-age: 24h
+```
+
+`digest-max-size` 限制单个声明 Digest 的完整请求体，默认 20 MiB：`Content-Length` 超限可提前返回 413，实际流量仍逐块累计检查，分块传输或虚报长度也不能绕过。`digest-read-timeout` 默认 60 秒，限制完整 body 的总读取时间（包括持续慢速上传），超时返回 408；不限制校验通过后的下游处理时间。未声明 Digest 的普通代理请求不受这两个校验层限制。
+
+缓存清理失败只记 WARN，不替换成功结果或原业务异常。开启 app 鉴权时，清扫器在启动时及每小时扫描缓存目录，仅处理超过 `digest-cache-max-age`（默认 24 小时）的 `me-digest-*.body` 普通文件；跳过符号链接和持锁文件。请求缓存持有文件锁，本 JVM 另维护活跃集合；新文件名包含 PID 和进程启动时间，同机其他存活进程拥有的文件也会跳过。容器部署应使用各实例独立的缓存目录，不依赖跨 PID 命名空间的进程判断。大小上限按单请求生效，不代替部署侧的总磁盘配额和并发容量限制。
+
+自定义 `IAppAuthenticator` 的认证操作使用 `authenticate(request, authenticated)`：通过校验后调用回调，`CachedRequestBody`（内存或文件）仅在回调返回的 `Mono` 生命周期内有效，调用方用 `replay(bufferFactory)` 完整重放。这样缓存的清理覆盖整个下游转发，而不会在鉴权返回时提前释放。
 
 与 APISIX 的三处有意识收窄/增强：仅支持 `hmac-sha256`（APISIX 默认还允许 sha1/sha512）；强制 `headers` 覆盖 `date` + `@request-target`（防降级——缺 date 即无防重放）；常量时间比较（APISIX 为直接相等）。**收益：未来 app 鉴权让渡到 APISIX/MSE 时客户端契约不变**（仅需补齐收窄项）。
 
@@ -111,7 +130,7 @@ GET /api/data?x=1\n
 
 内外网隔离用同一份 artifact、不同激活 profile 部署：
 
-- **`public`** 实例（对公网）：`application-public.yml` 显式钉死 `allow-anonymous: false`。建议关闭 discovery locator，显式路由白名单化。
+- **`public`** 实例（对公网）：激活 `public` profile 名，`application-public.yml` 显式钉死 `allow-anonymous: false` 并关闭 discovery locator，路由须显式白名单化（routes 配置）。
 - **`internal`** 实例（内网）：激活 `internal` profile 名 + `allow-anonymous: true`（无凭证匿名放行，携带合法凭证的请求仍正常认证注入身份头——"可选认证"形态），可开 discovery locator。
 
 **fail-closed 守卫**：`AnonymousAccessGuard` 启动期强制——`allow-anonymous=true` **仅在显式激活 `internal` profile 时合法**，其余一律拒绝启动（含 public、含忘记配置拓扑 profile）。方向是"匿名放行必须依附内网声明"，而不是"公网自觉声明 public"：公网部署忘记配 profile 时匿名配置不会静默生效。守卫默认开启，明确知晓风险时可显式置 `me.gateway.auth.anonymous-guard-enabled=false` 关闭（放弃防呆保护）。

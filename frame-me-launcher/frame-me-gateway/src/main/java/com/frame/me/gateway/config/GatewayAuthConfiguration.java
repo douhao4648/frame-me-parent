@@ -75,7 +75,16 @@ public class GatewayAuthConfiguration {
         if (redisTemplate == null) {
             log.info("网关应用认证器：无 Redis，nonce 防重放不可用（声明 x-nonce 的请求将被拒绝）");
         }
-        return new ConfigAppAuthenticator(properties.getApps(), redisTemplate);
+        return new ConfigAppAuthenticator(properties.getApps(), redisTemplate, properties.getDigestMemoryThreshold(),
+                properties.getDigestCacheDirectory(), properties.getDigestMaxSize(), properties.getDigestReadTimeout());
+    }
+
+    @Bean(initMethod = "start", destroyMethod = "close")
+    @ConditionalOnProperty(prefix = "me.gateway.auth", name = "app-auth-enabled",
+            havingValue = "true", matchIfMissing = true)
+    public DigestCacheCleaner digestCacheCleaner(GatewayAuthProperties properties) {
+        return new DigestCacheCleaner(properties.getDigestCacheDirectory(),
+                properties.getDigestCacheMaxAge());
     }
 
     /**

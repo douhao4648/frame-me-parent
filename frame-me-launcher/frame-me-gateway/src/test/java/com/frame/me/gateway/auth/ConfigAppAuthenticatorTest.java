@@ -203,6 +203,146 @@ class ConfigAppAuthenticatorTest {
         verify(redis, never()).opsForValue();
     }
 
+    /**
+     * digest 防篡改：body 与 Digest 头一致 → 通过（签名头含 digest，真实字节重算比对）.
+     */
+    @Test
+    void digestDeclared_matchingBody_passes() {
+        byte[] body = "{\"amount\":1}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(auth(authenticator, signedPostWithDigest("/api/pay", body, body))).isEqualTo("app-1");
+    }
+
+    @Test
+    void digestDeclared_largeBody_passesWithoutTruncation() {
+        byte[] body = "a".repeat(2 * 1024 * 1024 + 17).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(auth(authenticator, signedPostWithDigest("/api/upload", body, body))).isEqualTo("app-1");
+    }
+
+    @Test
+    void configuredCacheDirectoryIsUsedAndCleaned(@org.junit.jupiter.api.io.TempDir java.nio.file.Path directory) {
+        GatewayAuthProperties properties = new GatewayAuthProperties();
+        properties.setApps(List.of(credential()));
+        properties.setDigestMemoryThreshold(org.springframework.util.unit.DataSize.ofBytes(0));
+        java.nio.file.Path custom = directory.resolve("custom/cache");
+        properties.setDigestCacheDirectory(custom);
+        org.springframework.beans.factory.ObjectProvider<ReactiveStringRedisTemplate> redisProvider =
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        IAppAuthenticator configured = new com.frame.me.gateway.config.GatewayAuthConfiguration()
+                .configAppAuthenticator(properties, redisProvider);
+        byte[] bytes = "body".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        java.util.concurrent.atomic.AtomicReference<java.nio.file.Path> file = new java.util.concurrent.atomic.AtomicReference<>();
+        String appKey = configured.authenticate(signedPostWithDigest("/upload", bytes, bytes), result -> {
+            java.nio.file.Path path = ((CachedRequestBody.File) result.cachedBody()).path();
+            file.set(path);
+            assertThat(path.getParent()).isEqualTo(custom);
+            assertThat(path).exists();
+            return Mono.just(result.appKey());
+        }).block();
+        assertThat(appKey).isEqualTo("app-1");
+        assertThat(file.get()).doesNotExist();
+    }
+
+    @Test
+    void digestDeclared_prefixDigestWithAppendedBytes_null() {
+        byte[] prefix = "a".repeat(1024 * 1024).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] body = "a".repeat(1024 * 1024).concat("changed-tail").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(auth(authenticator, signedPostWithDigest("/api/upload", prefix, body))).isNull();
+    }
+
+    /**
+     * digest 防篡改：攻击者保留全部签名头（含原 body 的 Digest）、替换 body → 拒绝.
+     */
+    @Test
+    void digestDeclared_tamperedBody_null() {
+        byte[] original = "{\"amount\":1}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] tampered = "{\"amount\":999}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(auth(authenticator, signedPostWithDigest("/api/pay", original, tampered))).isNull();
+    }
+
+    /**
+     * digest 防篡改：Digest 声明弱算法（MD5）→ fail-closed 拒绝.
+     */
+    @Test
+    void digestDeclared_unsupportedAlgorithm_null() {
+        byte[] body = "{}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String date = ConfigAppAuthenticator.httpDate();
+        String digest = "MD5=" + java.util.Base64.getEncoder().encodeToString(md5(body));
+        String signingString = "app-1\n" + "date: " + date + "\n" + "POST /api/pay\n"
+                + "digest: " + digest + "\n";
+        String signature = java.util.Base64.getEncoder().encodeToString(hmacSha256("topsecret", signingString));
+        String authz = "Signature keyId=\"app-1\",algorithm=\"hmac-sha256\","
+                + "headers=\"date @request-target digest\",signature=\"" + signature + "\"";
+        assertThat(auth(authenticator, MockServerHttpRequest.post("/api/pay")
+                .header(HttpHeaders.AUTHORIZATION, authz)
+                .header(HttpHeaders.DATE, date)
+                .header("Digest", digest)
+                .body(new String(body, java.nio.charset.StandardCharsets.UTF_8)))).isNull();
+    }
+
+    /**
+     * digest 防篡改：空 body（Digest 按空字节计算）→ 通过.
+     */
+    @Test
+    void digestDeclared_emptyBody_passes() {
+        byte[] empty = new byte[0];
+        assertThat(auth(authenticator, signedPostWithDigest("/api/pay", empty, empty))).isEqualTo("app-1");
+    }
+
+    /**
+     * 构造声明 digest 的签名 POST：Digest 头按 signedBody 计算，实际发送 actualBody
+     * （两者不同即模拟"保留签名头、替换 body"的篡改）.
+     */
+    private static ServerHttpRequest signedPostWithDigest(String path, byte[] signedBody, byte[] actualBody) {
+        String date = ConfigAppAuthenticator.httpDate();
+        String digest = "SHA-256=" + java.util.Base64.getEncoder().encodeToString(sha256(signedBody));
+        String signingString = "app-1\n" + "date: " + date + "\n" + "POST " + path + "\n"
+                + "digest: " + digest + "\n";
+        String signature = java.util.Base64.getEncoder().encodeToString(hmacSha256("topsecret", signingString));
+        String authz = "Signature keyId=\"app-1\",algorithm=\"hmac-sha256\","
+                + "headers=\"date @request-target digest\",signature=\"" + signature + "\"";
+        return MockServerHttpRequest.post(path)
+                .header(HttpHeaders.AUTHORIZATION, authz)
+                .header(HttpHeaders.DATE, date)
+                .header("Digest", digest)
+                // BodyBuilder 无 byte[] 重载：ASCII JSON 的 UTF-8 编码与原字节一致；body() 直接返回 request
+                .body(new String(actualBody, java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static byte[] sha256(byte[] body) {
+        try {
+            return java.security.MessageDigest.getInstance("SHA-256").digest(body);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static byte[] md5(byte[] body) {
+        try {
+            return java.security.MessageDigest.getInstance("MD5").digest(body);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * nonce TTL 回归：Date 容许超前网关 300 秒，签名在首次接收后最长还有 600 秒有效期，
+     * nonce 保留时长必须覆盖该窗口（>600 秒），否则 nonce 过期后合法签名可被无密钥重放.
+     */
+    @Test
+    void nonceTtl_coversMaxSignatureValidityWindow() {
+        @SuppressWarnings("unchecked")
+        ReactiveValueOperations<String, String> ops = mock(ReactiveValueOperations.class);
+        when(ops.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(Mono.just(true));
+        ReactiveStringRedisTemplate redis = mock(ReactiveStringRedisTemplate.class);
+        when(redis.opsForValue()).thenReturn(ops);
+        ConfigAppAuthenticator withRedis = new ConfigAppAuthenticator(List.of(credential()), redis);
+
+        assertThat(auth(withRedis, signedGetWithNonce("/api/data", "nonce-ttl"))).isEqualTo("app-1");
+        org.mockito.ArgumentCaptor<Duration> ttl = org.mockito.ArgumentCaptor.forClass(Duration.class);
+        verify(ops).setIfAbsent(any(), any(), ttl.capture());
+        assertThat(ttl.getValue()).isGreaterThan(Duration.ofSeconds(600));
+    }
+
     private static ReactiveStringRedisTemplate redisReturning(boolean setNxResult) {
         @SuppressWarnings("unchecked")
         ReactiveValueOperations<String, String> ops = mock(ReactiveValueOperations.class);
@@ -227,10 +367,10 @@ class ConfigAppAuthenticatorTest {
     }
 
     /**
-     * 同步取认证结果（测试便利；生产侧为 {@code Mono} 由 filter 订阅）.
+     * 同步取认证结果 appKey（测试便利；生产侧为 {@code Mono} 由 filter 订阅）.
      */
     private static String auth(ConfigAppAuthenticator authenticator, ServerHttpRequest request) {
-        return authenticator.authenticate(request).block();
+        return authenticator.authenticate(request, result -> Mono.just(result.appKey())).block();
     }
 
     private static byte[] hmacSha256(String secret, String signingString) {

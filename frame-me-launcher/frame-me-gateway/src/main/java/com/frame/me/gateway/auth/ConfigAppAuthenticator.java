@@ -7,11 +7,13 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.util.unit.DataSize;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,6 +22,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -31,12 +34,15 @@ import java.util.stream.Collectors;
  *   <li>{@code Authorization: Signature keyId="<appKey>",algorithm="hmac-sha256",headers="date @request-target",signature="<base64>"}</li>
  *   <li>{@code Date}：HTTP GMT 日期（RFC 1123），与网关时钟偏差超过 300 秒拒绝（对齐 APISIX clock_skew 默认值，防重放）</li>
  *   <li>{@code X-Nonce}（可选）：客户端在 {@code headers} 列表中声明 {@code x-nonce} 并提供该头时，
- *   网关对 {@code keyId+nonce} 做 Redis {@code SET NX}（TTL=时钟窗）一次性消费——重放请求第二次
- *   到达即拒。不声明则维持 APISIX 基线（仅时钟窗）。nonce 为显式 opt-in，Redis 故障时 fail-closed</li>
+ *   网关对 {@code keyId+nonce} 做 Redis {@code SET NX}（TTL=2×时钟窗+取整裕量，覆盖 Date 超前
+ *   300 秒时签名的最大剩余有效期）一次性消费——重放请求第二次到达即拒。不声明则维持
+ *   APISIX 基线（仅时钟窗）。nonce 为显式 opt-in，Redis 故障时 fail-closed</li>
  * </ul>
  *
- * <p>注意 body 不在默认签名范围内：需要防篡改的客户端可把 {@code digest} 等头加进
- * {@code headers} 签名列表（机制已支持签名任意头），网关按声明原样校验。</p>
+ * <p>body 防篡改为显式 opt-in：客户端把 {@code digest} 加进 {@code headers} 签名列表并提供
+ * {@code Digest: SHA-256=<base64>}（或 SHA-512）头时，网关除验签外还按真实请求字节重算
+ * 摘要比对。完整 body 分块计算摘要并暂存文件，校验通过后由 filter 完整重放给下游；
+ * 未声明 {@code digest} 维持 APISIX 基线（body 不入签名、不读流）。</p>
  *
  * <p>待签串（{@code \n} 拼接，尾随 {@code \n}）：{@code keyId} 为首行，随后按客户端声明的
  * {@code headers} 顺序逐行 {@code 头名: 值}（头名保留声明的原样大小写），其中 {@code @request-target}
@@ -69,6 +75,13 @@ public class ConfigAppAuthenticator implements IAppAuthenticator {
      */
     private static final Duration CLOCK_SKEW = Duration.ofSeconds(300);
     /**
+     * nonce 一次性消费的保留时长：最坏情况 Date 超前网关时钟 300 秒，
+     * 签名在首次接收后仍最长有效 {@code Date + 300s - now} = 600 秒，
+     * nonce 必须覆盖整个最大有效窗口（2×偏差）再加秒级取整裕量，否则
+     * nonce 过期后同一份合法签名可被无密钥重放.
+     */
+    private static final Duration NONCE_TTL = CLOCK_SKEW.multipliedBy(2).plusSeconds(10);
+    /**
      * 客户端必须覆盖的签名头（防降级：缺 date 无防重放，缺 @request-target 无方法/路径绑定）.
      */
     private static final List<String> REQUIRED_SIGNED_HEADERS = List.of("date", "@request-target");
@@ -92,6 +105,11 @@ public class ConfigAppAuthenticator implements IAppAuthenticator {
      * nonce 长度上限（防异常长值刷 Redis）.
      */
     private static final int MAX_NONCE_LENGTH = 128;
+    /**
+     * 可选 body 防篡改摘要头名：客户端须在 {@code headers} 签名列表中声明才生效（防降级）.
+     */
+    private static final String DIGEST_HEADER = "digest";
+    private final BodyDigestVerifier bodyDigestVerifier;
     private final Map<String, String> secretByAppKey;
     private final ReactiveStringRedisTemplate redisTemplate;
 
@@ -104,6 +122,25 @@ public class ConfigAppAuthenticator implements IAppAuthenticator {
      */
     public ConfigAppAuthenticator(List<GatewayAuthProperties.AppCredential> apps,
                                   ReactiveStringRedisTemplate redisTemplate) {
+        this(apps, redisTemplate, GatewayAuthProperties.DEFAULT_DIGEST_MEMORY_THRESHOLD);
+    }
+
+    public ConfigAppAuthenticator(List<GatewayAuthProperties.AppCredential> apps,
+                                  ReactiveStringRedisTemplate redisTemplate, DataSize memoryThreshold) {
+        this(apps, redisTemplate, memoryThreshold, Path.of(System.getProperty("java.io.tmpdir")));
+    }
+
+    public ConfigAppAuthenticator(List<GatewayAuthProperties.AppCredential> apps,
+                                  ReactiveStringRedisTemplate redisTemplate, DataSize memoryThreshold,
+                                  Path cacheDirectory) {
+        this(apps, redisTemplate, memoryThreshold, cacheDirectory, DataSize.ofMegabytes(20), Duration.ofSeconds(60));
+    }
+
+    public ConfigAppAuthenticator(List<GatewayAuthProperties.AppCredential> apps,
+                                  ReactiveStringRedisTemplate redisTemplate, DataSize memoryThreshold,
+                                  Path cacheDirectory, DataSize maxSize, Duration readTimeout) {
+        this.bodyDigestVerifier = new BodyDigestVerifier(cacheDirectory, memoryThreshold.toBytes(),
+                maxSize.toBytes(), readTimeout);
         this.redisTemplate = redisTemplate;
         this.secretByAppKey = apps.stream()
                 .filter(app -> app.getAppKey() != null && !app.getAppKey().isBlank())
@@ -218,7 +255,7 @@ public class ConfigAppAuthenticator implements IAppAuthenticator {
     }
 
     @Override
-    public Mono<String> authenticate(ServerHttpRequest request) {
+    public <T> Mono<T> authenticate(ServerHttpRequest request, Function<AppAuthResult, Mono<T>> authenticated) {
         String authz = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authz == null || !authz.startsWith(AUTH_SCHEME)) {
             return Mono.empty();
@@ -263,7 +300,21 @@ public class ConfigAppAuthenticator implements IAppAuthenticator {
             log.warn("应用鉴权失败：keyId={} 签名校验不通过", keyId);
             return Mono.empty();
         }
-        // 验签通过后才消费 nonce：未通过验签的请求不得烧掉合法客户端的 nonce
+        // 声明 digest：除验签外按真实请求字节重算摘要比对，先于 nonce（篡改请求不得烧 nonce）
+        boolean digestDeclared = signedHeaders.stream().anyMatch(DIGEST_HEADER::equalsIgnoreCase);
+        if (digestDeclared) {
+            return bodyDigestVerifier.verify(request, body -> consumeNonceIfDeclared(keyId, signedHeaders, request)
+                    .flatMap(appKey -> authenticated.apply(new AppAuthResult(appKey, body))));
+        }
+        return consumeNonceIfDeclared(keyId, signedHeaders, request)
+                .flatMap(appKey -> authenticated.apply(AppAuthResult.withoutBody(appKey)));
+    }
+
+    /**
+     * 声明 nonce 才一次性消费（仅验签通过后调用：未通过验签的请求不得烧掉合法客户端的 nonce）.
+     */
+    private Mono<String> consumeNonceIfDeclared(String keyId, List<String> signedHeaders,
+                                                ServerHttpRequest request) {
         boolean nonceDeclared = signedHeaders.stream().anyMatch(NONCE_HEADER::equalsIgnoreCase);
         if (!nonceDeclared) {
             return Mono.just(keyId);
@@ -288,7 +339,7 @@ public class ConfigAppAuthenticator implements IAppAuthenticator {
             return Mono.just(false);
         }
         return redisTemplate.opsForValue()
-                .setIfAbsent(NONCE_KEY_PREFIX + keyId + ':' + nonce, "1", CLOCK_SKEW)
+                .setIfAbsent(NONCE_KEY_PREFIX + keyId + ':' + nonce, "1", NONCE_TTL)
                 .map(Boolean.TRUE::equals)
                 .doOnNext(fresh -> {
                     if (!fresh) {

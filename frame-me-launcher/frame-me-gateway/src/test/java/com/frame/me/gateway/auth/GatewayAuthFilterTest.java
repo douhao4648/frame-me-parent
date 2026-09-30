@@ -8,6 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -224,6 +225,78 @@ class GatewayAuthFilterTest {
                 .filter(exchange, noopChain()).block();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
+     * digest 声明且 body 匹配：验签+摘要通过后，下游读到的 body 必须是认证阶段校验过的同一份字节.
+     */
+    @Test
+    void digestSigned_bodyReplayedDownstream() {
+        assertDigestBodyReplayed("{\"amount\":1}");
+    }
+
+    @Test
+    void digestSigned_largeBodyReplayedDownstream() {
+        assertDigestBodyReplayed("a".repeat(2 * 1024 * 1024 + 17));
+    }
+
+    private void assertDigestBodyReplayed(String content) {
+        GatewayAuthProperties props = defaultProps();
+        byte[] body = content.getBytes(StandardCharsets.UTF_8);
+        String date = ConfigAppAuthenticator.httpDate();
+        String digest = "SHA-256=" + java.util.Base64.getEncoder().encodeToString(sha256(body));
+        String signingString = "app-1\n" + "date: " + date + "\n" + "POST /api/pay\n"
+                + "digest: " + digest + "\n";
+        String signature = java.util.Base64.getEncoder().encodeToString(hmacSha256("topsecret", signingString));
+        String authz = "Signature keyId=\"app-1\",algorithm=\"hmac-sha256\","
+                + "headers=\"date @request-target digest\",signature=\"" + signature + "\"";
+        // body() 直接返回 request（非 builder），from 有 MockServerHttpRequest 重载
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.post("/api/pay")
+                .header(HttpHeaders.AUTHORIZATION, authz)
+                .header(HttpHeaders.DATE, date)
+                .header("Digest", digest)
+                .header(HttpHeaders.CONTENT_LENGTH, Integer.toString(body.length))
+                .body(new String(body, StandardCharsets.UTF_8)));
+        AtomicReference<ServerWebExchange> captured = new AtomicReference<>();
+        AtomicReference<byte[]> downstream = new AtomicReference<>();
+
+        filter(props, new JwtUserValidator(props.getJwt()), new ConfigAppAuthenticator(props.getApps()))
+                .filter(exchange, ex -> {
+                    captured.set(ex);
+                    ex.getResponse().setStatusCode(HttpStatus.OK);
+                    return DataBufferUtils.join(ex.getRequest().getBody())
+                            .doOnNext(buffer -> {
+                                byte[] bytes = new byte[buffer.readableByteCount()];
+                                buffer.read(bytes);
+                                DataBufferUtils.release(buffer);
+                                downstream.set(bytes);
+                            }).then(ex.getResponse().setComplete());
+                }).block();
+
+        assertThat(captured.get()).isNotNull();
+        assertThat(captured.get().getRequest().getHeaders().getFirst(GatewayConstant.HEADER_APP_KEY))
+                .isEqualTo("app-1");
+        assertThat(downstream.get()).isEqualTo(body);
+        assertThat(captured.get().getRequest().getHeaders().getContentLength()).isEqualTo(body.length);
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    private static byte[] sha256(byte[] body) {
+        try {
+            return java.security.MessageDigest.getInstance("SHA-256").digest(body);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static byte[] hmacSha256(String secret, String signingString) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            return mac.doFinal(signingString.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static MockServerWebExchange exchange(MockServerHttpRequest.BaseBuilder<?> request) {

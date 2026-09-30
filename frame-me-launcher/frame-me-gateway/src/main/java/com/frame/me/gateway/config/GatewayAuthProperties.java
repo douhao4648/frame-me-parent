@@ -2,7 +2,10 @@ package com.frame.me.gateway.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +25,18 @@ import java.util.List;
 @Data
 @ConfigurationProperties(prefix = "me.gateway.auth")
 public class GatewayAuthProperties {
+
+    public static final DataSize DEFAULT_DIGEST_MEMORY_THRESHOLD = DataSize.ofKilobytes(256);
+
+    private DataSize digestMemoryThreshold = DEFAULT_DIGEST_MEMORY_THRESHOLD;
+
+    private Path digestCacheDirectory = Path.of(System.getProperty("java.io.tmpdir"));
+
+    private DataSize digestMaxSize = DataSize.ofMegabytes(20);
+
+    private Duration digestReadTimeout = Duration.ofSeconds(60);
+
+    private Duration digestCacheMaxAge = Duration.ofHours(24);
 
     /**
      * 是否启用用户凭证识别（默认 true）；false 时携带用户 token 也 401.
