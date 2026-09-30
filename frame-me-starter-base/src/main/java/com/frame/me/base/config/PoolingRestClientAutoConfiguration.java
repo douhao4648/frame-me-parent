@@ -3,6 +3,7 @@ package com.frame.me.base.config;
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.IdleConnectionEvictor;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.util.TimeValue;
@@ -26,7 +27,7 @@ import java.time.Duration;
  * 池化 HTTP 客户端自动配置.
  *
  * <p>当 classpath 存在 Apache HttpClient 5 时，注册共享 {@link PoolingHttpClientConnectionManager}
- * 连接池（单例，空闲/过期连接驱逐由 HC5 原生 {@code IdleConnectionEvictor} 承担），并通过
+ * 连接池（单例，空闲/过期连接驱逐由独立的 {@link IdleConnectionEvictor} Bean 承担），并通过
  * {@link ClientHttpRequestFactoryBuilder} 让所有 HTTP 调用方式复用该池：注入 {@code RestClient.Builder}、
  * {@code @ImportHttpServices} 声明式接口、{@code RestTemplateBuilder} → {@code RestTemplate}。</p>
  *
@@ -49,7 +50,8 @@ public class PoolingRestClientAutoConfiguration {
      * 共享连接池管理器（singleton）.
      *
      * <p>昂贵的资源（连接池的 socket 与线程）只创建一份、全局共享，由容器管理生命周期
-     * （实现 {@code DisposableBean}，关闭时释放连接）。后台驱逐线程只起一次，绑到本 Bean。</p>
+     * （实现 {@code DisposableBean}，关闭时释放连接）。后台驱逐线程只起一次，
+     * 见 {@link #poolingIdleConnectionEvictor}。</p>
      *
      * <p>connectTimeout 优先级：{@code spring.http.clients.connect-timeout}（全局）→
      * {@code me.restclient.pool.connect-timeout}（池化默认）。group 级 connect-timeout
@@ -84,13 +86,35 @@ public class PoolingRestClientAutoConfiguration {
     }
 
     /**
+     * 共享池的空闲/过期连接驱逐任务（singleton，随容器启停）.
+     *
+     * <p>各 HttpClient 均 {@code setConnectionManagerShared(true)}，HC5 因此对共享 manager
+     * 跳过内建 {@code IdleConnectionEvictor} 的创建（其接线条件是 {@code !connManagerShared}），
+     * builder 上的 {@code evictExpiredConnections()}/{@code evictIdleConnections()} 实为死配置。
+     * 故为共享池独立注册驱逐线程：每 10 秒扫描，驱逐过期连接与空闲超 30 秒的连接；
+     * {@code destroyMethod="shutdown"} 保证容器关闭时线程退出，池所有权仍归共享 manager。</p>
+     *
+     * @param poolingConnectionManager 共享连接池管理器
+     * @return 空闲连接驱逐器
+     */
+    @Bean(destroyMethod = "shutdown")
+    public IdleConnectionEvictor poolingIdleConnectionEvictor(
+            PoolingHttpClientConnectionManager poolingConnectionManager) {
+        IdleConnectionEvictor evictor = new IdleConnectionEvictor(poolingConnectionManager,
+                TimeValue.ofSeconds(10), TimeValue.ofSeconds(30));
+        evictor.start();
+        return evictor;
+    }
+
+    /**
      * 共享连接池请求工厂（singleton）.
      *
      * <p>注入共享 {@link PoolingHttpClientConnectionManager}，供直接注入 {@code ClientHttpRequestFactory}
      * 的代码使用。超时走 {@code me.restclient.pool.*} 默认值。</p>
      *
-     * <p>空闲/过期连接驱逐由 HC5 原生 {@code IdleConnectionEvictor} 承担（随本 HttpClient 生命周期启停），
-     * 只在本工厂开启一次；{@code setConnectionManagerShared(true)} 保证本工厂 close 时不连带关闭共享池。</p>
+     * <p>空闲/过期连接驱逐由 {@link #poolingIdleConnectionEvictor} 统一承担（shared manager
+     * 下 HC5 不会在 client 内接线驱逐）；{@code setConnectionManagerShared(true)}
+     * 保证本工厂 close 时不连带关闭共享池。</p>
      *
      * @param poolingConnectionManager 共享连接池管理器
      * @param properties               连接池配置属性
@@ -110,8 +134,6 @@ public class PoolingRestClientAutoConfiguration {
                 HttpClientBuilder.create()
                         .setConnectionManager(poolingConnectionManager)
                         .setConnectionManagerShared(true)
-                        .evictExpiredConnections()
-                        .evictIdleConnections(TimeValue.ofSeconds(30))
                         .setDefaultRequestConfig(requestConfig)
                         .build());
     }
@@ -153,7 +175,7 @@ public class PoolingRestClientAutoConfiguration {
                     .build();
             // 新建轻量 HttpClient，复用共享 ConnectionManager（连接池共享）；
             // shared 标记保证本 wrapper 被 close 时不连带关闭共享池。
-            // 驱逐不在此开启——多个 evictor 操作同一池只会空转，统一由 poolingRestClientRequestFactory 承担
+            // 驱逐统一由 poolingIdleConnectionEvictor Bean 承担（shared manager 下 HC5 不会接线内建驱逐）
             HttpClientBuilder httpClientBuilder = HttpClientBuilder.create()
                     .setConnectionManager(poolingConnectionManager)
                     .setConnectionManagerShared(true)

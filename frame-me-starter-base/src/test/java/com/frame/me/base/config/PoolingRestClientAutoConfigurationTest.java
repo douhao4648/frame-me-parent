@@ -3,9 +3,11 @@ package com.frame.me.base.config;
 import com.sun.net.httpserver.HttpServer;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.config.ConnectionConfig;
+import org.apache.hc.client5.http.impl.IdleConnectionEvictor;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.function.Resolver;
 import org.apache.hc.core5.pool.PoolStats;
+import org.apache.hc.core5.util.TimeValue;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -295,6 +297,45 @@ class PoolingRestClientAutoConfigurationTest {
                     assertThatThrownBy(() -> registry.getClient("plain", DemoApi.class).lazy())
                             .isInstanceOf(ResourceAccessException.class);
                 });
+    }
+
+    /**
+     * shared manager 下 HC5 不接线内建驱逐（builder 的 evict* 是死配置），
+     * 必须由独立 {@link IdleConnectionEvictor} Bean 承担并随容器注册.
+     */
+    @Test
+    void sharedPoolRegistersIndependentIdleConnectionEvictor() {
+        contextRunner.run(context -> assertThat(context).hasSingleBean(IdleConnectionEvictor.class));
+    }
+
+    /**
+     * 驱逐机制对共享池真实生效：调用后池中有空闲连接，短周期 evictor 在数秒内将其清空
+     * （用短 maxIdle 的独立 evictor 验证机制；容器内 Bean 为 10s/30s 周期，不宜在测试中等待）.
+     */
+    @Test
+    void idleConnectionsAreActuallyEvicted() throws Exception {
+        contextRunner.run(context -> {
+            PoolingHttpClientConnectionManager manager =
+                    context.getBean(PoolingHttpClientConnectionManager.class);
+            RestClient restClient = context.getBean(RestClient.Builder.class)
+                    .baseUrl(baseUrl).build();
+            restClient.get().uri("/ok").retrieve().toBodilessEntity();
+            assertThat(manager.getTotalStats().getAvailable()).isGreaterThanOrEqualTo(1);
+
+            IdleConnectionEvictor evictor = new IdleConnectionEvictor(manager,
+                    TimeValue.ofMilliseconds(100), TimeValue.ofMilliseconds(200));
+            evictor.start();
+            try {
+                long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+                while (manager.getTotalStats().getAvailable() > 0 && System.nanoTime() < deadline) {
+                    Thread.sleep(50);
+                }
+                assertThat(manager.getTotalStats().getAvailable())
+                        .as("空闲连接应被 evictor 驱逐").isZero();
+            } finally {
+                evictor.shutdown();
+            }
+        });
     }
 
     /**
