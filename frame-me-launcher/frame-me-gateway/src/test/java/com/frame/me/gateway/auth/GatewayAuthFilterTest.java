@@ -102,6 +102,8 @@ class GatewayAuthFilterTest {
         assertThat(captured.get()).isNotNull();
         assertThat(captured.get().getRequest().getHeaders().getFirst(GatewayConstant.HEADER_USER_ID)).isEqualTo("1001");
         assertThat(captured.get().getRequest().getHeaders().getFirst(GatewayConstant.HEADER_USER_ACCOUNT)).isEqualTo("alice");
+        // 转发成功后不得再进入 401 分支（chain 返回空 Mono 不代表认证为空）
+        assertThat(exchange.getResponse().getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
@@ -134,6 +136,8 @@ class GatewayAuthFilterTest {
         assertThat(captured.get()).isNotNull();
         assertThat(captured.get().getRequest().getHeaders().getFirst(GatewayConstant.HEADER_APP_KEY)).isEqualTo("app-1");
         assertThat(captured.get().getRequest().getHeaders().getFirst(GatewayConstant.HEADER_USER_ID)).isNull();
+        // 转发成功后不得再进入 401 分支（chain 返回空 Mono 不代表认证为空）
+        assertThat(exchange.getResponse().getStatusCode()).isNotEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test

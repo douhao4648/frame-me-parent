@@ -108,6 +108,9 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
 
     /**
      * 用户凭证：校验 token → 剥离身份头 → 注入已认证身份.
+     *
+     * <p>chain.filter 返回的 Mono&lt;Void&gt; 完成即空，不能用空判断认证结果——
+     * 认证阶段就用 Boolean 标记，空（未通过）才进 401 分支。</p>
      */
     private Mono<Void> filterUser(ServerWebExchange exchange, GatewayFilterChain chain,
                                   IUserValidator userValidator, String token) {
@@ -122,9 +125,10 @@ public class GatewayAuthFilter implements GlobalFilter, Ordered {
                                 }
                             })
                             .build();
-                    return chain.filter(mutated.mutate().request(request).build());
+                    return chain.filter(mutated.mutate().request(request).build()).thenReturn(Boolean.TRUE);
                 })
-                .switchIfEmpty(Mono.defer(() -> unauthorized(exchange, "invalid or expired token")));
+                .switchIfEmpty(Mono.defer(() -> unauthorized(exchange, "invalid or expired token").thenReturn(Boolean.FALSE)))
+                .then();
     }
 
     /**
