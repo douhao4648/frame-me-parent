@@ -73,6 +73,9 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
      * <p>L2 删除失败时异常直接抛给调用方（吊销属安全动作，必须能感知「吊销未生效」并重试）；
      * 此时本实例 L1 已清、L2 残留旧快照，重试本方法即可收敛。</p>
      *
+     * <p>删除后 {@link IPermissionCacheStore#bumpVersion} 推进版本：本实例或其他实例
+     * 在删除前已开始的回源，其旧快照回填会因版本不匹配被拒（防并发回填复活已吊销权限）。</p>
+     *
      * @param userId 用户 ID
      */
     public void evict(Object userId) {
@@ -82,6 +85,7 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
         String key = key(userId);
         localCache.invalidate(key);
         cacheStore.delete(key);
+        cacheStore.bumpVersion(key);
     }
 
     private UserPermissionSnapshot load(User user) {
@@ -95,12 +99,21 @@ public class RedisAuthPermissionProvider implements IAuthPermissionProvider {
         UserPermissionSnapshot snapshot = localCache.get(key, k -> {
             UserPermissionSnapshot cached = cacheStore.get(k);
             if (cached == null) {
+                // 版本围栏：回源前取版本，仅当期间无吊销（版本未变）才允许回填，
+                // 否则本实例回源慢于其他实例 evict 时会把旧快照写回 Redis（TTL 30 分钟内复活已吊销权限）
+                long version = cacheStore.version(k);
+                if (version < 0) {
+                    return null;
+                }
                 cached = loadFromSource(user);
-                cacheStore.set(k, cached, properties.getRedisTtl());
+                if (!cacheStore.setIfVersionMatches(k, cached, properties.getRedisTtl(), version)) {
+                    return null;
+                }
             }
             return cached;
         });
-        return snapshot;
+        // 不缓存无版本保护或已被围栏拒绝的结果；重新回源供当前调用使用.
+        return snapshot == null ? loadFromSource(user) : snapshot;
     }
 
     private UserPermissionSnapshot loadFromSource(User user) {

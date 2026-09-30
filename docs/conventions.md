@@ -922,7 +922,7 @@ public IResult<Void> update(@PathVariable Long id, @RequestBody OrderUpdateDTO d
 
 #### 异步上下文传播
 
-`@Async` 方法内的 `role()/perm()` 判断依赖 `AuthPermissionHolder` 跨线程传播。装配 `AuthPermissionTaskDecorator`（默认开启，`me.auth.permission.propagate.async.enabled`）后，默认异步线程池会在任务提交时捕获权限上下文、在异步线程恢复并在执行后清理。base 的 `AsyncAutoConfiguration` 会把多个 `TaskDecorator`（含 `AuthContextTaskDecorator`、本装饰器）按序组合成链。
+`@Async` 方法内的 `role()/perm()` 判断依赖 `AuthPermissionHolder` 跨线程传播。装配 `AuthPermissionTaskDecorator`（默认开启，`me.auth.permission.propagate.async.enabled`）后，默认异步线程池会在任务提交时捕获权限上下文、在异步线程恢复，执行后**恢复执行线程原有上下文**（而非直接清空——线程池饱和 CALLER_RUNS 时任务在提交线程执行、嵌套提交时内层在外层线程执行，直接清空会清掉请求线程/外层任务自身的上下文；线程原本无上下文时仍清理）。base 的 `AsyncAutoConfiguration` 会把多个 `TaskDecorator`（含 `AuthContextTaskDecorator`、本装饰器）按序组合成链。
 
 #### 可选 Redis 权限后端
 

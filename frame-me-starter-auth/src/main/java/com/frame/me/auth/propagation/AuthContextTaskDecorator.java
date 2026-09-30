@@ -42,6 +42,11 @@ public class AuthContextTaskDecorator implements TaskDecorator {
         }
 
         return () -> {
+            // 保存执行线程原有上下文：线程池饱和（CALLER_RUNS）时任务在提交线程执行、
+            // 嵌套提交时内层任务在外层任务线程执行——执行后必须恢复原上下文而非直接清空，
+            // 否则 finally 的 clear 会清掉请求线程/外层任务自身的身份
+            User previousUser = AuthContext.getUser();
+            Map<String, String> previousHeaders = AuthPropagationHolder.getHeaders();
             try {
                 if (user != null) {
                     AuthContext.setUser(user);
@@ -53,8 +58,16 @@ public class AuthContextTaskDecorator implements TaskDecorator {
                 }
                 runnable.run();
             } finally {
-                AuthContext.clear();
-                AuthPropagationHolder.clear();
+                if (previousUser != null) {
+                    AuthContext.setUser(previousUser);
+                } else {
+                    AuthContext.clear();
+                }
+                if (previousHeaders != null && !previousHeaders.isEmpty()) {
+                    AuthPropagationHolder.setHeaders(previousHeaders);
+                } else {
+                    AuthPropagationHolder.clear();
+                }
             }
         };
     }

@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link AuthPermissionTaskDecorator} 单元测试.
@@ -67,5 +68,47 @@ class AuthPermissionTaskDecoratorTest {
 
         assertEquals(1, seen.get().size(), "异步线程应恢复到传播的数据权限");
         assertFalse(AuthPermissionHolder.isLoaded(), "执行后应清理上下文");
+    }
+
+    /**
+     * 线程池饱和（CALLER_RUNS）：装饰后的任务在提交（请求）线程同步执行，
+     * 执行后必须恢复提交线程原有权限上下文，而不是 finally 直接清空.
+     */
+    @Test
+    void callerRuns_restoresSubmittingThreadContext() {
+        AuthPermissionHolder.setRoles(Set.of("admin"));
+        AuthPermissionHolder.setPermissions(List.of(new Permission("order", "r")));
+        AuthPermissionHolder.markLoaded();
+
+        AtomicReference<Set<String>> seenRoles = new AtomicReference<>();
+        decorator.decorate(() -> seenRoles.set(AuthPermissionHolder.getRoles())).run();
+
+        assertEquals(Set.of("admin"), seenRoles.get());
+        assertTrue(AuthPermissionHolder.isLoaded(), "CALLER_RUNS 执行后请求线程权限上下文不得被清空");
+        assertEquals(Set.of("admin"), AuthPermissionHolder.getRoles());
+    }
+
+    /**
+     * 嵌套提交：外层异步任务线程内同步执行内层装饰任务（内层 CALLER_RUNS），
+     * 内层 finally 不得清掉外层任务的上下文；外层结束（线程原本无上下文）仍应清理干净.
+     */
+    @Test
+    void nestedSubmission_innerClearDoesNotWipeOuterContext() {
+        AuthPermissionHolder.setRoles(Set.of("admin"));
+        AuthPermissionHolder.markLoaded();
+        Runnable inner = decorator.decorate(() ->
+                assertEquals(Set.of("admin"), AuthPermissionHolder.getRoles(), "内层应看到传播的角色"));
+        AtomicReference<Boolean> outerSeenAfterInner = new AtomicReference<>();
+        Runnable outer = decorator.decorate(() -> {
+            inner.run();
+            outerSeenAfterInner.set(AuthPermissionHolder.isLoaded());
+        });
+
+        // 模拟外层任务在无线程上下文的异步线程执行
+        AuthPermissionHolder.clear();
+        outer.run();
+
+        assertEquals(Boolean.TRUE, outerSeenAfterInner.get(), "内层 finally 不得清掉外层任务的权限上下文");
+        assertFalse(AuthPermissionHolder.isLoaded(), "外层结束后（线程原本无上下文）应清理干净");
     }
 }

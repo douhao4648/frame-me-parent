@@ -88,8 +88,53 @@ class AuthContextTaskDecoratorTest {
         assertEquals(Long.valueOf(2L), captured.get().getId());
     }
 
-    private void bindRequestWithHeader(String name, String value) {
-        MockHttpServletRequest request = new MockHttpServletRequest();
+    /**
+     * 线程池饱和（CALLER_RUNS）：装饰后的任务在提交（请求）线程同步执行，
+     * 执行后必须恢复请求线程原有身份与认证头，而不是 finally 直接清空.
+     */
+    @Test
+    void callerRuns_restoresSubmittingThreadIdentity() {
+        properties.getPropagate().getAsync().setEnabled(true);
+        AuthContext.setUser(createUser(42L, "requester"));
+        AuthPropagationHolder.setHeaders(java.util.Map.of("Authorization", "Bearer request-token"));
+
+        AtomicReference<User> seenInTask = new AtomicReference<>();
+        decorator.decorate(() -> seenInTask.set(AuthContext.getUser())).run();
+
+        assertEquals(Long.valueOf(42L), seenInTask.get().getId(), "任务内应看到身份");
+        User after = AuthContext.getUser();
+        assertEquals(Long.valueOf(42L), after == null ? null : after.getId(),
+                "CALLER_RUNS 执行后请求线程身份不得被清空");
+        assertEquals("Bearer request-token", AuthPropagationHolder.getHeader("Authorization"),
+                "CALLER_RUNS 执行后请求线程认证头不得被清空");
+    }
+
+    /**
+     * 嵌套提交：外层异步任务线程内同步执行内层装饰任务（内层 CALLER_RUNS），
+     * 内层 finally 不得清掉外层任务的上下文；外层结束（线程原本无上下文）仍应清理干净.
+     */
+    @Test
+    void nestedSubmission_innerClearDoesNotWipeOuterContext() {
+        properties.getPropagate().getAsync().setEnabled(true);
+        AuthContext.setUser(createUser(42L, "requester"));
+        Runnable inner = decorator.decorate(() ->
+                assertEquals(Long.valueOf(42L), AuthContext.getUser().getId(), "内层应看到传播的身份"));
+        AtomicReference<Long> outerSeenAfterInner = new AtomicReference<>();
+        Runnable outer = decorator.decorate(() -> {
+            inner.run();
+            User user = AuthContext.getUser();
+            outerSeenAfterInner.set(user == null ? null : user.getId());
+        });
+
+        // 模拟外层任务在无线程上下文的异步线程执行
+        AuthContext.clear();
+        outer.run();
+
+        assertEquals(Long.valueOf(42L), outerSeenAfterInner.get(), "内层 finally 不得清掉外层任务的身份");
+        assertNull(AuthContext.getUser(), "外层结束后（线程原本无上下文）应清理干净");
+    }
+
+    private void bindRequestWithHeader(String name, String value) {        MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader(name, value);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
     }

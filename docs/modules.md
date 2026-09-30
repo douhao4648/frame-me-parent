@@ -353,7 +353,7 @@ me:
   - **仅 Servlet Web 应用装配**（`@ConditionalOnWebApplication(SERVLET)`）：非 Web 应用下整个模块退避。
   - `TrustedHeaderAuthUserResolver` 无条件信任 `X-User-Id` 头，仅限内网服务间调用；对外应用必须引入 `frame-me-starter-auth-jwt` 或 `frame-me-starter-auth-sa-token`（两者均 `@AutoConfigureBefore(AuthAutoConfiguration)`，先于抽象层注册解析器使其退避）。
   - 通过 `@AutoConfigureBefore(AuditAutoConfiguration.class)` 保证审计模块能拿到当前登录用户 ID。
-  - **登录限流双实现**：默认注册 base 的 `InMemoryLoginRateLimiter`（单实例内存版）；引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，由 multi-redis 侧以 `@Primary` 注册 `RedissonLoginRateLimiter`（Redis 分布式版）覆盖，配置与内存版共用 `me.auth.login-rate-limit.*`（multi-redis 本地 `LoginRateLimitProperties` 绑定同前缀，默认值与 `AuthProperties.LoginRateLimit` 保持一致）。登录端点按 IP + 账号双维度限流（账号桶防伪造/轮换 X-Forwarded-For 绕过）；内存版容量超 1 万清过期窗口条目，Redis 版新建限流器挂 2 倍窗口 TTL，防刷 key 撑爆存储。
+  - **登录限流双实现**：默认注册 base 的 `InMemoryLoginRateLimiter`（单实例内存版）；引入 frame-me-starter-multi-redis 且 classpath 存在 Redisson 时，由 multi-redis 侧以 `@Primary` 注册 `RedissonLoginRateLimiter`（Redis 分布式版）覆盖，配置与内存版共用 `me.auth.login-rate-limit.*`（multi-redis 本地 `LoginRateLimitProperties` 绑定同前缀，默认值与 `AuthProperties.LoginRateLimit` 保持一致）。登录端点按 IP + 账号双维度限流（账号桶防伪造/轮换 X-Forwarded-For 绕过）；内存版容量超 1 万清过期窗口条目（每窗口最多清一次，避免全活跃时每请求全表扫描）、2 万硬上限满后拒绝为新 key 建桶（不淘汰活跃桶），Redis 版新建限流器挂 2 倍窗口 TTL，防刷 key 撑爆存储。
 
 ## `frame-me-starter-auth-rbac`
 
@@ -398,7 +398,7 @@ me:
   - **可选 Redis 后端**：显式引入 `frame-me-starter-multi-redis` 并存在 `RedisClientRegistry` Bean 时激活，`RedisAuthPermissionProvider` 以 `@Primary` 生效、配置版 provider 退避；不引入则仅配置版 provider。激活后如需 caffeine 之外的调整见 `me.auth.permission.redis.*`。
   - 委托数据源默认 `ConfigAuthPermissionProvider`；声明名为 `authPermissionSource` 的 `IAuthPermissionProvider` bean 可接入数据库等真实数据源。
   - **bean 命名约束**：`RedisAuthPermissionProvider` 无条件 `@Primary`。业务自定义 provider 若作为数据源，必须命名为 `authPermissionSource` 且**不要**标 `@Primary`——否则会出现两个 `@Primary` 导致按类型注入处 `NoUniqueBeanDefinitionException`；启用 Redis 后端时业务 provider 若未命名为 `authPermissionSource`，默认插槽按类型退避后包装器按名注入失败，**启动 fail-fast**（不会静默忽略）。
-  - 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）；读/写路径 Redis 异常自动降级回源，**`evict` 的 L2 删除失败会抛异常给调用方**（吊销可感知，重试即可收敛，见 `IPermissionCacheStore` 契约）。
+  - 权限变更后调用 `RedisAuthPermissionProvider#evict(userId)` 失效缓存（L1 + L2）；删除或版本替换失败会抛给调用方。存储层把包含配置前缀的逻辑 key 做 SHA-256 映射，生成 `me:rbac:v2:{摘要}:snapshot` 与同槽的 `:ver` key，支持 Redis Cluster；不再读取旧命名空间，升级后冷加载权限，旧条目由原 TTL 回收。**版本围栏防并发回填**：首次读取原子创建随机正整数版本，吊销原子删除快照并替换随机版本；版本缺失或变化均拒绝回填，版本过期后重新创建也不复用原计数器。版本读取失败、实现不支持或条件回填被拒时，直接回源且不缓存该结果至 L1/L2。自定义 `IPermissionCacheStore` 保持源码兼容，但需实现原子版本契约才启用回填；仅实现旧接口时降级为直接回源。升级需同步替换使用同一权限缓存的实例，避免旧实例继续使用不带围栏的缓存逻辑。
   - **吊销最终一致**：`evict` 只清当前实例的 L1，其他实例的 L1 在 `localTtl`（默认 5s）内仍提供旧权限，即吊销最长延迟 = `localTtl`。需要即时生效的场景应调低 `localTtl`（趋近 0 即近似关闭 L1，读全部直连 Redis）。注意：直接清 Redis 只能清 L2，对其他实例 L1 无效。
   - **数据权限**：两种显式使用方式（`@RequireAuth("dataCheck('order', #id)")` 单条校验、`AuthDataPermissions` 静态 Helper）共享同一套合并语义（`DataPermissionResolver`）,SpEL 函数以 `data` 前缀标识数据权限域,实现委托 Helper 同名方法（`isAll`/`check`)。`dataIds` 语义统一为**资源行主键集合**，不是部门 ID 集合。历史曾有的「SQL 自动拦截」方式（MP/Flex 适配）已移除——两个 ORM 能力不对等、fail-open 边界多；列表过滤统一用 Helper 显式拼条件，注意事项见 `docs/conventions.md` 数据权限小节。
   - **Redis 快照升级注意**：`UserPermissionSnapshot` 新增 `dataPermissions` 字段后，升级前写入的旧 JSON 反序列化得空列表——升级后数据权限为空直至 TTL 过期或 `evict`，需要立即生效时重启后 `evict` 受影响用户。
@@ -415,7 +415,7 @@ me:
   - `com.frame.me.auth.jwt.core.JwtTokenServiceImpl` — `IAuthService` 实现，负责 Access/Refresh Token 生成、解析与刷新。**RP 快照**：`loginByUser`（SSO 下游等无本地用户表场景）签发的 token 额外写入 `rp`/`nickname` 快照 claims，`getUser`/`refresh` 在 `loadUserById` 返回 null 且 token 带 `rp` 标记时从 claims 重建 User（否则 JWT 无状态下 RP 每请求 401）；密码登录签发的 token 无 `rp` 标记，"删用户即时失效"语义不受影响。RP 续期链路原样透传快照。
   - `com.frame.me.auth.jwt.core.JwtAuthUserResolver` — `IAuthUserResolver` 实现，从 `Authorization: Bearer ...` 解析当前用户。
   - `com.frame.me.auth.spi.IAuthUserDetailsService` — **位于抽象层**：业务需实现的接口，按账号/ID 查询用户（与 Sa-Token 实现共用）。
-  - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。兼作 RP 上游 token 存储：`saveUpstreamToken(userId, appId, token, expires)`/`getUpstreamToken(userId, appId)`/`deleteUpstreamTokens(userId)`/`renewUpstreamTokens(userId, expires)`（default no-op；Redis 实现为用户级 hash——key `me.auth.jwt.upstream-token-prefix` + userId（默认 `auth:upstream:`），field=appId，应用维度隔离、多下游共用 Redis 结构性免疫互撞，TTL 用户级共享；InMemory 实现同语义独立 map 惰性过期），JWT 无 session，上游 token 借此落地服务端、随本地会话同生共死（`refresh` 续期条目 TTL，logout/logoutByUserId 同步清除）。
+  - `com.frame.me.auth.jwt.core.IRefreshTokenStore` / `RedisRefreshTokenStore` — Refresh Token 存储抽象与默认 Redis 实现。兼作 RP 上游 token 存储：`saveUpstreamToken(userId, appId, token, expires)`/`getUpstreamToken(userId, appId)`/`deleteUpstreamTokens(userId)`/`renewUpstreamTokens(userId, expires)`（default no-op；Redis 实现为用户级 hash——key `me.auth.jwt.upstream-token-prefix` + userId（默认 `auth:upstream:`），field=appId，应用维度隔离、多下游共用 Redis 结构性免疫互撞，TTL 用户级共享；InMemory 实现同语义独立 map 惰性过期 + 独立 1 万条容量上限，淘汰语义同 refresh 存储——覆盖不淘汰、新增先清过期再淘汰最早过期一项），JWT 无 session，上游 token 借此落地服务端、随本地会话同生共死（`refresh` 续期条目 TTL，logout/logoutByUserId 同步清除）。
   - `com.frame.me.auth.jwt.web.JwtAuthController` — 默认认证接口：登录/登出/刷新/当前用户/管理员强制登出；基础路径默认 `/api/auth`，可通过 `me.auth.jwt.path` 修改。登录/登出/刷新/强制登出均标 `@AuditLog`（op-audit optional 集成）：login/refresh 刻意 `recordParams=false, recordResult=false` 防明文密码与 Token 对进审计，登录失败经 `recordError` 留失败审计。
   - `com.frame.me.auth.web.dto.LoginDTO` / `com.frame.me.auth.web.vo.TokenVO` — **位于抽象层**：登录请求与 Token 响应（与 Sa-Token 实现共用）。
   - `org.springframework.security.crypto.password.PasswordEncoder` — **由抽象层装配**：默认 BCrypt，业务可提供自定义 Bean 覆盖。
@@ -436,7 +436,7 @@ me:
   - 业务只需实现抽象层 `com.frame.me.auth.spi.IAuthUserDetailsService`，即可自动获得 JWT 登录能力。
   - Access Token 为无状态 JWT；Refresh Token 存 Redis，支持登出失效。登出接受已过期的 Access / Refresh Token（jjwt 验签后 claims 可信，仅 logout 场景放宽时效），保证过期后登出仍能清除 Refresh Token；`validate` / `getUser` / `refresh` 语义不变，过期即无效。
   - **refresh 的异常语义**：凭证问题（格式非法/签名不符/类型错误/已过期/已失效）返回 4001（凭证错误，前端留登录页显示）；`IRefreshTokenStore` 等基础设施故障（如 Redis 连接异常）不吞成 4001，原样上抛由全局异常处理映射 5xx，避免客户端误以为凭证失效而走重新登录。
-  - Refresh Token 存储后端：`frame-me-starter-multi-redis` 为 optional 依赖，显式引入即激活 `RedisRefreshTokenStore`；未引入时回退为 `InMemoryRefreshTokenStore`（单实例可用，装配时打 WARN；多实例部署 refresh/强制登出不跨实例生效，必须引入 multi-redis）。业务可注册自定义 `IRefreshTokenStore` 覆盖两者。
+  - Refresh Token 存储后端：`frame-me-starter-multi-redis` 为 optional 依赖，显式引入即激活 `RedisRefreshTokenStore`；未引入时回退为 `InMemoryRefreshTokenStore`（单实例可用，装配时打 WARN；多实例部署 refresh/强制登出不跨实例生效，必须引入 multi-redis；内存实现 1 万条硬上限，满后仅**新增**用户触发淘汰——先清过期条目、仍满再淘汰最早过期一项，覆盖已有用户不淘汰）。业务可注册自定义 `IRefreshTokenStore` 覆盖两者。
   - 提供管理员强制登出接口 `POST /admin/logout/{userId}`，清除该用户的 Refresh Token（已颁发的 Access Token 在自然过期前仍有效）；**默认关闭**，需通过 `me.auth.admin.logout.enabled=true` 开启，开启后必须自行配置访问控制（`me.auth.permission.rules` 或自定义拦截器）。
 
 ## `frame-me-starter-auth-sa-token`

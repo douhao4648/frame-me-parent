@@ -31,6 +31,13 @@ public class AuthPermissionTaskDecorator implements TaskDecorator {
         Set<Permission> permissions = AuthPermissionHolder.getPermissions();
         Set<DataPermission> dataPermissions = AuthPermissionHolder.getDataPermissions();
         return () -> {
+            // 保存执行线程原有上下文：线程池饱和（CALLER_RUNS）时任务在提交线程执行、
+            // 嵌套提交时内层任务在外层任务线程执行——执行后必须恢复而非直接清空，
+            // 否则 finally 的 clear 会清掉请求线程/外层任务自身的权限上下文
+            boolean wasLoaded = AuthPermissionHolder.isLoaded();
+            Set<String> previousRoles = wasLoaded ? AuthPermissionHolder.getRoles() : null;
+            Set<Permission> previousPermissions = wasLoaded ? AuthPermissionHolder.getPermissions() : null;
+            Set<DataPermission> previousDataPermissions = wasLoaded ? AuthPermissionHolder.getDataPermissions() : null;
             try {
                 AuthPermissionHolder.setRoles(roles);
                 AuthPermissionHolder.setPermissions(permissions);
@@ -39,7 +46,14 @@ public class AuthPermissionTaskDecorator implements TaskDecorator {
                 log.debug("权限上下文已传播到异步线程: roles={}", roles);
                 runnable.run();
             } finally {
-                AuthPermissionHolder.clear();
+                if (wasLoaded) {
+                    AuthPermissionHolder.setRoles(previousRoles);
+                    AuthPermissionHolder.setPermissions(previousPermissions);
+                    AuthPermissionHolder.setDataPermissions(previousDataPermissions);
+                    AuthPermissionHolder.markLoaded();
+                } else {
+                    AuthPermissionHolder.clear();
+                }
             }
         };
     }

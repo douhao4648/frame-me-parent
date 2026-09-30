@@ -22,12 +22,15 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
     /** 最大存储条目数，防止 DDoS 登录攻击撑爆内存. */
     private static final int MAX_SIZE = 10_000;
 
+    /** 上游 token 存储独立容量上限（与 Redis 实现的独立 TTL 语义对齐，不与 store 生命周期强绑定）. */
+    private static final int MAX_UPSTREAM_SIZE = 10_000;
+
     private final Map<Long, Entry> store = new ConcurrentHashMap<>();
     private final Object evictLock = new Object();
 
     /**
-     * 上游 token 与 refresh token 同用户量级（仅 RP 登录会写入），复用惰性过期，
-     * 不单独做容量闸门——{@code store} 的 MAX_SIZE 已间接约束.
+     * 上游 token 与 refresh token 同用户量级（仅 RP 登录会写入），复用惰性过期；
+     * 容量独立于 {@code store} 受 {@link #MAX_UPSTREAM_SIZE} 约束，淘汰语义同 {@link #save}.
      *
      * <p>结构：userId → (appId → token)，按应用隔离；TTL 挂在用户级（与 Redis hash
      * 实现的共享 TTL 语义对齐）。</p>
@@ -37,29 +40,15 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
     @Override
     public void save(Long userId, String refreshToken, Duration expires) {
         // ponytail: 扫一遍 ConcurrentHashMap 找最早过期项 + 顺路清除已过期条目，O(N) 但 N≤10k 可接受；
-        // synchronized 防止并发 save 下多线程同时淘汰导致 size 短暂超过 MAX_SIZE
-        if (store.size() >= MAX_SIZE) {
-            synchronized (evictLock) {
-                if (store.size() >= MAX_SIZE) {
-                    long now = System.currentTimeMillis();
-                    Long oldest = null;
-                    long minExpire = Long.MAX_VALUE;
-                    for (Map.Entry<Long, Entry> e : store.entrySet()) {
-                        long exp = e.getValue().expireAtMillis();
-                        if (exp <= now) {
-                            store.remove(e.getKey());
-                        } else if (exp < minExpire) {
-                            minExpire = exp;
-                            oldest = e.getKey();
-                        }
-                    }
-                    if (oldest != null) {
-                        store.remove(oldest);
-                    }
-                }
+        // 容量检查、淘汰、插入放同一临界区：覆盖已有用户不淘汰（size 不变）；
+        // 并发新增不会越过 MAX_SIZE，也不会误淘汰其他用户的有效 token
+        Entry newEntry = new Entry(refreshToken, System.currentTimeMillis() + expires.toMillis());
+        synchronized (evictLock) {
+            if (!store.containsKey(userId) && store.size() >= MAX_SIZE) {
+                evictExpiredThenOldest(store, MAX_SIZE);
             }
+            store.put(userId, newEntry);
         }
-        store.put(userId, new Entry(refreshToken, System.currentTimeMillis() + expires.toMillis()));
     }
 
     @Override
@@ -93,11 +82,21 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
 
     @Override
     public void saveUpstreamToken(Long userId, String appId, String upstreamToken, Duration expires) {
-        upstreamStore.compute(userId, (id, entry) -> {
-            Map<String, String> tokens = entry == null ? new ConcurrentHashMap<>() : entry.tokens();
-            tokens.put(appId, upstreamToken);
-            return new UpstreamEntry(tokens, System.currentTimeMillis() + expires.toMillis());
-        });
+        long now = System.currentTimeMillis();
+        synchronized (evictLock) {
+            if (!upstreamStore.containsKey(userId) && upstreamStore.size() >= MAX_UPSTREAM_SIZE) {
+                evictExpiredThenOldest(upstreamStore, MAX_UPSTREAM_SIZE);
+            }
+            upstreamStore.compute(userId, (id, entry) -> {
+                // 过期 entry 视为不存在（对齐 Redis hash 过期后字段全失的语义）：
+                // 不复用旧应用映射，避免写入另一应用时复活已过期的旧 token；
+                // 过期判定与读取路径一致（now > expireAt 才算过期）
+                Map<String, String> tokens = entry == null || now > entry.expireAtMillis()
+                        ? new ConcurrentHashMap<>() : entry.tokens();
+                tokens.put(appId, upstreamToken);
+                return new UpstreamEntry(tokens, now + expires.toMillis());
+            });
+        }
     }
 
     @Override
@@ -120,8 +119,41 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
 
     @Override
     public void renewUpstreamTokens(Long userId, Duration expires) {
+        // 过期 entry 视为不存在：返回 null 直接移除，不给过期条目（连同旧 token）续命
         upstreamStore.computeIfPresent(userId, (id, entry) ->
-                new UpstreamEntry(entry.tokens(), System.currentTimeMillis() + expires.toMillis()));
+                System.currentTimeMillis() > entry.expireAtMillis() ? null
+                        : new UpstreamEntry(entry.tokens(), System.currentTimeMillis() + expires.toMillis()));
+    }
+
+    /**
+     * 清掉已过期条目；仍满则淘汰最早过期的一项（调用方须持有 {@link #evictLock}）.
+     *
+     * <p>过期判定与读取路径一致：{@code now > expireAt} 才算过期。</p>
+     */
+    private static void evictExpiredThenOldest(Map<Long, ? extends Expirable> map, int maxSize) {
+        long now = System.currentTimeMillis();
+        Long oldest = null;
+        long minExpire = Long.MAX_VALUE;
+        for (Map.Entry<Long, ? extends Expirable> e : map.entrySet()) {
+            long exp = e.getValue().expireAtMillis();
+            if (now > exp) {
+                map.remove(e.getKey());
+            } else if (exp < minExpire) {
+                minExpire = exp;
+                oldest = e.getKey();
+            }
+        }
+        if (map.size() >= maxSize && oldest != null) {
+            map.remove(oldest);
+        }
+    }
+
+    /**
+     * 带过期时间戳的条目（供淘汰逻辑统一处理）.
+     */
+    private interface Expirable {
+
+        long expireAtMillis();
     }
 
     /**
@@ -130,7 +162,7 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
      * <p>不用 record：P3C 会把 record 头误判为方法名（UpstreamEntry 不符合
      * lowerCamelCase），普通 final class 构造器不会被扫描.</p>
      */
-    private static final class UpstreamEntry {
+    private static final class UpstreamEntry implements Expirable {
 
         private final Map<String, String> tokens;
         private final long expireAtMillis;
@@ -144,7 +176,8 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
             return tokens;
         }
 
-        private long expireAtMillis() {
+        @Override
+        public long expireAtMillis() {
             return expireAtMillis;
         }
     }
@@ -154,7 +187,7 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
      *
      * <p>不用 record：同 {@link UpstreamEntry} 的 P3C 误判说明.</p>
      */
-    private static final class Entry {
+    private static final class Entry implements Expirable {
 
         private final String token;
         private final long expireAtMillis;
@@ -168,7 +201,8 @@ public class InMemoryRefreshTokenStore implements IRefreshTokenStore {
             return token;
         }
 
-        private long expireAtMillis() {
+        @Override
+        public long expireAtMillis() {
             return expireAtMillis;
         }
     }

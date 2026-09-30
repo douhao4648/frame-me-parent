@@ -16,6 +16,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.frame.me</groupId>
             <artifactId>frame-me-starter-auth</artifactId>
         </dependency>

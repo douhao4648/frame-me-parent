@@ -45,4 +45,64 @@ class InMemoryLoginRateLimiterTest {
         Map<String, long[]> store = (Map<String, long[]>) field.get(limiter);
         assertThat(store.size()).isLessThan(100);
     }
+
+    /**
+     * 硬上限：桶满后拒绝为新 key 建桶（不淘汰活跃桶——淘汰等于重置攻击者额度），
+     * 已有桶的 key 不受影响.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void acquire_rejectsNewKeyWhenAtHardCapButAllowsExisting() throws Exception {
+        InMemoryLoginRateLimiter limiter = new InMemoryLoginRateLimiter(5, Duration.ofMinutes(1));
+        for (int i = 0; i < 20_000; i++) {
+            limiter.acquire("ip-" + i);
+        }
+
+        assertThatThrownBy(() -> limiter.acquire("new-ip"))
+                .isInstanceOf(BusinessException.class);
+
+        limiter.acquire("ip-0"); // 已有桶不受硬上限影响
+
+        Field field = InMemoryLoginRateLimiter.class.getDeclaredField("store");
+        field.setAccessible(true);
+        Map<String, long[]> store = (Map<String, long[]>) field.get(limiter);
+        assertThat(store).hasSize(20_000);
+        assertThat(store.get("ip-0")[1]).isEqualTo(2);
+    }
+
+    @Test
+    void concurrentAdmissions_neverExceedCapacity() throws Exception {
+        InMemoryLoginRateLimiter limiter = new InMemoryLoginRateLimiter(5, Duration.ofHours(1));
+        for (int i = 0; i < 19_999; i++) {
+            limiter.acquire("ip-" + i);
+        }
+        var start = new java.util.concurrent.CountDownLatch(1);
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(32);
+        var admitted = new java.util.concurrent.atomic.AtomicInteger();
+        try {
+            var futures = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+            for (int i = 0; i < 128; i++) {
+                String key = "new-" + i;
+                futures.add(executor.submit(() -> {
+                    try {
+                        start.await();
+                        limiter.acquire(key);
+                        admitted.incrementAndGet();
+                    } catch (BusinessException expected) {
+                        assertThat(expected.getCode()).isEqualTo(429);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException(e);
+                    }
+                }));
+            }
+            start.countDown();
+            for (var future : futures) {
+                future.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            assertThat(admitted.get()).isEqualTo(1);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 }

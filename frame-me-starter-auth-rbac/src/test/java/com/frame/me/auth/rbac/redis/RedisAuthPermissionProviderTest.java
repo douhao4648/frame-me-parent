@@ -49,6 +49,21 @@ class RedisAuthPermissionProviderTest {
         public void delete(String key) {
             map.remove(key);
         }
+
+        @Override
+        public long version(String key) {
+            return 1;
+        }
+
+        @Override
+        public boolean setIfVersionMatches(String key, UserPermissionSnapshot snapshot, Duration ttl,
+                                           long expectedVersion) {
+            if (expectedVersion != version(key)) {
+                return false;
+            }
+            set(key, snapshot, ttl);
+            return true;
+        }
     }
 
     /**
@@ -152,6 +167,138 @@ class RedisAuthPermissionProviderTest {
                 new RedisAuthPermissionProvider(new CountingSource(), new RbacRedisProperties(), failingStore);
 
         org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> provider.evict(5L));
+    }
+
+    /**
+     * 并发回填竞争：A 回源前读到版本 1，期间 B 完成吊销（版本推进为 2），
+     * A 的旧快照回填必须走版本校验并被拒，不得退化为直接 set 复活已吊销权限.
+     */
+    @Test
+    void staleBackfill_rejectedWhenVersionBumpedDuringReload() {
+        class RacingStore extends InMemoryStore {
+            boolean casCalled = false;
+            long expectedSeen = -2;
+
+            @Override
+            public long version(String key) {
+                return 1; // A 回源前读到的版本
+            }
+
+            @Override
+            public boolean setIfVersionMatches(String key, UserPermissionSnapshot snapshot, Duration ttl,
+                                               long expectedVersion) {
+                casCalled = true;
+                expectedSeen = expectedVersion;
+                return expectedVersion == 2; // 期间 B 已吊销，当前版本为 2 → 拒绝
+            }
+        }
+        RacingStore store = new RacingStore();
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(new CountingSource(), new RbacRedisProperties(), store);
+
+        provider.getRoles(user(6));
+
+        assertTrue(store.casCalled, "版本机制可用时回填必须经版本校验");
+        assertEquals(1, store.expectedSeen, "回填应携带回源前读到的版本");
+        assertEquals(0, store.setCount, "版本被拒时不得退化为直接 set");
+        assertTrue(store.map.isEmpty(), "旧快照不得写回 L2");
+    }
+
+    @Test
+    void unavailableVersion_doesNotBackfillOrPopulateL1() {
+        InMemoryStore store = new InMemoryStore() {
+            @Override
+            public long version(String key) {
+                return -1;
+            }
+        };
+        CountingSource source = new CountingSource();
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(source, new RbacRedisProperties(), store);
+        provider.getRoles(user(6));
+        provider.getRoles(user(6));
+        assertEquals(0, store.setCount);
+        assertEquals(2, source.roleCalls);
+    }
+
+    /**
+     * 版本未变（期间无吊销）时回填正常写入，且携带回源前读到的版本.
+     */
+    @Test
+    void backfill_writesWhenVersionUnchanged() {
+        class VersionedStore extends InMemoryStore {
+            long expectedSeen = -2;
+
+            @Override
+            public long version(String key) {
+                return 3;
+            }
+
+            @Override
+            public boolean setIfVersionMatches(String key, UserPermissionSnapshot snapshot, Duration ttl,
+                                               long expectedVersion) {
+                expectedSeen = expectedVersion;
+                if (expectedVersion != 3) {
+                    return false;
+                }
+                set(key, snapshot, ttl);
+                return true;
+            }
+        }
+        VersionedStore store = new VersionedStore();
+        RbacRedisProperties props = new RbacRedisProperties();
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(new CountingSource(), props, store);
+
+        provider.getRoles(user(7));
+
+        assertEquals(3, store.expectedSeen);
+        assertTrue(store.map.containsKey(props.getKeyPrefix() + "7"), "版本未变应正常回填 L2");
+    }
+
+    /**
+     * evict 必须在删除缓存后推进版本：使在途旧快照回填失效.
+     */
+    @Test
+    void evict_bumpsVersionAfterDelete() {
+        class RecordingStore extends InMemoryStore {
+            final java.util.List<String> calls = new java.util.ArrayList<>();
+
+            @Override
+            public void delete(String key) {
+                calls.add("delete");
+                super.delete(key);
+            }
+
+            @Override
+            public void bumpVersion(String key) {
+                calls.add("bump");
+            }
+        }
+        RecordingStore store = new RecordingStore();
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(new CountingSource(), new RbacRedisProperties(), store);
+
+        provider.evict(8L);
+
+        assertEquals(java.util.List.of("delete", "bump"), store.calls);
+    }
+
+    /**
+     * 版本推进失败同样属吊销失败：必须抛给调用方感知，重试即可收敛.
+     */
+    @Test
+    void evict_l2BumpFailure_propagates() {
+        IPermissionCacheStore failingBump = new InMemoryStore() {
+            @Override
+            public void bumpVersion(String key) {
+                throw new IllegalStateException("redis down");
+            }
+        };
+        RedisAuthPermissionProvider provider =
+                new RedisAuthPermissionProvider(new CountingSource(), new RbacRedisProperties(), failingBump);
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> provider.evict(9L));
     }
 
     @Test
